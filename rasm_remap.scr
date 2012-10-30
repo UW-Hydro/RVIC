@@ -1,0 +1,24 @@
+#!/bin/bash
+#
+#$ -cwd
+#$ -j y
+#$ -S /bin/bash
+
+cdo=/home/nijssen/apps/bin/cdo
+
+indir=/raid2/jhamman
+outdir=$indir
+
+#destination grid
+grid=$indir/domain.lnd.wr50a_ar9v4.100920.nc
+
+#source grid
+ifile=$indir/dummy_frac16.nc
+
+#outfile
+ofile=$outdir/outfile.nc
+echo "done writing to $ofile"
+
+weights=rasm_interp_weights.nc
+
+$cdo -remap,$grid,$weights $ifile $ofile
