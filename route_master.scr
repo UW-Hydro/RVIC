@@ -22,12 +22,14 @@
 ####################################################################################
 
 # Setup paths and input variables
-runpath=pwd
-DRT_flowDpath= 
-VIC_flowDpath= 
+runpath=.
+DRT_flowDpath=$runpath/inputs 
+VIC_flowDpath=$runpath/inputs
+uhs_path=$runpath/uh_s_files 
+nc_outpath=$runpath/nc_out
 
-rout_input_file=
-rout_sta_file=
+rout_input_file=$runpath/input.uhs.arctic
+rout_sta_file=$runpath/stnloc.arctic
 
 input_res=16th
 input_res_num = 0.0625
@@ -57,7 +59,7 @@ echo "running routing program (step 3/6)"
 
 gcc -Wall rout_rasm_uhs.c -lm -o rout_rasm_uhs
 ./rout_rasm_uhs $rout_input_file
-			#-----> add output path to input file and rout_rasm_uhs.c<--------#
+mv *.uh_s $uhs_path #would be cleaner if c program wrote directly to this path
 
 echo "completed routing program (step 3/6)"
 ##################################   
