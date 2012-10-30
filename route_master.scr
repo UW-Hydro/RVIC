@@ -1,0 +1,88 @@
+!#/bin/bash
+
+# This scrip will run all routing programs required to prepare the routing model
+# for use with the RASM VIC model.  The steps are as follows:
+#
+# 1.  Convert the DRT (Wu et al., 2012) flow direction files to VIC flow direction
+#     format.  
+#     Script used:  flowd_DRT2VIC.py
+# 2.  Create fractional area grid from the same files.  For now we're just using a
+#     grid of ones.
+#     Script used:  dummyfract_DRT2VIC.py
+# 3.  Create the uh_s files on the Lat/Lon grid using the modified routing program
+#     based on Lohmann et al., 1996.  
+#     Script used:  rout_rasm_uhs.c
+# 4.  Reformat the output of the uh_s files into columns with lat/lon headers.
+#     Script used:  uhs2col.scr
+# 5.  Put the reformated uhs files into a netcdf grid file
+#     Script used:  uhs2netcdf.py
+# 6.  Regrid the uhs.nc files using the CDO 1st order conservative mapping functions
+#     Script used: rasm_genweights.scr and/or rasm_remap.scr
+#
+####################################################################################
+
+# Setup paths and input variables
+runpath=pwd
+DRT_flowDpath= 
+VIC_flowDpath= 
+
+rout_input_file=
+rout_sta_file=
+
+input_res=16th
+input_res_num = 0.0625
+NODATA_Val=-9999
+
+echo "running master RASM routing script"
+##################################
+# 1.  Flow direction to VIC Format
+##################################
+echo "running flow direction script (step 1/6)"
+
+python flowd_DRT2VIC.py $DRT_flowDpath $VIC_flowDpath $NODATA_Val $input_res 
+
+echo "completed flow direction step (step 1/6)"
+################################## 
+# 2.  Fractional Area Grid 
+################################## 
+echo "running fractional area script (step 2/6)"
+
+python dummyfract_DRT2VIC.py flowd_DRT2VIC.py $DRT_flowDpath $VIC_flowDpath $NODATA_Val $input_res 
+
+echo "completed fractional area step (step 2/6)"
+##################################  
+# 3.  Make uhs files  
+##################################  
+echo "running routing program (step 3/6)"
+
+gcc -Wall rout_rasm_uhs.c -lm -o rout_rasm_uhs
+./rout_rasm_uhs $rout_input_file
+			#-----> add output path to input file and rout_rasm_uhs.c<--------#
+
+echo "completed routing program (step 3/6)"
+##################################   
+# 4.  uh-s files to columns   
+##################################
+echo "running uhs2col program (step 4/6)"
+
+./uhs2col.scr input_res_num * #inpath #outpath
+
+echo "completed uhs2col program (step 4/6)"
+##################################    
+# 5.  Put the uh_s file into a netcdf  
+################################## 
+echo "running uhs2netcdf program (step 5/6)" 
+
+python uhs2netcdf.py #invars
+
+echo "completed uhs2netcdf program (step 5/6)"
+##################################    
+# 6.  Regrid the uhs.nc files    
+################################## 
+echo "running the regrid script (step 6/6)"
+
+# regrid script
+
+echo "completed regridding program (step 6/6)"
+##################################
+echo "completed the RASM routing program"

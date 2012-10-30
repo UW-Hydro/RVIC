@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# open input uhs file and transpose to columns
+
+# Arg1 = Resolution of input grid
+# Arg2 = uhs file
+
+outpath=/raid/jhamman/UH_S_files/
+outname="$1_$2"
+
+# Write the header of the output file
+echo $2 >$outpaht$outname
+echo $1 >> $outpath$outname
+head -n 1 $2 >> $outpath$outname
+
+#Transpose the uh strings with the leading line as subheaders
+
+#First print all the subheaders (found in even lines)
+
+sed -n 'n;p' $2 > temp1
+
+#Then print all the uhs
+
+tail --lines +2 $2 | sed -n 'n;p' > temp2
+
+#Now trasnpose each temp file and print to outname
+for k in 1 2
+do 
+awk 'BEGIN {FS=OFS=" "}
+{
+for (i=1;i<=NF;i++)
+{
+ arr[NR,i]=$i;
+ if(big <= NF)
+  big=NF;
+ }
+}
+
+END {
+  for(i=1;i<=big;i++)
+   {
+    for(j=1;j<=NR;j++)
+    {
+     printf("%s%s",arr[j,i], (j==NR ? "" : OFS));
+    }
+    print "";
+   }
+}' temp$k >>$outpath$outname
+done
+
+#remove temporary files
+rm temp1
+rm temp2
+
+echo "Completed $outname conversion to columns"
