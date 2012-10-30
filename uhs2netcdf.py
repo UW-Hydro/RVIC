@@ -4,6 +4,8 @@ from netCDF4 import Dataset
 import numpy as np
 import time
 
+create_t = time.ctime(time.time())
+
 #load UHS file in column form
 path='/raid/jhamman/UH_S_files/'
 res=0.0625
@@ -23,7 +25,6 @@ xmax=179.969
 ymin=-55.9688
 ymax=83.9688
 
-
 # initialize the target arrays (uhs&fra-> a&b) with the nodata value
 #a = np.zeros((xdim,ydim,tdim))+nodata
 b = np.zeros((xdim,ydim))+nodata
@@ -39,44 +40,44 @@ uhs_in=indata[3:,:]
 #fill in values values
 for n, i in enumerate(xin):
    b[xin[i],yin[i]] = fracin[i]
-   #a[xin[i],yin[i],:] = uhs_in[i,:]
-
+   a[xin[i],yin[i],:] = uhs_in[i,:]
 
 # initialize the netcdf file
-rootgrp = Dataset('test.nc', 'w', format='NETCDF4_CLASSIC')
-print rootgrp.file_format
-
-rootgrp.close()
+f = Dataset('test.nc', 'w', format='NETCDF4_CLASSIC')
+print(f.file_format)
 
 # dimensions
-lon = rootgrp.createDimension('lon', xdim)
-lat = rootgrp.createDimension('lat', ydim)
-time = rootgrp.createDimension('time',tdim
-print rootgrp.dimensions
+lon = f.createDimension('lon', xdim)
+lat = f.createDimension('lat', ydim)
+time = f.createDimension('time',tdim)
+print(f.dimensions)
 
 # variables
-longitudes = rootgrp.createVariable('longitude','f4',('lon',))
-latitudes = rootgrp.createVariable('latitude','f4',('lat',))
-times = rootgrp.createVariable('time','i4',('time',))
-frac = rootgrp.createVariable('fraction','f8',('lon','lat','time'))
-uh = rootgrp.createVariable('unit_hydrograph','f8',('lon','lat','time'))
+longitudes = f.createVariable('longitude','f4',('lon',))
+latitudes = f.createVariable('latitude','f4',('lat',))
+times = f.createVariable('time','i4',('time',))
+frac = f.createVariable('fraction','f8',('lon','lat','time'))
+uh = f.createVariable('unit_hydrograph','f8',('lon','lat','time'))
 
 #write attributes for netcdf
-rootgrp.description = 'test script'
-rootgrp.history = 'Created ' + time.ctime(time.time())
-rootgrp.source = 'RASM routing program'
+f.description = 'test script'
+f.history = 'Created ' + create_t
+f.source = 'RASM routing program'
 latitudes.units = 'degrees north'
 longitudes.units = 'degrees east'
 times.units = 'Days'
 
+f.close()
+
 #print attributes
-for name in rootgrp.ncattrs():
-   print 'Global attr', name, '=', getattr(rootgrp.name)
+for name in f.ncattrs():
+   print 'Global attr', name, '=', getattr(f.name)
 
+f = Dataset('test.nc','a')
 # data
-lon[:] = np.linspace(xmin, xmax, xdim)
-lat[:] = np.linspace(ymin, ymax, ydim)
+lon[:] = np.arange(xmin,xmax,res)
+lat[:] = np.arange(ymin,ymax,res)
 fracs[:] = b
-#uhs[:] = a
+uhs[:] = a
 
-
+f.close()
