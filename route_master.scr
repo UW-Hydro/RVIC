@@ -3,28 +3,42 @@
 # This scrip will run all routing programs required to prepare the routing model
 # for use with the RASM VIC model.  The steps are as follows:
 #
+#STEPS 1-5 ONLY NEED TO BE DONE ONCE
+#
 # 1.  Convert the DRT (Wu et al., 2012) flow direction files to VIC flow direction
 #     format.  
 #     Script used:  flowd_DRT2VIC.py
-# 2.  Create fractional area grid from the same files.  For now we're just using a
+# 2.  Create Flow Velocity File
+#     Script used:  velo.awk
+# 3.  Create Flow Diffusion File
+#     Script used:  diff.awk
+# 4.  Create Xmask File
+#     Script used:  create_xmask.c
+# 5.  Create fractional area grid from the same files.  For now we're just using a
 #     grid of ones.
 #     Script used:  dummyfract_DRT2VIC.py
-# 3.  Create the uh_s files on the Lat/Lon grid using the modified routing program
+#
+#STEPS 6-9 NEED TO BE REPEATED FOR EXECUTED FOR EVERY STATION
+#
+# 6.  Create the uh_s files on the Lat/Lon grid using the modified routing program
 #     based on Lohmann et al., 1996.  
 #     Script used:  rout_rasm_uhs.c
-# 4.  Reformat the output of the uh_s files into columns with lat/lon headers.
+# 7.  Reformat the output of the uh_s files into columns with lat/lon headers.
 #     Script used:  uhs2col.scr
-# 5.  Put the reformated uhs files into a netcdf grid file
+# 8.  Put the reformated uhs files into a netcdf grid file
 #     Script used:  uhs2netcdf.py
-# 6.  Regrid the uhs.nc files using the CDO 1st order conservative mapping functions
+# 9.  Regrid the uhs.nc files using the CDO 1st order conservative mapping functions
 #     Script used: rasm_genweights.scr and/or rasm_remap.scr
 #
 ####################################################################################
 
 # Setup paths and input variables
 runpath=.
-DRT_flowDpath=$runpath/inputs 
-VIC_flowDpath=$runpath/inputs
+DRT_flowD=$runpath/inputs 
+VIC_flowD=$runpath/inputs
+VIC_velo=$runpath/inputs
+VIC_diff=$runpath/inputs
+VIC_frac=$runpath/inputs
 uhs_path=$runpath/uh_s_files 
 nc_outpath=$runpath/nc_out
 
@@ -39,52 +53,108 @@ echo "running master RASM routing script"
 ##################################
 # 1.  Flow direction to VIC Format
 ##################################
-echo "running flow direction script (step 1/6)"
+if [ -f $VIC_flowD ];
+then
+	echo "File $VIC_flowD exists, skipping step 1"
+else
+	echo "File$VIC_flowD does not exist.\n"
+	echo "running flow direction script (step 1/9)"
 
-python flowd_DRT2VIC.py $DRT_flowDpath $VIC_flowDpath $NODATA_Val $input_res 
+	python flowd_DRT2VIC.py $DRT_flowD $VIC_flowD $NODATA_Val $input_res 
 
-echo "completed flow direction step (step 1/6)"
+	echo "completed flow direction step (step 1/9)"
+fi
+##################################
+# 2.  Flow Velocity File  
+##################################
+if [ -f $VIC_velo ];
+then
+	echo "File $VIC_velo exists, skipping step 2"
+else
+	echo "File$VIC_velo does not exist.\n"
+	echo "running flow velocity script (step 2/9)"
+
+	awk -f velo.awk $VIC_flowD > $VIC_velo
+
+	echo "completed flow velocity step (step 2/9)"
+fi
+##################################
+# 3.  Flow Diffusion File
+##################################
+if [ -f $VIC_diff ];
+then
+	echo "File $VIC_diff exists, skipping step 3"
+else
+	echo "File$VIC_diff does not exist.\n"
+	echo "running flow diffusion script (step 3/9)"
+	
+	awk -f diff.awk $DRT_flowD > $VIC_diff
+	
+	echo "completed flow diffusion step (step 3/9)"
+fi
+##################################
+# 4.  Xmask File
+##################################
+if [ -f $VIC_xmask ];
+then
+	echo "File $VIC_xmask exists, skipping step 4"
+else
+	echo "File$VIC_xmask does not exist.\n"
+	echo "running flow distance (xmask) script (step 4/9)"
+
+	gcc -o create_xmask create_xmask.c -lm	   
+        create_xmask $DRT_flowD "xmask file"
+
+	echo "completed flow distance (xmask) step (step 4/9)"
+fi
+
 ################################## 
-# 2.  Fractional Area Grid 
+# 5.  Fractional Area Grid 
 ################################## 
-echo "running fractional area script (step 2/6)"
+if [ -f $VIC_frac ];
+then
+	echo "File $VIC_frac exists, skipping step 1"
+else
+	echo "File$VIC_frac does not exist.\n"
+	echo "running fractional area script (step 5/9)"
 
-python dummyfract_DRT2VIC.py flowd_DRT2VIC.py $DRT_flowDpath $VIC_flowDpath $NODATA_Val $input_res 
+	python dummyfract_DRT2VIC.py $DRT_flowD $VIC_flowD $NODATA_Val $input_res
 
-echo "completed fractional area step (step 2/6)"
+	echo "completed fractional area step (step 5/9)"
+fi
 ##################################  
-# 3.  Make uhs files  
+# 6.  Make uhs files  
 ##################################  
-echo "running routing program (step 3/6)"
+echo "running routing program (step 6/9)"
 
 gcc -Wall rout_rasm_uhs.c -lm -o rout_rasm_uhs
 ./rout_rasm_uhs $rout_input_file
-mv *.uh_s $uhs_path #would be cleaner if c program wrote directly to this path
+mv *.uh_s $uhs_path	#would be cleaner if c program wrote directly to this path
 
-echo "completed routing program (step 3/6)"
+echo "completed routing program (step 6/9)"
 ##################################   
-# 4.  uh-s files to columns   
+# 7.  uh-s files to columns   
 ##################################
-echo "running uhs2col program (step 4/6)"
+echo "running uhs2col program (step 7/9)"
 
 ./uhs2col.scr input_res_num * #inpath #outpath
 
-echo "completed uhs2col program (step 4/6)"
+echo "completed uhs2col program (step 7/9)"
 ##################################    
-# 5.  Put the uh_s file into a netcdf  
+# 8.  Put the uh_s file into a netcdf  
 ################################## 
-echo "running uhs2netcdf program (step 5/6)" 
+echo "running uhs2netcdf program (step 8/9)" 
 
 python uhs2netcdf.py #invars
 
-echo "completed uhs2netcdf program (step 5/6)"
+echo "completed uhs2netcdf program (step 8/9)"
 ##################################    
-# 6.  Regrid the uhs.nc files    
+# 9.  Regrid the uhs.nc files    
 ################################## 
-echo "running the regrid script (step 6/6)"
+echo "running the regrid script (step 9/9)"
 
 # regrid script
 
-echo "completed regridding program (step 6/6)"
+echo "completed regridding program (step 9/9)"
 ##################################
 echo "completed the RASM routing program"
