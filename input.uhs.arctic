@@ -1,9 +1,9 @@
 ### INPUT FILE FOR (C) ROUTING PROGRAM -- order important ###
-FLOW_DIREC_FILE  /raid/jhamman/DRT/upscaled_global_hydrography/by_HydroSHEDS_Hydro1k/flow_direction/VIC_flow_direction/DRT_16th_FDR_globe_vic.asc
-VELOCITY_FILE    1.5
-DIFF_FILE        800
-XMASK_FILE       12500
-FRACTION_FILE    /raid/jhamman/DRT/upscaled_global_hydrography/by_HydroSHEDS_Hydro1k/flow_direction/VIC_dummy_fraction/DRT_16th_dummyfrac_globe_vic.asc
-STATION_FILE     /usr1/jhamman/RASM/vic_routing/route_rasm/arctic/stnloc.arctic
+FLOW_DIREC_FILE  /raid2/jhamman/route_rasm/inputs/DRT_16th_FDR_globe.asc
+VELOCITY_FILE    /raid2/jhamman/route_rasm/inputs/DRT_16th_velo_globe.asc
+DIFF_FILE        /raid2/jhamman/route_rasm/inputs/DRT_16th_diff_globe.asc
+XMASK_FILE       /raid2/jhamman/route_rasm/inputs/DRT_16th_xmask_globe.asc
+FRACTION_FILE    /raid2/jhamman/route_rasm/inputs/DRT_16th_dummyfrac_globe_vic.asc
+STATION_FILE     /raid2/jhamman/route_rasm/stnloc.arctic
 INPUT_FILE_PREC  4
-UNIT_HD_FILE    /usr1/jhamman/RASM/vic_routing/route_rasm/arctic/UH_ALL
+UNIT_HD_FILE     /raid2/jhamman/route_rasm/UH_ALL

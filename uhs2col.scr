@@ -3,25 +3,28 @@
 # open input uhs file and transpose to columns
 
 # Arg1 = Resolution of input grid
-# Arg2 = uhs file
+# Arg2 = inpath
+# Arg3 = outpath
+# Arg4 = station name
 
-outpath=/raid/jhamman/UH_S_files/
-outname="$1_$2"
+outpath=$3
+outname="col_$1_$4"
+infile=$2$4
 
 # Write the header of the output file
-echo $2 >$outpaht$outname
+echo $4 >$outpaht$outname
 echo $1 >> $outpath$outname
-head -n 1 $2 >> $outpath$outname
+head -n 1 $infile >> $outpath$outname
 
 #Transpose the uh strings with the leading line as subheaders
 
 #First print all the subheaders (found in even lines)
 
-sed -n 'n;p' $2 > temp1
+sed -n 'n;p' $infile > temp1
 
 #Then print all the uhs
 
-tail --lines +2 $2 | sed -n 'n;p' > temp2
+tail --lines +2 $infile | sed -n 'n;p' > temp2
 
 #Now trasnpose each temp file and print to outname
 for k in 1 2

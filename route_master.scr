@@ -34,12 +34,12 @@
 
 # Setup paths and input variables
 runpath=.
-DRT_flowD=$runpath/inputs 
-VIC_flowD=$runpath/inputs
-VIC_velo=$runpath/inputs
-VIC_diff=$runpath/inputs
-VIC_frac=$runpath/inputs
-uhs_path=$runpath/uh_s_files 
+DRT_flowD=$runpath/inputs/DRT_16th_FDR_globe.asc 
+VIC_flowD=$runpath/inputs/DRT_16th_FDR_globe_vic.asc
+VIC_velo=$runpath/inputs/DRT_16th_velo_globe.asc
+VIC_diff=$runpath/inputs/DRT_16th_diff_globe.asc
+VIC_frac=$runpath/inputs/DRT_16th_dummyfrac_globe_vic.asc
+uhs_path=$runpath/uh_s_files/
 nc_outpath=$runpath/nc_out
 
 rout_input_file=$runpath/input.uhs.arctic
@@ -137,7 +137,7 @@ echo "completed routing program (step 6/9)"
 ##################################
 echo "running uhs2col program (step 7/9)"
 
-./uhs2col.scr input_res_num * #inpath #outpath
+./uhs2col.scr $input_res_num $
 
 echo "completed uhs2col program (step 7/9)"
 ##################################    
