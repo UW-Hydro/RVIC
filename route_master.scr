@@ -14,6 +14,9 @@
 #     Script used:  diff.awk
 # 4.  Create Xmask File
 #     Script used:  create_xmask.c
+
+# split script here (i.e. make steps 1-4 a pre-processing script and 5-9 a batch python script)
+
 # 5.  Create fractional area grid from the same files.  For now we're just using a
 #     grid of ones.
 #     Script used:  dummyfract_DRT2VIC.py
