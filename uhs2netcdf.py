@@ -40,7 +40,8 @@ uhs_in=indata[3:,:]
 #fill in values values
 for n, i in enumerate(xin):
    b[xin[i],yin[i]] = fracin[i]
-   a[xin[i],yin[i],:] = uhs_in[i,:]
+#   a[xin[i],yin[i],:] = uhs_in[i,:]
+print b
 
 # initialize the netcdf file
 f = Dataset('test.nc', 'w', format='NETCDF4_CLASSIC')
@@ -70,14 +71,14 @@ times.units = 'Days'
 f.close()
 
 #print attributes
-for name in f.ncattrs():
-   print 'Global attr', name, '=', getattr(f.name)
+#for name in f.ncattrs():
+#   print 'Global attr', name, '=', getattr(f.name)
 
 f = Dataset('test.nc','a')
 # data
 lon[:] = np.arange(xmin,xmax,res)
 lat[:] = np.arange(ymin,ymax,res)
 fracs[:] = b
-uhs[:] = a
+#uhs[:] = a
 
 f.close()
