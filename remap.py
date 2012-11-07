@@ -8,34 +8,25 @@ import time
 infile='/usr1/jhamman/RASM/vic_routing/route_rasm/arctic/UH_S_files/YUKON.uh_s'
 fill_value=-9999
 res=0.0625
+basin = 'YUKON'
 
 #Load the Header data for each point
 indata1 = open( infile, "r").readlines()[1::2]
 indata1 = [item.rstrip() for item in indata1]
-indata1 = np.array([x.split() for x in indata1], dtype='float')
+indata1 = np.array([x.split() for x in indata1], dtype='d')
 
 #Load the UH data for each point
 uhs_in = open( infile, "r").readlines()[2::2]
 uhs_in = [item.rstrip() for item in uhs_in]
-uhs_in = np.array([x.split() for x in uhs_in], dtype='float')
+uhs_in = np.array([x.split() for x in uhs_in], dtype='d')
 
 #reshape the uhs output
 #make individual arrays of lats, lons, cell nums and fracs
 lon_in=indata1[:,0]
 lat_in=indata1[:,1]
 frac_in=indata1[:,2]
-xcell_in=indata1[:,3]
-ycell_in=indata1[:,4]
-
-print 'lon_in = '
-print lon_in
-print 'lat_in = '
-print lat_in
-
-xin=xcell_in-min(xcell_in)
-yin=ycell_in-min(ycell_in)
-xin=xin.astype('int32')
-yin=yin.astype('int32')
+xin=indata1[:,3].astype('int32')-min(indata1[:,3].astype('int32'))
+yin=indata1[:,4].astype('int32')-min(indata1[:,4].astype('int32'))
 
 lons = np.arange(min(lon_in),max(lon_in)+res,res)
 lats = np.arange(min(lat_in),max(lat_in)+res,res)
@@ -48,12 +39,11 @@ for n, i in enumerate(xin):
     b[yin[n],xin[n]] = frac_in[n]
     a[:,yin[n],xin[n]] = uhs_in[n,:]
 
-   ############# WRITE TO NETCDF4 ##################
-   
+################ WRITE TO NETCDF4 #########################
+basin_nc = basin+'_UH.nc'   
 # initialize the netcdf file
-f = Dataset('YUKON_UH.nc', 'w', format='NETCDF4_CLASSIC')
+f = Dataset(basin_nc, 'w', format='NETCDF4_CLASSIC')
 print(f.file_format)
-
 
 # set dimensions
 time = f.createDimension('time', None)
@@ -62,23 +52,35 @@ lat = f.createDimension('lat', (len(lats)))
 print(f.dimensions)
 
 # initialize variables
-times = f.createVariable('time','f8',('time',))
-lon = f.createVariable('lon','f4',('lon',))
-lat = f.createVariable('lat','f4',('lat',))
+time = f.createVariable('time','f8',('time',))
+lon = f.createVariable('lon','f8',('lon',))
+lat = f.createVariable('lat','f8',('lat',))
 frac = f.createVariable('fraction','f8',('lat','lon',),fill_value=fill_value)
 uh = f.createVariable('unit_hydrograph','f8',('time','lat','lon',),fill_value=fill_value)
 
 import time
 # write attributes for netcdf
-f.description = 'test_script'
+f.description = 'Unit Hydrograph and Fractional Area for ' +basin+' basin . Created at resolution: '+str(res)
 f.history = 'Created ' + time.ctime(time.time())
 f.source = 'RASM routing program remap.py'
-lat.units = 'degrees_north'
-lon.units = 'degrees_east'
-times.units = 'Days'
-times.units = 'Days to runoff at downstream outlet'
+f.grid_res = res
 
-# data
+lat.long_name = 'latitude coordinate'
+lat.standard_name = 'latitude'
+lat.units = 'degrees_north'
+
+lon.long_name = 'longitude coordinate'
+lon.standard_name = 'longitude'
+lon.units = 'degrees_east'
+
+time
+time.units = 'day'
+time.description = 'Days to runoff at downstream outlet'
+frac.units = 'Fraction of contributing area'
+
+uh.units = 'Unit Hydrograph.  Contributing fraction of runoff from each grid cell to the downstream point of interest.' 
+
+# write data to variables initialized above
 lon[:] = lons
 lat[:] = lats
 frac[:,:] = b
@@ -86,7 +88,7 @@ uh[:,:,:] = a
 
 f.close()
 
-print '*** SUCCESS writing test.nc!'
+print '*** SUCCESS writing', basin_nc, '***'
 
 # remap the uhs.nc file using cdo
 #outfile = "outtest.nc"
