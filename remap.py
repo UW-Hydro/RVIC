@@ -4,6 +4,8 @@ from netCDF4 import Dataset
 import numpy as np
 import os
 import time
+from cdo import *
+cdo = Cdo()
 
 infile='/usr1/jhamman/RASM/vic_routing/route_rasm/arctic/UH_S_files/YUKON.uh_s'
 fill_value=-9999
@@ -90,7 +92,12 @@ f.close()
 
 print '*** SUCCESS writing', basin_nc, '***'
 
+print 'remapping ', basin_nc, ' to RASM grid'
 # remap the uhs.nc file using cdo
-#outfile = "outtest.nc"
-#os.system("cdo .......")
+grid = '/usr1/jhamman/RASM/cdo_interp/domain.lnd.wr50a_ar9v4.100920.nc'
+ifile = '/usr1/jhamman/RASM/rout_rasm/YUKON_UH.nc'
+ofile = '/usr1/jhamman/RASM/rout_rasm/YUKON_RASM_UH.nc'
 
+cdo.remapcon(grid,input = ifile,output = ofile)
+
+print 'done remapping'
