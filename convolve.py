@@ -20,11 +20,12 @@ time = f2.variables['time'][:]
 flux = runoff + baseflow
 
 q = np.zeros((len(flux)+len(t_uh)))
+area = 1
 
 for i in xrange(len(flux)):
     for j in xrange(len(t_uh)):
         tstep = i+j
-        q[tstep]= q[tstep] + np.sum(flux[i,:,:] * uh[j,:,:] * frac[:,:])
+        q[tstep]= q[tstep] + np.sum(flux[i,:,:] * uh[j,:,:] * frac[:,:]* area)
 
 plt.plot(q)
 plt.show()
