@@ -1,0 +1,9 @@
+### INPUT FILE FOR (C) ROUTING PROGRAM -- order important ###
+FLOW_DIREC_FILE  /raid/jhamman/temp_input_files/DRT_16th_FDR_globe.asc.vic
+VELOCITY_FILE    2
+DIFF_FILE        800
+XMASK_FILE       /raid/jhamman/temp_input_files/DRT_16th_xmask_globe.asc.vic
+FRACTION_FILE    /raid/jhamman/temp_input_files/DRT_16th_dummyfrac_globe.asc.vic
+STATION_FILE     /raid/jhamman/temp_input_files/stnloc.arctic
+INPUT_FILE_PREC  4
+UNIT_HD_FILE     /raid/jhamman/temp_input_files/UH_ALL
