@@ -106,9 +106,6 @@ int  CalculateDaysInYear(DATE *);
 int  CalculateNumberDays(DATE *, DATE *);
 void FindRowsCols(char *, int *, int *, float *, float *, float *); 
 int  IsLeapYear(int);
-void MakeConvolution(int,int,int,CATCH *,ARC **,
-         float *,float *, float *,float **,float,
-         char *,char *,int,float *,long);
 void MakeGridUH(ARC **,CATCH *,LIST *,
          int,int,float,float,float,float **,float ***,float **,float **,float **);
 void MakeUH(float ***UH, ARC **, int, int);
