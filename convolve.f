@@ -44,15 +44,32 @@ c     Step 0 - Setup
       use netcdf
  
 c     Step 1 - Load IRF NetCDF (Fraction and IRF)
-      status = nf90_open(path = "/raid/jhamman/temp_uh_files/run8/DVIUP_RASM_UH.nc",
-     & cmode = nf90_nowrite, ncid = fraction)
-      if (status /= nf90_noerr) call handle_err(status)
-   
+      CALL READ_NETCDF("/raid/jhamman/temp_uh_files/run8/DVIUP_RASM_UH.nc","fraction","FRAC")
+      CALL READ_NETCDF("/raid/jhamman/temp_uh_files/run8/DVIUP_RASM_UH.nc","unit_hydrograph", "IRF")
+
 
 c     Step 2 - Load Runoff/Baseflow Fluxes
+      CALL READ_NETCDF("/nfs/thermal/raid/jhamman/RASM_results/r33/r33RBVIC70.vic.ha.1990s.qflux.nc","Runoff","Runoff")
+      CALL READ_NETCDF("/nfs/thermal/raid/jhamman/RASM_results/r33/r33RBVIC70.vic.ha.1990s.qflux.nc","Baseflow","Baseflow")
+      FLUX = Rufoff+Baseflow
 
 
 c     Step 3 - Load Grid Cell Areas
+      CALL READ_NETCDF("/nfs/hydro6/raid/nijssen/rasm/masks/racm_masks_121108.nc","DOMA_AREA","AREA")
+      AREA = AREA*RERD*RERD
 
 
 c     Step 4 - Make Convolution
+      n = len(FLUX)
+      m = len(IRF)
+      do i=1,n
+         do j=1,m
+            T_STEP = i+j
+            Q(T_STEP) = Q(T_STEP)+SUM(FLUX(i,:,:)*IRF(J,:,:)*AREA(:,:)*FRAC(:,:),mask=FRAC.gt.0)
+         end do
+      end do
+
+
+c     Step 5 - Write to netCDF
+      CALL WRITE_NETCDF("/out.nc",Q)
+      
