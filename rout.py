@@ -1,27 +1,28 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 
 # PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
 # Routing algorithm developed by D. Lohmann.
 
 ## INPUTS
 ## arg1 = input grids (netcdf)
-## arg2 = Pour Point Latitude
-## arg3 = Pour Point Longitude
-## arg4 = Basin name (string)
+## arg2 = UH_BOX (csv file)
+## arg3 = Pour Point Latitude
+## arg4 = Pour Point Longitude
 ## arg5 = velocity
 ## arg6 = diffusion
-## arg7 = UH_BOX (txt file)
+
 
 ## OUTPUTS
 ## netCDF with gridded UH_S and fraction data
 
 ####################################################################################
-import numpy as np
-import argparse
-from netCDF4 import Dataset
-import time as Time
-import os 
+import os
 import sys
+print(sys.version)
+import numpy as np
+from netCDF4 import Dataset
+import argparse
+import time as Time
 from datetime import datetime
 
 (mode, ino, dev, nlink, uid, gid, size, atime, mtime, ctime) = os.stat(sys.argv[0])
@@ -36,19 +37,28 @@ out_TS = 86400
 ####################################################################################
 # Parse arguments
 parser = argparse.ArgumentParser()
+parser.add_argument("nc_in", type=str, help="input netcdf containing all input grids")
+parser.add_argument("UH_BOX_file", type=str, help="input UH_BOX hydrograph")
 parser.add_argument("basin_x", type=float, help="input longitude of point to route to")
 parser.add_argument("basin_y", type=float, help="input latitude of point to route to")
+parser.add_argument("velocity", type=float, help="input wave velocity")
+parser.add_argument("diffusion", type=float, help="input diffusion")
+
 args = parser.parse_args()
 
 #Replace these values with input args
-nc_in = '/raid/jhamman/temp_input_files/Wu_routing_inputs.nc'
+nc_in = args.nc_in
+UH_BOX_file = args.UH_BOX_file
 basin_x = args.basin_x
 basin_y = args.basin_y
+velocity = args.velocity
+diffusion = args.diffusion
+#nc_in = '/raid/jhamman/temp_input_files/Wu_routing_inputs.nc'
 #basin_x = 127.21875000
 #basin_y = 26.66546249
-velocity = 1.
-diffusion = 2000.
-UH_BOX_file = '/raid/jhamman/temp_input_files/UH_RASM_hourly.csv'
+#velocity = 1.
+#diffusion = 2000.
+#UH_BOX_file = '/raid/jhamman/temp_input_files/UH_RASM_hourly.csv'
 
 ##################################################################################
 ###############################  MAIN PROGRAM ####################################
@@ -63,6 +73,7 @@ def main():
 	global basin_id
 	(basin_id,x_min,x_max,y_min,y_max) = read_global_inputs(Global['lon'],Global['lat'],Global['Basin_ID'],basin_x,basin_y)
 	print 'basin_id: ', basin_id
+
 	# Load input arrays, store in python list.  (Format - Basin['var'])
         Basin = clip_netcdf(nc_in,('Basin_ID','Flow_Direction','Flow_Distance','lon','lat'),x_min,x_max,y_min,y_max)
         
