@@ -2,30 +2,33 @@
 
 # PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
 # Routing algorithm developed by D. Lohmann.
+#
+# WHATS LEFT TO DO
+# Variable Naming/order:
+# Testing
+# Config files
 
 ####################################################################################
-import os
 import sys
 import numpy as np
-from netCDF4 import Dataset
 import argparse
-import time as Time
-from datetime import datetime
+import time as tm
+from netCDF4 import Dataset
 
 ##################################################################################
 ###############################  MAIN PROGRAM ####################################
 ##################################################################################
 def main():
-    (infile,UHfile,basin_x,basin_y,load_velocity, velocity,load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS) = process_command_line()
-
-    if verbose == True:
-        print 'Start time: ', datetime.now()
+    (infile,UHfile,basin_x,basin_y,load_velocity,velocity,
+     load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
+        BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)=process_command_line()
 
     # Load input arrays, store in python list.  (Format - Inputs['var'])
     Inputs = read_netcdf(infile,('Basin_ID','lon','lat'),verbose)
 
     # Find boudnds of basin and basin_id
-    (basin_id,x_min,x_max,y_min,y_max) = read_global_inputs(Inputs['lon'],Inputs['lat'],Inputs['Basin_ID'],basin_x,basin_y,verbose)
+    (basin_id,x_min,x_max,y_min,y_max) = read_global_inputs(basin_x,basin_y,Inputs['lon'],Inputs['lat'],
+                                                            Inputs['Basin_ID'],verbose)
     if verbose == True:
         print 'basin_id: ', basin_id
     
@@ -35,7 +38,8 @@ def main():
         vars.append('velocity')
     if load_diffusion==True:
         vars.append('diffusion')
-    Basin = clip_netcdf(infile,vars,x_min,x_max,y_min,y_max,load_velocity,velocity,load_diffusion,diffusion,verbose)
+    Basin = clip_netcdf(infile,vars,x_min,x_max,y_min,y_max,
+                        load_velocity,velocity,load_diffusion,diffusion,verbose)
     
     # Load UH_BOX input
     (uh_t,UH_Box) = load_uh(UHfile,verbose)
@@ -46,20 +50,25 @@ def main():
     T_UH = BASIN_FLOWTIME*DAY_SECONDS/INPUT_INTERVAL
     
     # Read direction grid and find to_col (to_x) and to_row (to_y)
-    (to_x,to_y) = read_direction(Basin['Flow_Direction'],Basin['lon'],Basin['lat'],Basin['Basin_ID'],basin_id,verbose)
+    (to_x,to_y) = read_direction(Basin['Flow_Direction'],Basin['Basin_ID'],
+                                 basin_id,verbose)
     
     # Find row/column indicies of lat/lon inputs
     x_ind = find_nearest(Basin['lon'],basin_x)
     y_ind = find_nearest(Basin['lat'],basin_y)
     
     # Find all grid cells upstream of pour point
-    (Catchment, fractions) = search_catchment(to_x,to_y,x_ind,y_ind,Basin['lon'],Basin['lat'], Basin['Basin_ID'],basin_id,verbose)
+    (Catchment, fractions) = search_catchment(to_x,to_y,x_ind,y_ind,
+                                              Basin['Basin_ID'],basin_id,verbose)
     
     # Make UH for each grid cell upstream of basin pour point (linear routing model - Saint-Venant equation)
-    UH = make_UH(INPUT_INTERVAL,T_Cell,Catchment['x_inds'],Catchment['y_inds'],Basin['Velocity'],Basin['Diffusion'],Basin['Flow_Distance'],Basin['lon'],Basin['lat'],PREC,verbose)
+    UH = make_UH(INPUT_INTERVAL,T_Cell,
+                 Catchment['x_inds'],Catchment['y_inds'],Basin['Velocity'],
+        Basin['Diffusion'],Basin['Flow_Distance'],PREC,verbose)
     
     # Make UH_RIVER by incrementally moving upstream comining UH functions
-    UH_RIVER = make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,Catchment['x_inds'], Catchment['y_inds'], Catchment['count_ds'],PREC,verbose)
+    UH_RIVER = make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
+                                  Catchment['x_inds'], Catchment['y_inds'], Catchment['count_ds'],PREC,verbose)
     
     # Make UH_S for each grid cell upstream of basin pour point (combine IRFs for all grid cells in flow path)
     UH_S = make_grid_UH(T_UH,UH_RIVER,UH_Box,to_x,to_y,
@@ -71,17 +80,20 @@ def main():
     
     #Write to output netcdf
     times = np.linspace(0,OUTPUT_INTERVAL*UH_out.shape[0],UH_out.shape[0],endpoint=False)
-    write_netcdf(basin_x,basin_y,Basin['lon'],Basin['lat'],times,UH_out,fractions,basin_id,NODATA,verbose)
+    write_netcdf(basin_x,basin_y,Basin['lon'],Basin['lat'],
+                 times,UH_out,fractions,velocity,diffusion,basin_id,NODATA,verbose)
 
     if verbose == True:
         print 'routing program finished.'
-        print 'End time: ', datetime.now()
     
 ##################################################################################
 ############### Routines #########################################################
 ##################################################################################
-
 def process_command_line():
+    """
+    Parse arguments and assign flags for further loading of variables, for
+    information on input arguments, type rout.py -h
+    """
     # Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("infile", type=str, help="Input netCDF containing all input grids")
@@ -92,8 +104,8 @@ def process_command_line():
     parser.add_argument("-diff","--diffusion", type=float, help="Input diffusion")
     parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
     parser.add_argument("--NODATA",type=int, help="Input integer to bedefined as NODATA value",default=-9999)
-    parser.add_argument("--CELL_FLOWTIME",type=int, help="Input integer to be defined as max number of days for flow to pass through cell",default=4)
-    parser.add_argument("--BASIN_FLOWTIME",type=int, help="Input integer to be defined as max number of days for flow to pass through basin",default=60)
+    parser.add_argument("--CELL_FLOWTIME",type=int, help="Input integer to be defined as max number of days for flow to pass through cell",default=2)
+    parser.add_argument("--BASIN_FLOWTIME",type=int, help="Input integer to be defined as max number of days for flow to pass through basin",default=50)
     parser.add_argument("-PREC","--Precision",type=int, help="Input integer to be defined asminimum precision for calculations",default =1e-30)
     parser.add_argument("-TS","--OUTPUT_INTERVAL",type=int, help="Output timestep in seconds for Unit Hydrographs",default=86400)
     parser.add_argument("--DAY_SECONDS",type=int, help="Seconds per day",default=86400)
@@ -105,13 +117,13 @@ def process_command_line():
     basin_y = args.latitude
     if args.velocity==None:
         load_velocity=True
-        velocity = args.velocity
+        velocity = 'From Grid Inputs'
     else:
         load_velocity=None
         velocity = args.velocity
     if args.diffusion==None:
         load_diffusion = True
-        diffusion = args.diffusion
+        diffusion = 'From Grid Inputs'
     else:
         load_diffusion = None
         diffusion = args.diffusion
@@ -122,15 +134,20 @@ def process_command_line():
     PREC = args.Precision
     OUTPUT_INTERVAL = args.OUTPUT_INTERVAL
     DAY_SECONDS = args.DAY_SECONDS
-    return (infile,UHfile,basin_x,basin_y,load_velocity, velocity,load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
+    return (infile,UHfile,basin_x,basin_y,load_velocity,velocity,load_diffusion,
+            diffusion,verbose,NODATA,CELL_FLOWTIME,BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
 
 ##################################################################################
 ##  Read netCDF Inputs
 ##  Read data from input netCDF.  Input netCDF should include the following vars:
 ##  ('Basin_ID','Flow_Direction','Flow_Distance','Land_Mask','lon','lat')
-##  Velocity and Diffusion are assumed to be constant in this version
 ##################################################################################
 def read_netcdf(nc_str,vars,verbose):
+    """
+    Read data from input netCDF.  Input netCDF should include the following vars:
+    ('Basin_ID','Flow_Direction','Flow_Distance','Land_Mask','lon','lat') and
+    may also include ('Velocity') and/or ('Diffusion')
+    """
     if verbose == True:
         print 'Reading input data vars:', vars, 'from file:',nc_str
     f = Dataset(nc_str,'r')
@@ -143,7 +160,8 @@ def read_netcdf(nc_str,vars,verbose):
 ##################################################################################
 ## Find Basin Dims and ID
 ##################################################################################
-def read_global_inputs(lons,lats,basins,basin_x,basin_y,verbose):
+def read_global_inputs(basin_x,basin_y,lons,lats,basins,verbose):
+    """Reads input lons/lats/basins_ids and returns basin bounds."""
     if verbose == True:
         print 'reading global inputs'
     basin_id = basins[find_nearest(lats,basin_y),find_nearest(lons,basin_x)]
@@ -163,7 +181,14 @@ def read_global_inputs(lons,lats,basins,basin_x,basin_y,verbose):
 ##  ('Basin_ID','Flow_Direction','Flow_Distance','Land_Mask','lon','lat')
 ##  Velocity and Diffusion are assumed to be constant in this version
 ##################################################################################
-def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,load_velocity,velocity,load_diffusion,diffusion,verbose):
+def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,
+                load_velocity,velocity,load_diffusion,diffusion,verbose):
+    """
+    Read data from input netCDF.  Clip to basin sizde based on outputs from
+    read_global_inputs.  Input netCDF should include the following vars:
+    ('Basin_ID','Flow_Direction','Flow_Distance','Land_Mask','lon','lat') and
+    may also include ('Velocity') and/or ('Diffusion')
+    """
     if verbose == True:
         print 'Reading input data vars:', vars
     f = Dataset(nc_str,'r')
@@ -193,6 +218,7 @@ def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,load_velocity,velocity,load_
 ##  Read the UH_BOX timeseries.  Save both the UH timeseries and the timestamps
 ##################################################################################
 def load_uh(infile,verbose):
+    """ Loads UH from (infile) and returns a timeseries Unit Hydrograph (uh_t, uh)""" 
     if verbose == True:
         print 'Reading UH_Box from file: ', infile
     (uh_t,uh) = np.genfromtxt(infile, delimiter=',', skip_header=1, unpack=True)
@@ -204,6 +230,7 @@ def load_uh(infile,verbose):
 ##  In this version of the code, the timestep of the UH_BOX must match DELTA_T
 ##################################################################################
 def find_TS(uh_t,verbose):
+    """Determines the (INPUT_INTERVAL) based on the timestep given in UHfile"""
     INPUT_INTERVAL = uh_t[1]-uh_t[0]
     if verbose == True:
         print 'Input Timestep = '+ str(INPUT_INTERVAL) + ' seconds'
@@ -212,52 +239,56 @@ def find_TS(uh_t,verbose):
 ##################################################################################
 ##  Read Direction
 ##  Determines downstream row/col numbers from flow direction input
-##      1 = north      [-1][0]
-##      2 = northeast  [-1][+1]
-##      3 = east       [0][+1]
-##      4 = southeast  [+1][+1]
-##      5 = south      [+1][0]
-##      6 = southwest  [+1][-1]
-##      7 = west       [0][-1]
-##      8 = northwest  [-1][-1]
 ##################################################################################
-def read_direction(fdr,lons,lats,basin_ids,basin_id,verbose):
+def read_direction(fdr,basin_ids,basin_id,verbose):
+    """
+    Reads the direction file and makes two grids (to_x) and (to_y).
+    The input grids follow the 1-8 grid directions as shown below.
+    val = direction  [to_y][to_x]
+      1 = north      [-1][0]
+      2 = northeast  [-1][+1]
+      3 = east       [0][+1]
+      4 = southeast  [+1][+1]
+      5 = south      [+1][0]
+      6 = southwest  [+1][-1]
+      7 = west       [0][-1]
+      8 = northwest  [-1][-1] 
+    """
     if verbose == True:
         print 'Reading Direction input and finding target row/columns'
     to_x = np.zeros((fdr.shape[0],fdr.shape[1]),dtype=int)
     to_y = np.zeros((fdr.shape[0],fdr.shape[1]),dtype=int)
-    for y in xrange(len(lats)):
-        for x in xrange(len(lons)):
-            if basin_ids[y][x]==basin_id:
-                if fdr[y][x] == 1:
-                    to_x[y][x] = x
-                    to_y[y][x] = y-1
-                elif fdr[y][x] == 2:
-                    to_x[y][x] = x+1
-                    to_y[y][x] = y-1
-                elif fdr[y][x] == 3:
-                    to_x[y][x] = x+1
-                    to_y[y][x] = y
-                elif fdr[y][x] == 4:
-                    to_x[y][x] = x+1
-                    to_y[y][x] = y+1
-                elif fdr[y][x] == 5:
-                    to_x[y][x] = x
-                    to_y[y][x] = y+1
-                elif fdr[y][x] == 6:
-                    to_x[y][x] = x-1
-                    to_y[y][x] = y+1
-                elif fdr[y][x] == 7:
-                    to_x[y][x] = x-1
-                    to_y[y][x] = y
-                elif fdr[y][x] == 8:
-                    to_x[y][x] = x-1
-                    to_y[y][x] = y-1
+    (len_y,len_x) = to_x.shape
+    for y in xrange(len_y):
+        for x in xrange(len_x):
+            if basin_ids[y,x]==basin_id:
+                if fdr[y,x] == 1:
+                    to_x[y,x] = x
+                    to_y[y,x] = y-1
+                elif fdr[y,x] == 2:
+                    to_x[y,x] = x+1
+                    to_y[y,x] = y-1
+                elif fdr[y,x] == 3:
+                    to_x[y,x] = x+1
+                    to_y[y,x] = y
+                elif fdr[y,x] == 4:
+                    to_x[y,x] = x+1
+                    to_y[y,x] = y+1
+                elif fdr[y,x] == 5:
+                    to_x[y,x] = x
+                    to_y[y,x] = y+1
+                elif fdr[y,x] == 6:
+                    to_x[y,x] = x-1
+                    to_y[y,x] = y+1
+                elif fdr[y,x] == 7:
+                    to_x[y,x] = x-1
+                    to_y[y,x] = y
+                elif fdr[y,x] == 8:
+                    to_x[y,x] = x-1
+                    to_y[y,x] = y-1
                 else:
-                    to_x[y][x] = 0
-                    to_y[y][x] = 0
-            x = 0
-        y = 0
+                    to_x[y,x] = 0
+                    to_y[y,x] = 0
     return (to_x,to_y)
 
 ##################################################################################
@@ -265,6 +296,7 @@ def read_direction(fdr,lons,lats,basin_ids,basin_id,verbose):
 ##  Given an input lat or lon, the function returns the nearest index location
 ##################################################################################
 def find_nearest(array,value):
+    """ Find the index location in (array) with value nearest to (value)"""
     idx = (np.abs(array-value)).argmin()
     return idx
 ##################################################################################
@@ -272,7 +304,14 @@ def find_nearest(array,value):
 ## Find all cells upstream of pour point.  Retrun a dictionary with x_inds, yinds,
 ## and #of cell to downstream pour point.  All are sorted the by the latter.
 ##################################################################################
-def search_catchment(to_x,to_y,x_ind,y_ind,lons,lats,basin_ids,basin_id,verbose):
+def search_catchment(to_x,to_y,x_ind,y_ind,basin_ids,basin_id,verbose):
+    """
+    Find all cells upstream of pour point.  Retrun a dictionary with x_inds, yinds,
+    and #of cell to downstream pour point.  All are sorted the by the latter.
+    For each x,y pair, the flow path is followed until either the catchment outlet
+    is encountered (if (yy==y_ind and xx==x_ind):) or the flowpath leads outside of
+    grid (if (xx>len(lons)-1 or xx<0 or yy>len(lats)-1 or yy<0):).
+    """
     if verbose == True:
         print 'Searching Catchment'
     COUNT = 0
@@ -280,8 +319,9 @@ def search_catchment(to_x,to_y,x_ind,y_ind,lons,lats,basin_ids,basin_id,verbose)
     y_inds = np.zeros(to_x.shape[0]*to_x.shape[1],dtype=int)
     count_ds = np.zeros(to_x.shape[0]*to_x.shape[1],dtype=int)
     fractions = np.zeros((to_x.shape[0],to_x.shape[1]))
-    for y in xrange(len(lats)):
-        for x in xrange(len(lons)):
+    (len_y,len_x) = to_x.shape
+    for y in xrange(len_y):
+        for x in xrange(len_x):
             if basin_ids[y,x]==basin_id:
                 yy = y
                 xx = x
@@ -294,19 +334,18 @@ def search_catchment(to_x,to_y,x_ind,y_ind,lons,lats,basin_ids,basin_id,verbose)
                         y_inds[COUNT] = y
                         count_ds[COUNT] = cells
                         COUNT = COUNT+1
-                        fractions[y][x] = 1.
-                    elif (to_x[yy][xx] > -1 and to_y[yy][xx] > -1):
-                        yyy = to_y[yy][xx]
-                        xxx = to_x[yy][xx]
-                        yy=yyy
-                        xx=xxx
+                        fractions[y,x] = 1.
+                    elif (to_x[yy,xx] > -1 and to_y[yy,xx] > -1):
+                        (xx, yy) = (to_x[yy][xx], to_y[yy,xx])
+                        #yyy = to_y[yy,xx]
+                        #xxx = to_x[yy,xx]
+                        #yy=yyy
+                        #xx=xxx
                         cells = cells + 1
-                        if (xx>len(lons)-1 or xx<0 or yy>len(lats)-1 or yy<0):
+                        if (xx>len_x-1 or xx<0 or yy>len_y-1 or yy<0):
                             op =-1
                     else:
                         op = -1
-            x = 0
-        y = 0
     if verbose == True:
         print "Upstream grid cells from present station: ", COUNT
     # Save to sorted dictionary
@@ -324,7 +363,11 @@ def search_catchment(to_x,to_y,x_ind,y_ind,lons,lats,basin_ids,basin_id,verbose)
 ##  Calculate impulse response function for grid cells using equation (15) from
 ##  Lohmann, et al. (1996) Tellus article.  Return 3d UH grid.
 ###################################################################################
-def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,lons,lats,PREC,verbose):
+def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,PREC,verbose):
+    """
+    Calculate the impulse response function for grid cells using equation 15 from
+    Lohmann, et al. (1996) Tellus article.  Return 3d UH grid.
+    """
     if verbose == True:
         print 'Making UH for each cell'
     UH = np.zeros((T_Cell, xmask.shape[0],xmask.shape[1]))
@@ -352,9 +395,14 @@ def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,lons,lats,PRE
 ##  Calculate impulse response function for river routing
 ##  Steps upstream combining unit hydrographs
 ###################################################################################
-def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,x_inds,y_inds,count_ds,PREC,verbose):
+def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
+                       x_inds,y_inds,count_ds,PREC,verbose):
+    """
+    Calculate impulse response function for river routing.  Starts at downstream
+    point incrementally moves upstream.
+    """
     if verbose == True:
-        print "Making UH_RIVER grid.... It takes a while...\n"
+        print "Making UH_RIVER grid.... It takes a while..."
     UH_RIVER = np.zeros((T_UH,UH.shape[1],UH.shape[2]))
     for i in xrange(len(x_inds)):
         d = count_ds[i]
@@ -381,7 +429,11 @@ def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,x_inds,y_inds,count_
 ## Combines the UH_BOX with downstream cell UH_River IRF.
 ## Cell [0] is given the UH_Box without river routing
 ##################################################################################
-def make_grid_UH(T_UH,UH_RIVER,UH_BOX,to_x,to_y,x_inds, y_inds,count_ds,PREC,NODATA,verbose):
+def make_grid_UH(T_UH,UH_RIVER,UH_BOX,to_x,to_y,x_inds,y_inds,count_ds,PREC,NODATA,verbose):
+    """
+    Combines the UH_BOX with downstream cell UH_RIVER.  Cell [0] is given the
+    UH_Box without river routing
+    """
     if verbose == True:
         print "Making UH_S grid"
     UH_S = np.zeros((T_UH,UH_RIVER.shape[1],UH_RIVER.shape[2]))+NODATA
@@ -410,6 +462,11 @@ def make_grid_UH(T_UH,UH_RIVER,UH_BOX,to_x,to_y,x_inds, y_inds,count_ds,PREC,NOD
 ## Aggregate to larger timestep
 ##################################################################################
 def aggregate(UH_S,T_UH, INPUT_INTERVAL,OUTPUT_INTERVAL,x_inds,y_inds,NODATA,verbose):
+    """
+    Aggregates to timestep (OUTPUT_INTERVAL).  OUTPUT_INTERVAL must be a multiple of
+    INPUT_INTERVAL.  This function is not setup to disaggregate the Unit Hydrographs
+    to a OUTPUT_INTERVAL<INPUT_INTERVAL.
+    """
     if OUTPUT_INTERVAL==INPUT_INTERVAL:
         if verbose == True:
             print 'no need to aggregate, skipping this step (OUTPUT_INTERVAL = INPUT_INTERVAL)'
@@ -434,9 +491,14 @@ def aggregate(UH_S,T_UH, INPUT_INTERVAL,OUTPUT_INTERVAL,x_inds,y_inds,NODATA,ver
 ##  Write output to netCDF
 ##  Writes out a netCDF3-64BIT data file containing the UH_S and fractions
 ##################################################################################
-def write_netcdf(basin_x,basin_y,lons, lats, times, UH_S,fractions,basin_id,NODATA,verbose):
+def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
+                 velocity,diffusion,basin_id,NODATA,verbose):
+    """
+    Write output to netCDF.  Writes out a netCDF3-64BIT data file containing
+    the UH_S and fractions and a full set of history and description attributes.
+    """
     string = 'BasinUH_'+('%.8f' % basin_x)+'_'+('%.8f' % basin_y)+'.nc'
-    f = Dataset(string,'w', format='NETCDF3_64BIT')
+    f = Dataset(string,'w', format='NETCDF4_CLASSIC')
 
     # set dimensions
     time = f.createDimension('time', None)
@@ -452,12 +514,13 @@ def write_netcdf(basin_x,basin_y,lons, lats, times, UH_S,fractions,basin_id,NODA
 
     # write attributes for netcdf
     f.description = 'UH_S for point '+('%.8f' % basin_x)+', '+('%.8f' % basin_y)
-    f.history = 'Created ' + Time.ctime(Time.time())
+    f.history = 'Created: {}\n'.format(tm.ctime(tm.time()))
+    f.history += ' '.join(sys.argv) + '\n'
     f.source = sys.argv[0] # prints the name of script used
-    #f.velocity = velocity
-    #f.diffusion = diffusion
-    f.outlet_lon = basin_x
-    f.outlet_lat = basin_y
+    f.velocity = velocity
+    f.diffusion = diffusion
+    f.outlet_lon = ('%.8f' % basin_x)
+    f.outlet_lat = ('%.8f' % basin_y)
     f.global_basin_id = basin_id
 
     lat.long_name = 'latitude coordinate'
@@ -472,8 +535,8 @@ def write_netcdf(basin_x,basin_y,lons, lats, times, UH_S,fractions,basin_id,NODA
     time.description = 'Seconds since initial impulse'
 
     UHS.units = 'unitless'
-    UHS.description = 'unit hydrograph for each grid cell with respect to downstream grid location - ' +('%.8f' % basin_x)+','+('%.8f' % basin_y)
-
+    UHS.description = 'unit hydrograph for each grid cell with respect to downstream grid location'
+    
     fraction.description = 'fraction of grid cell contributing to guage location'
 
     # write data to variables initialized above
