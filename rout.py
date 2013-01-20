@@ -67,11 +67,11 @@ def main():
         Basin['Diffusion'],Basin['Flow_Distance'],PREC,verbose)
     
     # Make UH_RIVER by incrementally moving upstream comining UH functions
-    UH_RIVER = make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
+    UH_RIVER = make_grid_UH_river(T_UH,T_Cell,UH,to_x,to_y,x_ind,y_ind,
                                   Catchment['x_inds'], Catchment['y_inds'], Catchment['count_ds'],PREC,verbose)
     
     # Make UH_S for each grid cell upstream of basin pour point (combine IRFs for all grid cells in flow path)
-    UH_S = make_grid_UH(T_UH,UH_RIVER,UH_Box,to_x,to_y,
+    UH_S = make_grid_UH(T_UH,T_Cell,UH_RIVER,UH_Box,to_x,to_y,
                         Catchment['x_inds'], Catchment['y_inds'], Catchment['count_ds'],PREC,NODATA,verbose)
     
     # Agregate to output timestep
@@ -374,7 +374,7 @@ def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,PREC,verbose)
         time = DELTA_T
         flag = t = 0
         green = np.zeros(T_Cell)
-        while (t<T_Cell and flag ==0):
+        while (t<T_Cell and flag==0):
             exponent = -1*np.power(velocity[y,x]*time-xmask[y,x],2)/(4*diffusion[y,x]*time)
             if exponent > np.log(PREC):
                 green[t] = xmask[y,x]/(2*time*np.sqrt(np.pi*time*diffusion[y,x]))*np.exp(exponent)
@@ -392,7 +392,7 @@ def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,PREC,verbose)
 ##  Calculate impulse response function for river routing
 ##  Steps upstream combining unit hydrographs
 ###################################################################################
-def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
+def make_grid_UH_river(T_UH,T_Cell,UH,to_x,to_y,x_ind,y_ind,
                        x_inds,y_inds,count_ds,PREC,verbose):
     """
     Calculate impulse response function for river routing.  Starts at downstream
@@ -419,6 +419,7 @@ def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
         elif d==0:
             UH_RIVER[:T_Cell,y_ind,x_ind] = UH[:,y_ind,x_ind]
         active_timesteps=[]
+       
     return UH_RIVER
 
 ##################################################################################
@@ -426,7 +427,7 @@ def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
 ## Combines the UH_BOX with downstream cell UH_River IRF.
 ## Cell [0] is given the UH_Box without river routing
 ##################################################################################
-def make_grid_UH(T_UH,UH_RIVER,UH_BOX,to_x,to_y,x_inds,y_inds,count_ds,PREC,NODATA,verbose):
+def make_grid_UH(T_UH,T_Cell,UH_RIVER,UH_BOX,to_x,to_y,x_inds,y_inds,count_ds,PREC,NODATA,verbose):
     """
     Combines the UH_BOX with downstream cell UH_RIVER.  Cell [0] is given the
     UH_Box without river routing
@@ -438,7 +439,7 @@ def make_grid_UH(T_UH,UH_RIVER,UH_BOX,to_x,to_y,x_inds,y_inds,count_ds,PREC,NODA
         x = x_inds[i]
         y = y_inds[i]
         d = count_ds[i]
-        IRF_temp = np.zeros(T_UH)
+        IRF_temp = np.zeros(T_UH+T_Cell)
         if d > 0:
             yy = to_y[y,x]
             xx = to_x[y,x]
@@ -446,12 +447,12 @@ def make_grid_UH(T_UH,UH_RIVER,UH_BOX,to_x,to_y,x_inds,y_inds,count_ds,PREC,NODA
             for t in active_timesteps:
                 for l in xrange(len(UH_BOX)):
                     IRF_temp[t+l] = IRF_temp[t+l] + UH_BOX[l]*UH_RIVER[t,yy,xx]
-            sum = np.sum(IRF_temp)
+            sum = np.sum(IRF_temp[:T_UH])
             if sum>0:
-                UH_S[:,y,x] = IRF_temp[:]/sum
+                UH_S[:,y,x] = IRF_temp[:T_UH]/sum
         elif d==0:
-            UH_S[:,y,x] = IRF_temp
-            UH_S[:len(UH_BOX),y,x] = UH_BOX[:]
+            IRF_temp[:len(UH_BOX)] = UH_BOX[:]
+            UH_S[:,y,x] = IRF_temp[:T_UH]
         active_timesteps=[]
     return UH_S
 
