@@ -51,7 +51,7 @@ def main():
     
     # Read direction grid and find to_col (to_x) and to_row (to_y)
     (to_x,to_y) = read_direction(Basin['Flow_Direction'],Basin['Basin_ID'],
-                                 basin_id,verbose)
+                                 basin_id,NODATA,verbose)
     
     # Find row/column indicies of lat/lon inputs
     x_ind = find_nearest(Basin['lon'],basin_x)
@@ -210,7 +210,8 @@ def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,
     if load_velocity==None:
         d['Diffusion']=np.zeros((d['Flow_Direction'].shape))+diffusion
     f.close()
-    #print "load velocity? ", load_velocity
+    if verbose == True:
+        print 'grid cells in subset: ', len(d['lon'])*len(d['lat'])
     return d
 
 ##################################################################################
@@ -240,7 +241,7 @@ def find_TS(uh_t,verbose):
 ##  Read Direction
 ##  Determines downstream row/col numbers from flow direction input
 ##################################################################################
-def read_direction(fdr,basin_ids,basin_id,verbose):
+def read_direction(fdr,basin_ids,basin_id,NODATA,verbose):
     """
     Reads the direction file and makes two grids (to_x) and (to_y).
     The input grids follow the 1-8 grid directions as shown below.
@@ -287,8 +288,8 @@ def read_direction(fdr,basin_ids,basin_id,verbose):
                     to_x[y,x] = x-1
                     to_y[y,x] = y-1
                 else:
-                    to_x[y,x] = 0
-                    to_y[y,x] = 0
+                    to_x[y,x] = NODATA
+                    to_y[y,x] = NODATA
     return (to_x,to_y)
 
 ##################################################################################
@@ -337,10 +338,6 @@ def search_catchment(to_x,to_y,x_ind,y_ind,basin_ids,basin_id,verbose):
                         fractions[y,x] = 1.
                     elif (to_x[yy,xx] > -1 and to_y[yy,xx] > -1):
                         (xx, yy) = (to_x[yy][xx], to_y[yy,xx])
-                        #yyy = to_y[yy,xx]
-                        #xxx = to_x[yy,xx]
-                        #yy=yyy
-                        #xx=xxx
                         cells = cells + 1
                         if (xx>len_x-1 or xx<0 or yy>len_y-1 or yy<0):
                             op =-1
@@ -411,14 +408,14 @@ def make_grid_UH_river(T_Cell,T_UH,UH,to_x,to_y,x_ind,y_ind,
             y = y_inds[i]
             yy = to_y[y,x]
             xx = to_x[y,x]
-            IRF_temp = np.zeros(T_UH)
+            IRF_temp = np.zeros(T_UH+T_Cell)
             active_timesteps = np.nonzero(UH_RIVER[:,yy,xx]>PREC)[0]
             for t in active_timesteps:
                 for l in xrange(T_Cell):
                     IRF_temp[t+l] = IRF_temp[t+l] + UH[l,y,x]*UH_RIVER[t,yy,xx]
             sum = np.sum(IRF_temp[:T_UH])
             if sum>0:
-                UH_RIVER[:,y,x] = IRF_temp[:]/sum
+                UH_RIVER[:,y,x] = IRF_temp[:T_UH]/sum
         elif d==0:
             UH_RIVER[:T_Cell,y_ind,x_ind] = UH[:,y_ind,x_ind]
         active_timesteps=[]
@@ -497,7 +494,7 @@ def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
     Write output to netCDF.  Writes out a netCDF3-64BIT data file containing
     the UH_S and fractions and a full set of history and description attributes.
     """
-    string = 'BasinUH_'+('%.8f' % basin_x)+'_'+('%.8f' % basin_y)+'.nc'
+    string = 'UH_'+('%.8f' % basin_x)+'_'+('%.8f' % basin_y)+'.nc'
     f = Dataset(string,'w', format='NETCDF4_CLASSIC')
 
     # set dimensions
