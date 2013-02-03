@@ -492,7 +492,7 @@ def aggregate(UH_S,T_UH, INPUT_INTERVAL,OUTPUT_INTERVAL,x_inds,y_inds,NODATA,ver
 def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
                  velocity,diffusion,basin_id,NODATA,verbose):
     """
-    Write output to netCDF.  Writes out a netCDF3-64BIT data file containing
+    Write output to netCDF.  Writes out a netCDF4-64BIT data file containing
     the UH_S and fractions and a full set of history and description attributes.
     """
     string = 'UH_'+('%.8f' % basin_x)+'_'+('%.8f' % basin_y)+'.nc'
