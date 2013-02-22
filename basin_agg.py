@@ -19,7 +19,6 @@ weight_dir = '/raid/jhamman/remap_weights/'
 temp_dir =  '/raid/jhamman/temp_uh_files/temp/'
 in_prefix = 'UH_'
 out_prefix = 'RASM_'
-weight_prefix = 'Weights_'
 Mvars = ('src_address','dst_address','src_grid_center_lat','dst_grid_center_lat','src_grid_center_lon','dst_grid_center_lon')
 Cvars = ('src_grid_center_lat','dst_grid_center_lat','src_grid_center_lon','dst_grid_center_lon')
 Rvars = ('time','lon','lat','fraction','unit_hydrograph')
@@ -28,11 +27,11 @@ Rvars = ('time','lon','lat','fraction','unit_hydrograph')
 cdo.debug = False
 cdo.forceOutput = True
 verbose=True
-resolution = 1/16.
-tStep = 86400
-velocity = 1.0
-diffusion = 2000.0
+remap = True
 NODATA = -9999.0
+pad = 10
+resolution = 1/16.
+
 ##################################################################################
 def main():
     #Load Inputs
@@ -55,27 +54,33 @@ def main():
 
     # Aggregate all basins in each key
     count = 0
-    if verbose == True:
+    if verbose:
         print 'Remapping and Aggregating now...'
     for i,key in enumerate(d):
         flag  = 0
         Flist = []
-        #---> initiate 
+        aggFile = filename(out_prefix,key)
         for j,loc in enumerate(d[key]):
-            aggFile = filename(out_prefix,key)
             inFile = filename(in_prefix,loc)
             if os.path.isfile(in_dir+inFile):
                 Flist.append(inFile)
-                if (flag == 0 and os.path.isfile(temp_dir+aggFile)==False):
-                    shutil.copy2(in_dir+inFile,temp_dir+aggFile)
+                if flag == 0:
+                    aggData = read_netcdf(in_dir+inFile,Rvars,verbose)
+                    if count == 0:
+                        velocity = Dataset(in_dir+inFile,'r').velocity
+                        diffusion = Dataset(in_dir+inFile,'r').diffusion
                 else:
-                    times,lons,lats,fractions,hydrographs = agg(in_dir+inFile,temp_dir+aggFile,verbose)
-                    # Write out to netCDF
-                    write_netcdf(temp_dir+aggFile,lons,lats,times,hydrographs,
-                                 fractions,loc,Flist,velocity,diffusion,NODATA,verbose)
+                    inData = read_netcdf(in_dir+inFile,Rvars,verbose)
+                    aggData = agg(inData,aggData,0,verbose)
                 flag = 1
                 count += 1
-        if flag == 1:
+        # Add pad to final file
+        if (len(Flist)>0 and flag==1):
+             aggData = agg([],aggData,pad,verbose)
+             # Write out to netCDF
+             write_netcdf(temp_dir+aggFile,aggData['lon'],aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
+                          aggData['fraction'],loc,Flist,velocity,diffusion,NODATA,verbose)
+        if (flag == 1 and remap):
             remap_file(aggFile,temp_dir,out_dir,verbose)
             if verbose == True:
                 print 'Finished',key, i,'of',len(d), 'and placed', count, 'files'
@@ -100,7 +105,9 @@ def make_degrees(vars,Inputs,verbose):
     return d
 ##################################################################################
 def filename(prefix,tup):
-    string = prefix+('%.5f' % tup[0])+'_'+('%.5f' % tup[1])+'.nc'
+    lon = ('%.5f' % tup[0])[:-3]
+    lat = ('%.5f' % tup[1])[:-3]
+    string = prefix+lon+'_'+lat+'.nc'
     return string
 ##################################################################################
 def remap_file(aggFile,temp_dir,out_dir,verbose):
@@ -170,52 +177,96 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,d
     fraction[:,:]= fractions
     f.close()
 ##################################################################################
-def agg(inFile,aggFile,verbose):
-    inData = read_netcdf(inFile,Rvars,verbose)
-    exData = read_netcdf(aggFile,Rvars,verbose)
-    
-    # find range of vectors
-    min_x = np.minimum(inData['lon'].min(),exData['lon'].min())
-    max_x = np.maximum(inData['lon'].max(),exData['lon'].max())
-    min_y = np.minimum(inData['lat'].min(),exData['lat'].min())
-    max_y = np.maximum(inData['lat'].max(),exData['lat'].max())
-    min_t = np.minimum(inData['time'].min(),exData['time'].min())
-    max_t = np.maximum(inData['time'].max(),exData['time'].min())
-
+def agg(inData,aggData,pad,verbose):
+    """
+    Add the two data sets together and return the combined arrays.
+    The two data sets must include the coordinate variables lon,lat, and time
+    """
+    if (inData and aggData):
+        # find range of vectors
+        Range = [np.minimum(inData['time'].min(),aggData['time'].min()),
+                 np.maximum(inData['time'].max(),aggData['time'].max()),
+                 np.minimum(inData['lat'].min(),aggData['lat'].min()),
+                 np.maximum(inData['lat'].max(),aggData['lat'].max()),
+                 np.minimum(inData['lon'].min(),aggData['lon'].min()),
+                 np.maximum(inData['lon'].max(),aggData['lon'].max())]
+        tStep = inData['time'][1] - inData['time'][0]
+        try: yres = np.absolute(aggData['lat'][1] - aggData['lat'][0])
+        except:
+            try: yres = np.absolute(inData['lat'][1] - inData['lat'][0])
+            except: yres = resolution
+        try: xres = np.absolute(aggData['lon'][1] - aggData['lon'][0])
+        except:
+            try: xres = np.absolute(inData['lon'][1] - inData['lon'][0])
+            except: xres = resolution
+    elif inData:
+        Range = [inData['time'].min(),inData['time'].max(),
+                 inData['lat'].min(),inData['lat'].max(),
+                 inData['lon'].min(),inData['lon'].max()]
+        tStep = inData['time'][1] - inData['time'][0]
+        try: yres = np.absolute(inData['lat'][1] - inData['lat'][0])
+        except: yres = resolution
+        try: xres = np.absolute(inData['lon'][1] - inData['lon'][0])
+        except: xres = resolution
+    elif aggData:
+        Range = [aggData['time'].min(),aggData['time'].max(),
+                 aggData['lat'].min(),aggData['lat'].max(),
+                 aggData['lon'].min(),aggData['lon'].max()]
+        tStep = aggData['time'][1] - aggData['time'][0]
+        try: yres = np.absolute(aggData['lat'][1] - aggData['lat'][0])
+        except: yres = resolution
+        try: xres = np.absolute(aggData['lon'][1] - aggData['lon'][0])
+        except: xres = resolution
+    else:
+        print 'no inputs to agg function'
+        raise 
     # make output arrays for lons/lats and initialize fractions/hydrographs
-    lons = np.arange(min_x,max_x+resolution,resolution)
-    lats = np.arange(min_y,max_y+resolution,resolution)
-    times = np.arange(min_t,max_t+tStep,tStep)
+    # pad output arrays so there is a space = pad around inputs
+    times = np.arange(Range[0],Range[1]+tStep,tStep)
+    lats = np.arange(Range[2]-yres*(pad),Range[3]+yres*(1+pad),yres)[::-1]
+    lons = np.arange(Range[4]-xres*(pad),Range[5]+xres*(1+pad),xres)
     fractions = np.zeros((lats.shape[0],lons.shape[0]))
     hydrographs = np.zeros((times.shape[0],lats.shape[0],lons.shape[0]))
     
     # find target index locations of all corners for both datasets
-    In = [find_nearest(times,np.min(inData['time'])), find_nearest(times,np.max(inData['time']))+1,
-          find_nearest(lats,np.min(inData['lat'])), find_nearest(lats,np.max(inData['lat']))+1,
-          find_nearest(lons,np.min(inData['lon'])), find_nearest(lons,np.max(inData['lon']))+1]
-    Ex = [find_nearest(times,np.min(exData['time'])), find_nearest(times,np.max(exData['time']))+1,
-          find_nearest(lats,np.min(exData['lat'])), find_nearest(lats,np.max(exData['lat']))+1,
-          find_nearest(lons,np.min(exData['lon'])), find_nearest(lons,np.max(exData['lon']))+1]
+    if inData:
+        In = [find_nearest(times,np.min(inData['time'])), find_nearest(times,np.max(inData['time']))+1,
+              find_nearest(lats,np.max(inData['lat'])), find_nearest(lats,np.min(inData['lat']))+1,
+              find_nearest(lons,np.min(inData['lon'])), find_nearest(lons,np.max(inData['lon']))+1]
+    if aggData:
+        Ex = [find_nearest(times,np.min(aggData['time'])), find_nearest(times,np.max(aggData['time']))+1,
+              find_nearest(lats,np.max(aggData['lat'])), find_nearest(lats,np.min(aggData['lat']))+1,
+              find_nearest(lons,np.min(aggData['lon'])), find_nearest(lons,np.max(aggData['lon']))+1]
 
-    inData['unit_hydrograph'][inData['unit_hydrograph']<0] = 0.0
-    exData['unit_hydrograph'][exData['unit_hydrograph']<0] = 0.0
+    # Make sure all values in the unit hydrograph are zero (no mask)
+    if inData: inData['unit_hydrograph'][inData['unit_hydrograph']<0] = 0.0
+    if aggData: aggData['unit_hydrograph'][aggData['unit_hydrograph']<0] = 0.0
 
     # Place data
-    fractions[In[2]:In[3],In[4]:In[5]] += inData['fraction']
-    fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]] += exData['fraction']
-
-    hydrographs[In[0]:In[1],In[2]:In[3],In[4]:In[5]] += inData['unit_hydrograph']
-    hydrographs[Ex[0]:Ex[1],Ex[2]:Ex[3],Ex[4]:Ex[5]] += exData['unit_hydrograph']
-
-    mask = np.broadcast_arrays(hydrographs, fractions<=0.0)[1]
-    hydrographs = ma.masked_array(hydrographs,mask=mask)
-    ma.set_fill_value(hydrographs, NODATA)
+    if inData:
+        fractions[In[2]:In[3],In[4]:In[5]] += inData['fraction']
+        hydrographs[In[0]:In[1],In[2]:In[3],In[4]:In[5]] += inData['unit_hydrograph']
+    if aggData:
+        fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]] += aggData['fraction']
+        hydrographs[Ex[0]:Ex[1],Ex[2]:Ex[3],Ex[4]:Ex[5]] += aggData['unit_hydrograph']
     
-    # Normalize the hydrographs (each cell should sum to 1)
-    hydrographs /= hydrographs.sum(axis=0)
-    hydrographs = ma.filled(hydrographs, NODATA)
+    # Mask the hydrographs and make sure they sum to 1 at each grid cell
+    if (inData == [] or aggData == []):
+        mask = np.broadcast_arrays(hydrographs, fractions<=0.0)[1]
+        hydrographs = ma.masked_array(hydrographs,mask=mask)
+        ma.set_fill_value(hydrographs, NODATA)
+        
+        # Normalize the hydrographs (each cell should sum to 1)
+        hydrographs /= hydrographs.sum(axis=0)
+        hydrographs = ma.filled(hydrographs, NODATA)
+    # Put all the data into aggData variable and return to main
+    aggData['lon']  = lons
+    aggData['lat']  = lats
+    aggData['fraction']  = fractions
+    aggData['unit_hydrograph']  = hydrographs
+    aggData['time']  = times
 
-    return times,lons,lats,fractions,hydrographs
+    return aggData
     
 ##################################################################################
 ##  Find Indicies
