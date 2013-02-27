@@ -4,14 +4,13 @@
 # Routing algorithm developed by D. Lohmann.
 #
 # WHATS LEFT TO DO
-# Variable Naming/order:
 # Testing
-# Config files
 
 ####################################################################################
 import sys
 import numpy as np
 import argparse
+import ConfigParser
 import time as tm
 from netCDF4 import Dataset
 
@@ -23,20 +22,28 @@ def main():
      load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
         BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)=process_command_line()
 
+    rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
+     load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
+        BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
+        
+def rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
+     load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
+        BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS):
+
     # Load input arrays, store in python list.  (Format - Inputs['var'])
     Inputs = read_netcdf(infile,('Basin_ID','lon','lat'),verbose)
 
     # Find boudnds of basin and basin_id
     (basin_id,x_min,x_max,y_min,y_max) = read_global_inputs(basin_x,basin_y,Inputs['lon'],Inputs['lat'],
                                                             Inputs['Basin_ID'],verbose)
-    if verbose == True:
+    if verbose:
         print 'basin_id: ', basin_id
     
     # Load input arrays, store in python list.  (Format -Basin['var'])
-    vars =('Basin_ID','Flow_Direction','Flow_Distance','lon','lat')
-    if load_velocity==True:
+    vars =['Basin_ID','Flow_Direction','Flow_Distance','lon','lat']
+    if load_velocity:
         vars.append('velocity')
-    if load_diffusion==True:
+    if load_diffusion:
         vars.append('diffusion')
     Basin = clip_netcdf(infile,vars,x_min,x_max,y_min,y_max,
                         load_velocity,velocity,load_diffusion,diffusion,verbose)
@@ -83,7 +90,7 @@ def main():
     write_netcdf(basin_x,basin_y,Basin['lon'],Basin['lat'],
                  times,UH_out,fractions,velocity,diffusion,basin_id,NODATA,verbose)
 
-    if verbose == True:
+    if verbose:
         print 'routing program finished.'
     
 ##################################################################################
@@ -93,49 +100,149 @@ def process_command_line():
     """
     Parse arguments and assign flags for further loading of variables, for
     information on input arguments, type rout.py -h
+
+    A configuration file may be provided with -C configFile
     """
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("infile", type=str, help="Input netCDF containing all input grids")
-    parser.add_argument("UHfile", type=str, help="Input UH_BOX hydrograph")
-    parser.add_argument("longitude", type=float, help="Input longitude of point to route to")
-    parser.add_argument("latitude", type=float, help="Input latitude of point to route to")
-    parser.add_argument("-vel","--velocity", type=float, help="Input wave velocity")
+    parser.add_argument("-C","--configFile", type=str, help="Input configuration file",default=False)
+    parser.add_argument("-i","--infile", type=str, help="Input netCDF containing all input grids")
+    parser.add_argument("-UH","--UHfile", type=str, help="Input UH_BOX hydrograph")
+    parser.add_argument("-lon","--longitude", type=float, help="Input longitude of point to route to")
+    parser.add_argument("-lat","--latitude", type=float, help="Input latitude of point to route to")
+    parser.add_argument("-vel","--velocity", type=float, help="Input wave velocity, may be variable in infile or scalar")
     parser.add_argument("-diff","--diffusion", type=float, help="Input diffusion")
     parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
-    parser.add_argument("--NODATA",type=int, help="Input integer to bedefined as NODATA value",default=-9999)
+    parser.add_argument("--NODATA",type=float, help="Input integer to bedefined as NODATA value",default=9.96920996839e+36)
     parser.add_argument("--CELL_FLOWTIME",type=int, help="Input integer to be defined as max number of days for flow to pass through cell",default=2)
     parser.add_argument("--BASIN_FLOWTIME",type=int, help="Input integer to be defined as max number of days for flow to pass through basin",default=50)
     parser.add_argument("-PREC","--Precision",type=int, help="Input integer to be defined asminimum precision for calculations",default =1e-30)
     parser.add_argument("-TS","--OUTPUT_INTERVAL",type=int, help="Output timestep in seconds for Unit Hydrographs",default=86400)
     parser.add_argument("--DAY_SECONDS",type=int, help="Seconds per day",default=86400)
     args = parser.parse_args()
+
     # Assign values
-    infile = args.infile
-    UHfile = args.UHfile
-    basin_x=args.longitude
-    basin_y = args.latitude
-    if args.velocity==None:
-        load_velocity=True
-        velocity = 'From Grid Inputs'
+    if args.configFile:
+        file_paths,inputs = process_config(args.configFile)
+    if args.infile:
+        infile = args.infile
     else:
-        load_velocity=None
-        velocity = args.velocity
-    if args.diffusion==None:
-        load_diffusion = True
-        diffusion = 'From Grid Inputs'
+        try:
+            infile = file_paths['infile']
+        except:
+            raise IOError('Need input file from command line or configuration file')
+
+    if args.UHfile:
+        UHfile = args.UHfile
     else:
-        load_diffusion = None
-        diffusion = args.diffusion
-    verbose = args.verbose
-    NODATA = args.NODATA
-    CELL_FLOWTIME = args.CELL_FLOWTIME
-    BASIN_FLOWTIME = args.BASIN_FLOWTIME
-    PREC = args.Precision
-    OUTPUT_INTERVAL = args.OUTPUT_INTERVAL
-    DAY_SECONDS = args.DAY_SECONDS
+        try:
+            UHfile = file_paths['uhfile']
+        except:
+            raise IOError('Need input Unit Hydrograph File from command line or configuration file')
+
+    if args.longitude:
+        basin_x = args.longitude
+    else:
+        try:
+            basin_x = float(inputs['longitude'])
+        except:
+            raise IOError('Need logitude from command line or configuration file')
+        
+    if args.latitude:
+        basin_y = args.latitude
+    else:
+        try:
+            basin_y = float(inputs['latitude'])
+        except:
+            raise IOError('Need latitude from command line or configuration file')        
+    
+    try:
+        velocity = float(inputs['velocity'])
+        load_velocity = False
+    except:
+        if not args.velocitye:
+            load_velocity=True
+            velocity = 'From Grid Inputs'
+        else:
+            load_velocity=False
+            velocity = args.velocity
+    try:
+        diffusion = float(inputs['diffusion'])
+        load_diffusion = False
+    except:
+        if not args.diffusion:
+            load_diffusion = True
+            diffusion = 'From Grid Inputs'
+        else:
+            load_diffusion = False
+            diffusion = args.diffusion
+
+    try:
+        if inputs['verbose'] == 'True':
+            verbose = True
+        else:
+            verbose = False
+    except:
+        verbose = args.verbose
+
+    try:
+        NODATA = float(inputs['nodata'])
+    except:
+        NODATA = args.NODATA
+
+    try:
+        CELL_FLOWTIME = int(inputs['cell_flowtime'])
+    except:
+        CELL_FLOWTIME = args.CELL_FLOWTIME
+
+    try:
+        BASIN_FLOWTIME = int(inputs['basin_flowtime'])
+    except:
+        BASIN_FLOWTIME = args.BASIN_FLOWTIME
+
+    try:
+        PREC = float(inputs['precision'])
+    except:
+        PREC = args.Precision
+
+    try:
+        OUTPUT_INTERVAL = int(inputs['output_interval'])
+    except:
+        OUTPUT_INTERVAL = args.OUTPUT_INTERVAL
+
+    try:
+        DAY_SECONDS = int(inputs['day_seconds'])
+    except:
+        DAY_SECONDS = args.DAY_SECONDS
+        
     return (infile,UHfile,basin_x,basin_y,load_velocity,velocity,load_diffusion,
             diffusion,verbose,NODATA,CELL_FLOWTIME,BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
+
+##################################################################################
+##  Process Configuration File
+##  Values that aren't provided will be given a False bool and filled in by the
+##  command line processor
+##################################################################################
+def process_config(configFile):
+    """
+    Parse arguments and assign flags for further loading of files.  Configuration
+    flag must be raised on command line (-C) to configuration file must be provided.
+    Usage:  rout.py -C rout.cfg
+    There is no set of variables that must be included, any variable not given in
+    configuration file will be filled in during the rest of the command line parsing.
+    """
+    config = ConfigParser.ConfigParser()
+    config.read(configFile)
+    file_paths = ConfigSectionMap(config,'file_paths')
+    inputs = ConfigSectionMap(config,'inputs')
+    return file_paths,inputs
+
+def ConfigSectionMap(config,section):
+    dict1 = {}
+    options = config.options(section)
+    for option in options:
+        dict1[option] = config.get(section, option)
+    return dict1
 
 ##################################################################################
 ##  Read netCDF Inputs
@@ -148,7 +255,7 @@ def read_netcdf(nc_str,vars,verbose):
     ('Basin_ID','Flow_Direction','Flow_Distance','Land_Mask','lon','lat') and
     may also include ('Velocity') and/or ('Diffusion')
     """
-    if verbose == True:
+    if verbose:
         print 'Reading input data vars:', vars, 'from file:',nc_str
     f = Dataset(nc_str,'r')
     d={}
@@ -162,7 +269,7 @@ def read_netcdf(nc_str,vars,verbose):
 ##################################################################################
 def read_global_inputs(basin_x,basin_y,lons,lats,basins,verbose):
     """Reads input lons/lats/basins_ids and returns basin bounds."""
-    if verbose == True:
+    if verbose:
         print 'reading global inputs'
     basin_id = basins[find_nearest(lats,basin_y),find_nearest(lons,basin_x)]
     inds = np.nonzero(basins==basin_id)
@@ -189,7 +296,7 @@ def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,
     ('Basin_ID','Flow_Direction','Flow_Distance','Land_Mask','lon','lat') and
     may also include ('Velocity') and/or ('Diffusion')
     """
-    if verbose == True:
+    if verbose:
         print 'Reading input data vars:', vars
     f = Dataset(nc_str,'r')
     d={}
@@ -205,12 +312,12 @@ def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,
         except NameError:
             print 'Unable to clip ', var, '. Confirm that the var exists in ', nc_str
             raise
-    if load_velocity==None:
+    if not load_velocity:
         d['Velocity']=np.zeros((d['Flow_Direction'].shape))+velocity
-    if load_velocity==None:
+    if not load_diffusion:
         d['Diffusion']=np.zeros((d['Flow_Direction'].shape))+diffusion
     f.close()
-    if verbose == True:
+    if verbose:
         print 'grid cells in subset: ', len(d['lon'])*len(d['lat'])
     return d
 
@@ -220,7 +327,7 @@ def clip_netcdf(nc_str,vars,x_min,x_max,y_min,y_max,
 ##################################################################################
 def load_uh(infile,verbose):
     """ Loads UH from (infile) and returns a timeseries Unit Hydrograph (uh_t, uh)""" 
-    if verbose == True:
+    if verbose:
         print 'Reading UH_Box from file: ', infile
     (uh_t,uh) = np.genfromtxt(infile, delimiter=',', skip_header=1, unpack=True)
     uh_t = uh_t.astype(int)
@@ -233,7 +340,7 @@ def load_uh(infile,verbose):
 def find_TS(uh_t,verbose):
     """Determines the (INPUT_INTERVAL) based on the timestep given in UHfile"""
     INPUT_INTERVAL = uh_t[1]-uh_t[0]
-    if verbose == True:
+    if verbose:
         print 'Input Timestep = '+ str(INPUT_INTERVAL) + ' seconds'
     return INPUT_INTERVAL
 
@@ -255,7 +362,7 @@ def read_direction(fdr,basin_ids,basin_id,NODATA,verbose):
       7 = west       [0][-1]
       8 = northwest  [-1][-1] 
     """
-    if verbose == True:
+    if verbose:
         print 'Reading Direction input and finding target row/columns'
     to_x = np.zeros((fdr.shape[0],fdr.shape[1]),dtype=int)
     to_y = np.zeros((fdr.shape[0],fdr.shape[1]),dtype=int)
@@ -288,8 +395,8 @@ def read_direction(fdr,basin_ids,basin_id,NODATA,verbose):
                     to_x[y,x] = x-1
                     to_y[y,x] = y-1
                 else:
-                    to_x[y,x] = NODATA
-                    to_y[y,x] = NODATA
+                    to_x[y,x] = -9999
+                    to_y[y,x] = -9999
     return (to_x,to_y)
 
 ##################################################################################
@@ -313,7 +420,7 @@ def search_catchment(to_x,to_y,x_ind,y_ind,basin_ids,basin_id,verbose):
     is encountered (if (yy==y_ind and xx==x_ind):) or the flowpath leads outside of
     grid (if (xx>len(lons)-1 or xx<0 or yy>len(lats)-1 or yy<0):).
     """
-    if verbose == True:
+    if verbose:
         print 'Searching Catchment'
     COUNT = 0
     x_inds = np.zeros(to_x.shape[0]*to_x.shape[1],dtype=int)
@@ -324,26 +431,24 @@ def search_catchment(to_x,to_y,x_ind,y_ind,basin_ids,basin_id,verbose):
     for y in xrange(len_y):
         for x in xrange(len_x):
             if basin_ids[y,x]==basin_id:
-                yy = y
-                xx = x
-                op=0
-                cells = 0
+                yy,xx = y,x
+                op,cells = 0,0
                 while op == 0:
                     if (yy==y_ind and xx==x_ind):
                         op = 1
                         x_inds[COUNT] = x
                         y_inds[COUNT] = y
                         count_ds[COUNT] = cells
-                        COUNT = COUNT+1
+                        COUNT += 1
                         fractions[y,x] = 1.
                     elif (to_x[yy,xx] > -1 and to_y[yy,xx] > -1):
                         (xx, yy) = (to_x[yy][xx], to_y[yy,xx])
-                        cells = cells + 1
+                        cells += 1
                         if (xx>len_x-1 or xx<0 or yy>len_y-1 or yy<0):
                             op =-1
                     else:
                         op = -1
-    if verbose == True:
+    if verbose:
         print "Upstream grid cells from present station: ", COUNT
     # Save to sorted dictionary
     CATCH = {}
@@ -365,7 +470,7 @@ def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,PREC,verbose)
     Calculate the impulse response function for grid cells using equation 15 from
     Lohmann, et al. (1996) Tellus article.  Return 3d UH grid.
     """
-    if verbose == True:
+    if verbose:
         print 'Making UH for each cell'
     UH = np.zeros((T_Cell, xmask.shape[0],xmask.shape[1]))
     for i in xrange(len(x_inds)):
@@ -378,7 +483,7 @@ def make_UH(DELTA_T,T_Cell, x_inds,y_inds,velocity,diffusion,xmask,PREC,verbose)
             exponent = -1*np.power(velocity[y,x]*time-xmask[y,x],2)/(4*diffusion[y,x]*time)
             if exponent > np.log(PREC):
                 green[t] = xmask[y,x]/(2*time*np.sqrt(np.pi*time*diffusion[y,x]))*np.exp(exponent)
-                t = t+1
+                t += 1
                 time = time+DELTA_T
             else:
                 flag=1
@@ -398,7 +503,7 @@ def make_grid_UH_river(T_UH,T_Cell,UH,to_x,to_y,x_ind,y_ind,
     Calculate impulse response function for river routing.  Starts at downstream
     point incrementally moves upstream.
     """
-    if verbose == True:
+    if verbose:
         print "Making UH_RIVER grid.... It takes a while..."
     UH_RIVER = np.zeros((T_UH,UH.shape[1],UH.shape[2]))
     for i in xrange(len(x_inds)):
@@ -432,7 +537,7 @@ def make_grid_UH(T_UH,T_Cell,UH_RIVER,UH_BOX,to_x,to_y,x_inds,y_inds,count_ds,PR
     Combines the UH_BOX with downstream cell UH_RIVER.  Cell [0] is given the
     UH_Box without river routing
     """
-    if verbose == True:
+    if verbose:
         print "Making UH_S grid"
     UH_S = np.zeros((T_UH,UH_RIVER.shape[1],UH_RIVER.shape[2]))+NODATA
     for i in xrange(len(x_inds)):
@@ -466,11 +571,11 @@ def aggregate(UH_S,T_UH, INPUT_INTERVAL,OUTPUT_INTERVAL,x_inds,y_inds,NODATA,ver
     to a OUTPUT_INTERVAL<INPUT_INTERVAL.
     """
     if OUTPUT_INTERVAL==INPUT_INTERVAL:
-        if verbose == True:
+        if verbose:
             print 'no need to aggregate, skipping this step (OUTPUT_INTERVAL = INPUT_INTERVAL)'
         UH_out = UH_S
     elif np.remainder(OUTPUT_INTERVAL,INPUT_INTERVAL)==0:
-        if verbose == True:
+        if verbose:
             print 'aggregating to ', OUTPUT_INTERVAL, 'from ', INPUT_INTERVAL, 'seconds'
         fac = int(OUTPUT_INTERVAL/INPUT_INTERVAL)
         T_UH_out = int(T_UH/fac)
@@ -481,7 +586,7 @@ def aggregate(UH_S,T_UH, INPUT_INTERVAL,OUTPUT_INTERVAL,x_inds,y_inds,NODATA,ver
             for t in xrange(T_UH_out):
                 UH_out[t,y,x] = np.sum(UH_S[t*fac:t*fac+fac,y,x])
     else:
-        if verbose == True:
+        if verbose:
             raise NameError("Not setup to disaggregate. OUTPUT_INTERVAL must be a multiple of INPUT_INTERVAL")
     return UH_out
 
@@ -495,7 +600,7 @@ def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
     Write output to netCDF.  Writes out a netCDF4-64BIT data file containing
     the UH_S and fractions and a full set of history and description attributes.
     """
-    string = 'UH_'+('%.8f' % basin_x)+'_'+('%.8f' % basin_y)+'.nc'
+    string = 'UH_'+('%.3f' % basin_x)+'_'+('%.3f' % basin_y)+'.nc'
     f = Dataset(string,'w', format='NETCDF4_CLASSIC')
 
     # set dimensions
@@ -544,8 +649,8 @@ def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
     UHS[:,:,:] = UH_S
     fraction[:,:]= fractions
     f.close()
-    if verbose == True:
-        print 'wrote UH_S netCDF for ' + ('%.8f' % basin_x)+'_'+('%.8f' % basin_y)
+    if verbose:
+        print 'wrote UH_S netCDF for ' + ('%.3f' % basin_x)+'_'+('%.3f' % basin_y)
 
 ##################################################################################
 # Run Program
