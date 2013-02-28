@@ -288,8 +288,8 @@ def read_direction(fdr,basin_ids,basin_id,NODATA,verbose):
                     to_x[y,x] = x-1
                     to_y[y,x] = y-1
                 else:
-                    to_x[y,x] = NODATA
-                    to_y[y,x] = NODATA
+                    to_x[y,x] = -1
+                    to_y[y,x] = -1
     return (to_x,to_y)
 
 ##################################################################################
@@ -329,16 +329,17 @@ def search_catchment(to_x,to_y,x_ind,y_ind,basin_ids,basin_id,verbose):
                 op=0
                 cells = 0
                 while op == 0:
+                    print x,xx,y,yy
                     if (yy==y_ind and xx==x_ind):
                         op = 1
                         x_inds[COUNT] = x
                         y_inds[COUNT] = y
                         count_ds[COUNT] = cells
-                        COUNT = COUNT+1
+                        COUNT += 1
                         fractions[y,x] = 1.
                     elif (to_x[yy,xx] > -1 and to_y[yy,xx] > -1):
                         (xx, yy) = (to_x[yy][xx], to_y[yy,xx])
-                        cells = cells + 1
+                        cells += 1
                         if (xx>len_x-1 or xx<0 or yy>len_y-1 or yy<0):
                             op =-1
                     else:
