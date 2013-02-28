@@ -11,11 +11,11 @@ from cdo import *
 cdo = Cdo()
 import time as tm
 
-nc_str = '/usr1/jhamman/Dropbox/RASM_Joe/python_scripts/rout_rasm/rev_weights.nc'
+nc_str = '/raid/jhamman/remap_weights/rev_weights.nc'
 gridFile = '/raid/jhamman/RASM_masks/domain.lnd.wr50a_ar9v4.100920.nc'
-in_dir = '/raid/jhamman/temp_uh_files/run1_RASM/'
-out_dir = '/raid/jhamman/temp_uh_files/run1_RASM_remap/'
-weight_dir = '/raid/jhamman/remap_weights/'
+in_dir = '/raid/jhamman/temp_uh_files/run2_RASM/'
+out_dir = '/raid/jhamman/temp_uh_files/run2_RASM_remap/'
+#weight_dir = '/raid/jhamman/remap_weights/'
 temp_dir =  '/raid/jhamman/temp_uh_files/temp/'
 in_prefix = 'UH_'
 out_prefix = 'RASM_'
@@ -28,8 +28,8 @@ cdo.debug = False
 cdo.forceOutput = True
 verbose=True
 remap = True
-NODATA = -9999.0
-pad = 10
+NODATA = 9.96920996839e+36
+pad = 16
 resolution = 1/16.
 
 ##################################################################################
@@ -105,8 +105,8 @@ def make_degrees(vars,Inputs,verbose):
     return d
 ##################################################################################
 def filename(prefix,tup):
-    lon = ('%.5f' % tup[0])[:-3]
-    lat = ('%.5f' % tup[1])[:-3]
+    lon = ('%.3f' % tup[0])
+    lat = ('%.3f' % tup[1])
     string = prefix+lon+'_'+lat+'.nc'
     return string
 ##################################################################################
