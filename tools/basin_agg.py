@@ -1,48 +1,39 @@
 #!/usr/local/bin/python
+"""
+Aggregate high resolution Unit Hydrograph NetCDF Grids
 
+Joe Hamman March, 2013
+"""
 import os
 import sys
-import shutil
 import numpy as np
 import numpy.ma as ma
 from collections import defaultdict
 from netCDF4 import Dataset
 from cdo import *
-cdo = Cdo()
 import time as tm
+import argparse
+cdo = Cdo()
 
-nc_str = '/raid/jhamman/remap_weights/rev_weights.nc'
-gridFile = '/raid/jhamman/RASM_masks/domain.lnd.wr50a_ar9v4.100920.nc'
-in_dir = '/raid/jhamman/temp_uh_files/run2_RASM/'
-out_dir = '/raid/jhamman/temp_uh_files/run2_RASM_remap/'
-#weight_dir = '/raid/jhamman/remap_weights/'
-temp_dir =  '/raid/jhamman/temp_uh_files/temp/'
-in_prefix = 'UH_'
-out_prefix = 'RASM_'
-Mvars = ('src_address','dst_address','src_grid_center_lat','dst_grid_center_lat','src_grid_center_lon','dst_grid_center_lon')
-Cvars = ('src_grid_center_lat','dst_grid_center_lat','src_grid_center_lon','dst_grid_center_lon')
-Rvars = ('time','lon','lat','fraction','unit_hydrograph')
 
 ##################################################################################
-cdo.debug = False
-cdo.forceOutput = True
-verbose=True
-remap = True
-NODATA = 9.96920996839e+36
-pad = 16
-resolution = 1/16.
 
-##################################################################################
 def main():
+
+    Rvars,paths,options = process_command_line()
+    Mvars = ('src_address','dst_address','src_grid_center_lat','dst_grid_center_lat','src_grid_center_lon','dst_grid_center_lon')
+    Cvars = ('src_grid_center_lat','dst_grid_center_lat','src_grid_center_lon','dst_grid_center_lon')
+
+    print paths
     #Load Inputs
-    Inputs = read_netcdf(nc_str,Mvars,verbose)
+    Inputs = read_netcdf(paths['mapFile'],Mvars,options['verbose'])
     
     #Convert lats and lons for src/dst to decimal degrees
-    Coords = make_degrees(Cvars,Inputs,verbose)
+    Coords = make_degrees(Cvars,Inputs,options['verbose'])
     
     #Find Unique Destination grid cells
     d = defaultdict(list)
-    if verbose == True:
+    if options['verbose']:
         print 'Finding addresses now...'
     for i in xrange(len(Inputs['src_address'])):
         # parse links
@@ -54,36 +45,47 @@ def main():
 
     # Aggregate all basins in each key
     count = 0
-    if verbose:
-        print 'Remapping and Aggregating now...'
+    if options['verbose']:
+        print 'Aggregating now...'
     for i,key in enumerate(d):
         flag  = 0
         Flist = []
-        aggFile = filename(out_prefix,key)
+        aggFile = filename(options['outPrefix'],key)
         for j,loc in enumerate(d[key]):
-            inFile = filename(in_prefix,loc)
-            if os.path.isfile(in_dir+inFile):
+            inFile = filename(options['inPrefix'],loc)
+            if os.path.isfile(paths['srcDir']+inFile):
+                if options['verbose']:
+                    print 'just opened', paths['srcDir']+inFile
                 Flist.append(inFile)
+                f = Dataset(paths['srcDir']+inFile,'r')
                 if flag == 0:
-                    aggData = read_netcdf(in_dir+inFile,Rvars,verbose)
+                    aggData={}
+                    for var in Rvars:
+                        aggData[var] = f.variables[var][:]
                     if count == 0:
-                        velocity = Dataset(in_dir+inFile,'r').velocity
-                        diffusion = Dataset(in_dir+inFile,'r').diffusion
+                        velocity = f.velocity
+                        diffusion = f.diffusion
                 else:
-                    inData = read_netcdf(in_dir+inFile,Rvars,verbose)
-                    aggData = agg(inData,aggData,0,verbose)
+                    for var in Rvars:
+                        inData[var] = f.variables[var][:] 
+                    aggData = agg(inData,aggData,options['resolution'],options['fill_value'],options['verbose'])
                 flag = 1
                 count += 1
         # Add pad to final file
         if (len(Flist)>0 and flag==1):
-             aggData = agg([],aggData,pad,verbose)
+             aggData = agg([],aggData,options['resolution'],options['verbose'],options['fill_value'],pad=options['pad'])
              # Write out to netCDF
-             write_netcdf(temp_dir+aggFile,aggData['lon'],aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
-                          aggData['fraction'],loc,Flist,velocity,diffusion,NODATA,verbose)
-        if (flag == 1 and remap):
-            remap_file(aggFile,temp_dir,out_dir,verbose)
-            if verbose == True:
+             write_netcdf(paths['aggDir']+aggFile,aggData['lon'],aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
+                          aggData['fraction'],loc,Flist,velocity,diffusion,options['fill_value'],options['verbose'])
+        if (flag == 1 and options['remap']):
+            remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],options['verbose'])
+            if options['verbose']:
                 print 'Finished',key, i,'of',len(d), 'and placed', count, 'files'
+            if options['clean']:
+                #clean agg directory
+                clean(paths['aggDir'])
+    print 'done with everything'
+    return
 
 ##################################################################################
 def read_netcdf(nc_str,vars,verbose):
@@ -95,6 +97,7 @@ def read_netcdf(nc_str,vars,verbose):
         d[var] = f.variables[var][:]
     f.close()
     return d
+
 ##################################################################################
 def make_degrees(vars,Inputs,verbose):  
     d={}
@@ -103,29 +106,34 @@ def make_degrees(vars,Inputs,verbose):
     if verbose == True:
         print 'Converted', vars, 'to degrees'
     return d
+
 ##################################################################################
 def filename(prefix,tup):
-    lon = ('%.3f' % tup[0])
-    lat = ('%.3f' % tup[1])
+    lon = ('%.5f' % tup[0])[:-2]
+    lat = ('%.5f' % tup[1])[:-2]
     string = prefix+lon+'_'+lat+'.nc'
+
     return string
+
 ##################################################################################
-def remap_file(aggFile,temp_dir,out_dir,verbose):
-    inFile = temp_dir+aggFile
-    outFile = out_dir+aggFile
-    cdo.remapcon(gridFile, input = inFile, output = outFile, options = '-f nc4')
-    #if verbose:
-    #    print 'remapped to out file:', outFile
+def remap_file(gridFile,aggFile,aggDir,remapDir,verbose):
+    aggFile = aggDir+aggFile
+    remapFile = remapDir+aggFile
+    cdo.remapcon(gridFile, input = aggFile, output = remapFile, options = '-f nc4')
+    if verbose:
+        print 'remapped to out file:', outFile
+    return
+
 ##################################################################################
 ##  Write output to netCDF
 ##  Writes out a netCD4 data file containing the UH_S and fractions
 ##################################################################################
-def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,diffusion,NODATA,verbose):
+def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,diffusion,fill_value,verbose):
     """
     Write output to netCDF.  Writes out a netCDF4-64BIT data file containing
     the UH_S and fractions and a full set of history and description attributes.
     """
-    f = Dataset(file,'w', format='NETCDF4')
+    f = Dataset(file,'w', format='NETCDF4_CLASSIC')
 
     # set dimensions
     time = f.createDimension('time', None)
@@ -136,8 +144,8 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,d
     time = f.createVariable('time','f8',('time',))
     lon = f.createVariable('lon','f8',('lon',))
     lat = f.createVariable('lat','f8',('lat',))
-    fraction = f.createVariable('fraction','f8',('lat','lon',),fill_value=NODATA)
-    UHS = f.createVariable('unit_hydrograph','f8',('time','lat','lon',),fill_value=NODATA)
+    fraction = f.createVariable('fraction','f8',('lat','lon',),fill_value=fill_value)
+    UHS = f.createVariable('unit_hydrograph','f8',('time','lat','lon',),fill_value=fill_value)
 
     # write attributes for netcdf
     f.description = 'Aggregated UH_S and Fraction Vars'
@@ -177,7 +185,7 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,d
     fraction[:,:]= fractions
     f.close()
 ##################################################################################
-def agg(inData,aggData,pad,verbose):
+def agg(inData,aggData,resolution,verbose,fill_value,pad=0):
     """
     Add the two data sets together and return the combined arrays.
     The two data sets must include the coordinate variables lon,lat, and time
@@ -218,8 +226,7 @@ def agg(inData,aggData,pad,verbose):
         try: xres = np.absolute(aggData['lon'][1] - aggData['lon'][0])
         except: xres = resolution
     else:
-        print 'no inputs to agg function'
-        raise 
+        raise IOError('no inputs to agg function')
     # make output arrays for lons/lats and initialize fractions/hydrographs
     # pad output arrays so there is a space = pad around inputs
     times = np.arange(Range[0],Range[1]+tStep,tStep)
@@ -254,11 +261,11 @@ def agg(inData,aggData,pad,verbose):
     if (inData == [] or aggData == []):
         mask = np.broadcast_arrays(hydrographs, fractions<=0.0)[1]
         hydrographs = ma.masked_array(hydrographs,mask=mask)
-        ma.set_fill_value(hydrographs, NODATA)
+        ma.set_fill_value(hydrographs, fill_value)
         
         # Normalize the hydrographs (each cell should sum to 1)
         hydrographs /= hydrographs.sum(axis=0)
-        hydrographs = ma.filled(hydrographs, NODATA)
+        hydrographs = ma.filled(hydrographs, fill_value)
     # Put all the data into aggData variable and return to main
     aggData['lon']  = lons
     aggData['lat']  = lats
@@ -277,6 +284,80 @@ def find_nearest(array,value):
     idx = (np.abs(array-value)).argmin()
     return idx
 
+##################################################################################
+def process_command_line():
+    """
+    Process command line arguments
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument("mapFile", type=str, help="Input mapping weights beween target grid and routing grid, example of how to make these weights: cdo gennn,Wu_routing_inputs.nc domain.lnd.wr50a_ar9v4.100920.nc out_weights.nc")
+    parser.add_argument("srcDir", type=str, help="Directory containing Unit Hydrograph grids to be aggregated")
+    parser.add_argument("--gridFile", type=str, help="Input netCDF target grid")
+    parser.add_argument("--remapDir", type=str, help="Directory containing Output Unit Hydrograph grids")
+    parser.add_argument("--aggDir", type=str, help="Directory where to store aggregated files (before remap)")
+    parser.add_argument("--inPrefix", type=str, help="Input Unit Hydrograph File Prefix",default='UH_')
+    parser.add_argument("--outPrefix", type=str, help="Output Unit Hydrograph File Prefix", default="Agg_UH_")
+    parser.add_argument("--time", type=str, help="Input Unit Hydrograph time variable name",default='time')
+    parser.add_argument("--lon", type=str, help="Input Unit Hydrograph longitude variable name",default='lon')
+    parser.add_argument("--lat", type=str, help="Input Unit Hydrograph latitude variable name",default='lat')
+    parser.add_argument("--fraction", type=str, help="Input Unit Hydrograph fraction variable name",default='fraction')
+    parser.add_argument("--unit_hydrograph",type=str, help="Input Unit Hydrograph unit hydrograph variable name",default='unit_hydrograph')
+    parser.add_argument("--cdoDebug",help="Enable CDO debuging (prings each step to screen)",action="store_true")
+    parser.add_argument("--cdoForce",help="Enable CDO force output (will overwrite existing files during remap)",action="store_true")
+    parser.add_argument("--verbose",help="Make script verbose",action="store_true")
+    parser.add_argument("--remap",help="Remap the aggregated Unit Hydrographs to outDir and put the aggregated files in the tempDir",action='store_true')
+    parser.add_argument("--fill_value",type=float,help="value to use as masked value",default = 9.96920996839e+36)
+    parser.add_argument("--pad",type=int,help="Set number of empty cells to include around each aggregated basin",default=10)
+    parser.add_argument("--resolution",type=float,help="Set resolution of input Unit Hydrographs",default=1/16.)
+    parser.add_argument("--clean",help="Clean up aggregated Unit Hydrograph grids if remapping", action='store_true')
+    args = parser.parse_args()
+
+    options = {}
+    paths = {}
+    # parse the basics
+    Rvars = (args.time,args.lon,args.lat,args.fraction,args.unit_hydrograph)
+    paths['srcDir'] = args.srcDir
+    paths['mapFile'] = args.mapFile
+    paths['gridFile'] = args.gridFile
+
+    if args.aggDir:
+        paths['aggDir'] = args.aggDir
+    else:
+        paths['aggDir'] = paths['srcDir']+'../aggregated/'
+        if not os.path.exists(paths['aggDir']):
+            os.makedirs(paths['aggDir'])
+
+    options['verbose'] = args.verbose
+    options['fill_value'] = args.fill_value
+    options['pad'] = args.pad
+    options['resolution'] = args.resolution
+    options['inPrefix'] = args.inPrefix
+    options['outPrefix'] = args.outPrefix
+
+    if args.remap:
+        options['remap']=True
+        options['clean']=args.clean
+        cdo.debug=args.cdoDebug
+        cdo.forceOutput=args.cdoForce
+        if args.remapDir:
+            paths['remapDir'] = args.remapDir
+        else:
+            paths['remapDir'] = paths['srcDir']+'../remaped/'
+            if not os.path.exists(paths['remapDir']):
+                os.makedirs(paths['remapDir'])
+        print paths['remapDir']
+
+    return Rvars,paths,options
+
+def clean(aggDir):
+    for file in os.listdir(aggDir):
+        file_path = os.path.join(aggDir, file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception, e:
+            print e
+    return
 ##################################################################################
 # Run Program
 ##################################################################################
