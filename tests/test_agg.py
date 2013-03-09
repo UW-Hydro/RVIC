@@ -10,9 +10,9 @@ import time as tm
 import glob
 
 ##################################################################################
-in_dir = '/raid/jhamman/temp_uh_files/run1_RASM_remap/'
+in_dir = '/raid/jhamman/temp_uh_files/run2_RASM_remap/'
 out_dir = '/raid/jhamman/temp_uh_files/'
-outFile = 'All_RASM.nc'
+outFile = 'All_RASM_run2.nc'
 verbose = False
 Agvars = ['fraction','unit_hydrograph']
 NODATA = -9999
