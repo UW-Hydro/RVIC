@@ -634,7 +634,10 @@ def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
     lon.standard_name = 'longitude'
     lon.units = 'degrees_east'
 
-    time.units = 'seconds'
+    time.units = 'seconds since 0000-1-1 0:0:0'
+    time.calendar = 'noleap'
+    time.longname = 'time'
+    time.type_prefered = 'int'
     time.description = 'Seconds since initial impulse'
 
     UHS.units = 'unitless'
