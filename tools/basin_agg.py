@@ -91,7 +91,7 @@ def main():
             print 'Cool, youre doing the aggTest...'
     for i,key in enumerate(d):
         if options['verbose']:
-            print 'Started',key,i+1,'of',len(d)
+            print '  Started',key,i+1,'of',len(d)
         flag  = 0
         Flist = []
         for j,inFile in enumerate(d[key]):
@@ -113,20 +113,25 @@ def main():
                 inData={}
                 for var in Rvars:
                     inData[var] = f.variables[var][:] 
-                aggData = agg(inData,aggData,options['resolution'],options['fill_value'],options['verbose'])
+                aggData = agg(inData,aggData,options['resolution'],
+                              options['fill_value'],options['verbose'])
             f.close()
             flag = 1
             count += 1
         # Add pad to final file
         if (len(Flist)>0 and flag==1):
-             aggData = agg([],aggData,options['resolution'],options['verbose'],options['fill_value'],pad=options['pad'])
+             aggData = agg([],aggData,options['resolution'],options['verbose'],
+                           options['fill_value'],pad=options['pad'])
              # Write out to netCDF
-             write_netcdf(os.path.join(paths['aggDir'],aggFile),aggData['lon'],aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
-                          aggData['fraction'],key,Flist,velocity,diffusion,options['fill_value'],options['verbose'])
+             write_netcdf(os.path.join(paths['aggDir'],aggFile),aggData['lon'],
+                          aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
+                          aggData['fraction'],key,Flist,velocity,diffusion,
+                          options['fill_value'],options['verbose'])
         if (flag == 1 and options['remap']):
-            remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],options['verbose'])
+            remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],
+                       options['verbose'])
             if options['verbose']:
-                print 'Finished',key, i,'of',len(d), 'and placed', count, 'files\n'
+                print 'Finished',key, i+1,'of',len(d), 'and placed', count, 'files\n'
             if options['clean']:
                 #clean agg directory
                 clean(paths['aggDir'])
@@ -158,7 +163,6 @@ def filename(prefix,tup):
     lon = str(round(tup[0],2))
     lat = str(round(tup[1],2))
     string = prefix+lon+'_'+lat+'.nc'
-
     return string
 
 ##################################################################################
@@ -166,6 +170,7 @@ def remap_file(gridFile,aggFile,aggDir,remapDir,verbose):
     remapFile = os.path.join(remapDir,aggFile)
     aggFile = os.path.join(aggDir,aggFile)
     cdo.remapcon(gridFile, input = aggFile, output = remapFile, options = '-f nc4 -z zip')
+    # cdo.remapcon(gridFile, input = aggFile, output = remapFile, options = '-f nc4')
     if verbose:
         print '\nremapped to out file:', remapFile
     return
@@ -215,7 +220,7 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,d
     time.units = 'seconds since 0000-1-1 0:0:0'
     time.calendar = 'noleap'
     time.longname = 'time'
-    time.type_prefered = 'int'
+    time.type_prefered = 'float'
     time.description = 'Seconds since initial impulse'
 
     UHS.units = 'unitless'
@@ -293,9 +298,19 @@ def agg(inData,aggData,resolution,verbose,fill_value,pad=0):
               find_nearest(lons,np.min(aggData['lon'])), find_nearest(lons,np.max(aggData['lon']))+1]
 
     # Make sure all values in the unit hydrograph are zero (no mask)
-    if inData: inData['unit_hydrograph'][inData['unit_hydrograph']<0] = 0.0
-    if aggData: aggData['unit_hydrograph'][aggData['unit_hydrograph']<0] = 0.0
-
+    if inData:
+        inData['unit_hydrograph'][inData['unit_hydrograph']<0] = 0.0
+        try:
+            inData['unit_hydrograph'] = inData['unit_hydrograph'].filled(fill_value=0)
+        except:
+            pass
+    if aggData:
+        aggData['unit_hydrograph'][aggData['unit_hydrograph']<0] = 0.0
+        try:
+            aggData['unit_hydrograph']=aggData['unit_hydrograph'].filled(fill_value=0)
+        except:
+            pass
+        
     # Place data
     # First the fractions
     if inData:
@@ -303,24 +318,36 @@ def agg(inData,aggData,resolution,verbose,fill_value,pad=0):
     if aggData:
         fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]] += aggData['fraction']
 
-    # Then the hydrographs (which are scaled appropriately based on their relative fraction )
+    # If there is a chance that there is overlap between basins, this method will need to be used.
+    # Otherwise, the simplier method below should work fine  
+    # # Then the hydrographs 
+    # if inData:
+    #     pvals = np.nonzero(fractions[In[2]:In[3],In[4]:In[5]]>0)
+    #     hydrographs[In[0]:In[1],In[2]:In[3],In[4]:In[5]][:,pvals[0],pvals[1]] += inData['unit_hydrograph'][:,pvals[0],pvals[1]]*(inData['fraction'][pvals]/fractions[In[2]:In[3],In[4]:In[5]][pvals])
+    # if aggData:
+    #     pvals = np.nonzero(fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]]>0)
+    #     hydrographs[Ex[0]:Ex[1],Ex[2]:Ex[3],Ex[4]:Ex[5]][:,pvals[0],pvals[1]] += aggData['unit_hydrograph'][:,pvals[0],pvals[1]]*(aggData['fraction'][pvals]/fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]][pvals])
     if inData:
-        pvals = np.nonzero(fractions[In[2]:In[3],In[4]:In[5]]>0)
-        hydrographs[In[0]:In[1],In[2]:In[3],In[4]:In[5]][:,pvals[0],pvals[1]] += inData['unit_hydrograph'][:,pvals[0],pvals[1]]*(inData['fraction'][pvals]/fractions[In[2]:In[3],In[4]:In[5]][pvals])
+        hydrographs[In[0]:In[1],In[2]:In[3],In[4]:In[5]] += inData['unit_hydrograph']
     if aggData:
-        pvals = np.nonzero(fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]]>0)
-        hydrographs[Ex[0]:Ex[1],Ex[2]:Ex[3],Ex[4]:Ex[5]][:,pvals[0],pvals[1]] += aggData['unit_hydrograph'][:,pvals[0],pvals[1]]*(aggData['fraction'][pvals]/fractions[Ex[2]:Ex[3],Ex[4]:Ex[5]][pvals])
+        hydrographs[Ex[0]:Ex[1],Ex[2]:Ex[3],Ex[4]:Ex[5]] += aggData['unit_hydrograph']
     
     # Mask the hydrographs and make sure they sum to 1 at each grid cell
     if (inData == [] or aggData == []):
-        mask = np.broadcast_arrays(hydrographs, fractions<=0.0)[1]
-        hydrographs = ma.masked_array(hydrographs,mask=mask)
-        ma.set_fill_value(hydrographs, fill_value)
+        ym,xm = np.nonzero((fractions<=0)*(hydrographs.sum(axis=0)<=0))
+        fractions[ym,xm] = 0
+        hydrographs[:,ym,xm] = fill_value
         
         # Normalize the hydrographs (each cell should sum to 1)
-        hydrographs /= hydrographs.sum(axis=0)
-        hydrographs = ma.filled(hydrographs, fill_value)
+        yv,xv = np.nonzero(fractions>0)
+        # print '\n'
+        # print hydrographs[:,yv,xv].sum(axis=0)
+        hydrographs[:,yv,xv] /= hydrographs[:,yv,xv].sum(axis=0)
+        # print 'just normalized the uh grid'
+        # print hydrographs[:,yv,xv].sum(axis=0)
+
     # Put all the data into aggData variable and return to main
+    
     aggData['lon'] = lons
     aggData['lat'] = lats
     aggData['fraction'] = fractions
@@ -389,10 +416,10 @@ def process_command_line():
     options['outPrefix'] = args.outPrefix
     options['dryrun'] = args.dryrun
     options['testAgg'] = args.testAgg
-
-    if args.remap:
-        options['remap']=True
-        options['clean']=args.clean
+    options['clean']=args.clean
+    options['remap']=args.remap
+    
+    if options['remap']:
         cdo.debug=args.cdoDebug
         cdo.forceOutput=args.cdoForce
         if args.remapDir:
@@ -401,7 +428,7 @@ def process_command_line():
             paths['remapDir'] = os.path.join(paths['srcDir'],'../remaped/')
             if not os.path.exists(paths['remapDir']):
                 os.makedirs(paths['remapDir'])
-        print paths['remapDir']
+        print paths['remapDir']        
 
     return Rvars,paths,options
 
