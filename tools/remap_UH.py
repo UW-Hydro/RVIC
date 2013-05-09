@@ -20,121 +20,128 @@ from scipy.spatial import cKDTree
 
 def main():
 
-    Rvars,paths,options = process_command_line()
-
-    Cvars = ('yc','xc')
-    Inputs=read_netcdf(paths['gridFile'],Cvars,options['verbose'])
-
-    #Find Destination grid cells 
-    if options['verbose']:
-        print 'Finding addresses now...'
-
-    #1.  Make a list of source points (regular gid lat/lons)
+    Rvars,Cvars, paths,options = process_command_line()
     file_list = os.listdir(paths['srcDir'])
-    lons, lats = [], []
-    for file in file_list:
-        f,suffix = os.path.splitext(file)
-        prefix,lon,lat = f.split('_')
-        lons.append(float(lon))
-        lats.append(float(lat))
 
-    if (min(lons)<0 and Inputs['xc'].min()>=0):
-        posinds = np.nonzero(Inputs['xc']>180)
-        Inputs['xc'][posinds] -= 360
-        if options['verbose']:
-            print 'adjusted xc lon minimum'
-
-    if options['testAgg']:
-        # limit the inputs arrays to a single point
-        # so that all points are mapped to just one location
-        combined = np.dstack(([Inputs['xc'][0,0].ravel(),Inputs['yc'][0,0].ravel()]))[0]
-    else:
-        combined = np.dstack(([Inputs['xc'].ravel(),Inputs['yc'].ravel()]))[0]
-
-    points=list(np.vstack((np.array(lons),np.array(lats))).transpose())
-
-    mytree = cKDTree(combined)
-    dist,indexes =mytree.query(points,k=1)
-    indexes = np.array(indexes)
-
-    d = defaultdict(list)
-    for i,ind in enumerate(indexes):
-        key = (combined[ind][0],combined[ind][1])
-        d[key].append(file_list[i])
-
-    if options['dryrun']:
-        print 'Starting dry run now'
-        lcount = 0
-        kcount = 0
-        file_list = os.listdir(paths['srcDir'])
-        num = len(file_list)
-        for i,key in enumerate(d):
-            kcount += 1
-            for j,fname in enumerate(d[key]):
-                if os.path.isfile(os.path.join(paths['srcDir'],fname)):
-                    lcount += 1
-                    file_list.remove(fname)
-        print 'NUMBER OF FILES IN SOURCE DIRECTORY:',num
-        print 'NUMBER OF POINTS TO AGGREGATE TO:', kcount
-        print 'NUMBER OF SOURCE FILES FOUND:',lcount
-        print 'NUMBER OF FILES STILL IN FILE LIST:',len(file_list)
-        print 'EFFECIENCY OF:', 100.*lcount/num, '%'
-        print 'FILES LEFT IN FILE LIST:\n',file_list
-        return
+    if options['agg'] or options['testAgg'] or options['dryrun']:
+        Inputs=read_netcdf(paths['gridFile'],Cvars,options['verbose'])
         
-
-    # Aggregate all basins in each key
-    count = 0
-    if options['verbose']:
-        print 'Aggregating now...'
-        if options['testAgg']:
-            print 'Cool, youre doing the aggTest...'
-    for i,key in enumerate(d):
+        #Find Destination grid cells 
         if options['verbose']:
-            print '  Started',key,i+1,'of',len(d)
-        flag  = 0
-        Flist = []
-        for j,inFile in enumerate(d[key]):
+            print 'Finding addresses now...'
+
+        #1.  Make a list of source points (regular gid lat/lons)
+        lons, lats = [], []
+        for file in file_list:
+            f,suffix = os.path.splitext(file)
+            prefix,lon,lat = f.split('_')
+            lons.append(float(lon))
+            lats.append(float(lat))
+            
+        if (min(lons)<0 and Inputs['xc'].min()>=0):
+            posinds = np.nonzero(Inputs['xc']>180)
+            Inputs['xc'][posinds] -= 360
             if options['verbose']:
-                sys.stdout.write('\r')
-                sys.stdout.write('Last opened file '+str(j+1)+" of "+str(len(d[key]))+" - "+inFile)
-                sys.stdout.flush()
-            Flist.append(inFile)
-            f = Dataset(os.path.join(paths['srcDir'],inFile),'r')
-            if flag == 0:
-                aggData={}
-                aggFile = filename(options['outPrefix'],key)
-                for var in Rvars:
-                    aggData[var] = f.variables[var][:]
-                if count == 0:
-                    velocity = f.velocity
-                    diffusion = f.diffusion
-            else:
-                inData={}
-                for var in Rvars:
-                    inData[var] = f.variables[var][:] 
-                aggData = agg(inData,aggData,options['resolution'],
-                              options['fill_value'],options['verbose'])
-            f.close()
-            flag = 1
-            count += 1
-        # Add pad to final file
-        if (len(Flist)>0 and flag==1):
-             aggData = agg([],aggData,options['resolution'],options['verbose'],
-                           options['fill_value'],pad=options['pad'])
-             # Write out to netCDF
-             write_netcdf(os.path.join(paths['aggDir'],aggFile),aggData['lon'],
-                          aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
-                          aggData['fraction'],key,Flist,velocity,diffusion,
-                          options['fill_value'],options['verbose'])
-        if (flag == 1 and options['remap']):
-            remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],
+                print 'adjusted xc lon minimum'
+            
+        if options['testAgg']:
+            # limit the inputs arrays to a single point
+            # so that all points are mapped to just one location
+            combined = np.dstack(([Inputs['xc'][0,0].ravel(),Inputs['yc'][0,0].ravel()]))[0]
+        else:
+            combined = np.dstack(([Inputs['xc'].ravel(),Inputs['yc'].ravel()]))[0]
+        
+        points=list(np.vstack((np.array(lons),np.array(lats))).transpose())
+
+        mytree = cKDTree(combined)
+        dist,indexes =mytree.query(points,k=1)
+        indexes = np.array(indexes)
+
+        d = defaultdict(list)
+        for i,ind in enumerate(indexes):
+            key = (combined[ind][0],combined[ind][1])
+            d[key].append(file_list[i])
+            
+        if options['dryrun']:
+            print 'Starting dry run now'
+            lcount = 0
+            kcount = 0
+            file_list = os.listdir(paths['srcDir'])
+            num = len(file_list)
+            for i,key in enumerate(d):
+                kcount += 1
+                for j,fname in enumerate(d[key]):
+                    if os.path.isfile(os.path.join(paths['srcDir'],fname)):
+                        lcount += 1
+                        file_list.remove(fname)
+            print 'NUMBER OF FILES IN SOURCE DIRECTORY:',num
+            print 'NUMBER OF POINTS TO AGGREGATE TO:', kcount
+            print 'NUMBER OF SOURCE FILES FOUND:',lcount
+            print 'NUMBER OF FILES STILL IN FILE LIST:',len(file_list)
+            print 'EFFECIENCY OF:', 100.*lcount/num, '%'
+            print 'FILES LEFT IN FILE LIST:\n',file_list
+            return
+        
+        
+        # Aggregate all basins in each key
+        count = 0
+        if options['verbose']:
+            print 'Aggregating now...'
+            if options['testAgg']:
+                print 'Cool, youre doing the aggTest...'
+        for i,key in enumerate(d):
+            if options['verbose']:
+                print '  Started',key,i+1,'of',len(d)
+            flag  = 0
+            Flist = []
+            for j,inFile in enumerate(d[key]):
+                if options['verbose']:
+                    sys.stdout.write('\r')
+                    sys.stdout.write('Last opened file '+str(j+1)+" of "+str(len(d[key]))+" - "+inFile)
+                    sys.stdout.flush()
+                Flist.append(inFile)
+                f = Dataset(os.path.join(paths['srcDir'],inFile),'r')
+                if flag == 0:
+                    aggData={}
+                    aggFile = filename(options['outPrefix'],key)
+                    for var in Rvars:
+                        aggData[var] = f.variables[var][:]
+                    if count == 0:
+                        velocity = f.velocity
+                        diffusion = f.diffusion
+                else:
+                    inData={}
+                    for var in Rvars:
+                        inData[var] = f.variables[var][:] 
+                    aggData = agg(inData,aggData,options['resolution'],
+                                  options['fill_value'],options['verbose'])
+                f.close()
+                flag = 1
+                count += 1
+            # Add pad to final file
+            if (len(Flist)>0 and flag==1):
+                aggData = agg([],aggData,options['resolution'],options['verbose'],
+                              options['fill_value'],pad=options['pad'])
+                # Write out to netCDF
+                write_netcdf(os.path.join(paths['aggDir'],aggFile),aggData['lon'],
+                             aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
+                             aggData['fraction'],key,Flist,velocity,diffusion,
+                             options['fill_value'],options['verbose'])
+            if (flag == 1 and options['remap']):
+                remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],
+                           options['verbose'])
+                if options['verbose']:
+                    print 'Finished',key, i+1,'of',len(d), 'and placed', count, 'files\n'
+                if options['clean']:
+                    #clean agg directory
+                    clean(paths['aggDir'])
+    else:
+        # Just remap in the input files
+        for i,inFile in enumerate(file_list):
+            remap_file(paths['gridFile'],inFile,paths['srcDir'],paths['remapDir'],
                        options['verbose'])
             if options['verbose']:
-                print 'Finished',key, i+1,'of',len(d), 'and placed', count, 'files\n'
-            if options['clean']:
-                #clean agg directory
-                clean(paths['aggDir'])
+                print 'Finished',inFile, i+1,'of',len(file_list),'\n'
     print 'done with everything'
     return
 
@@ -166,11 +173,10 @@ def filename(prefix,tup):
     return string
 
 ##################################################################################
-def remap_file(gridFile,aggFile,aggDir,remapDir,verbose):
-    remapFile = os.path.join(remapDir,aggFile)
-    aggFile = os.path.join(aggDir,aggFile)
-    cdo.remapcon(gridFile, input = aggFile, output = remapFile, options = '-f nc4 -z zip')
-    # cdo.remapcon(gridFile, input = aggFile, output = remapFile, options = '-f nc4')
+def remap_file(gridFile,inFile,inDir,remapDir,verbose):
+    remapFile = os.path.join(remapDir,inFile)
+    inFile = os.path.join(inDir,inFile)
+    cdo.remapcon(gridFile, input = inFile, output = remapFile, options = '-f nc4 -z zip')
     if verbose:
         print '\nremapped to out file:', remapFile
     return
@@ -372,24 +378,27 @@ def process_command_line():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("srcDir", type=str, help="Directory containing Unit Hydrograph grids to be aggregated")
-    parser.add_argument("--gridFile", type=str, help="Input netCDF target grid")
+    parser.add_argument("gridFile", type=str, help="Input netCDF target grid")
     parser.add_argument("--remapDir", type=str, help="Directory containing Output Unit Hydrograph grids")
     parser.add_argument("--aggDir", type=str, help="Directory where to store aggregated files (before remap)")
-    parser.add_argument("--inPrefix", type=str, help="Input Unit Hydrograph File Prefix",default='UH_')
-    parser.add_argument("--outPrefix", type=str, help="Output Unit Hydrograph File Prefix", default="Agg_UH_")
-    parser.add_argument("--time", type=str, help="Input Unit Hydrograph time variable name",default='time')
-    parser.add_argument("--lon", type=str, help="Input Unit Hydrograph longitude variable name",default='lon')
-    parser.add_argument("--lat", type=str, help="Input Unit Hydrograph latitude variable name",default='lat')
-    parser.add_argument("--fraction", type=str, help="Input Unit Hydrograph fraction variable name",default='fraction')
-    parser.add_argument("--unit_hydrograph",type=str, help="Input Unit Hydrograph unit hydrograph variable name",default='unit_hydrograph')
+    parser.add_argument("--inPrefix", type=str, help="Input Unit Hydrograph File Prefix (default=UH_)",default='UH_')
+    parser.add_argument("--outPrefix", type=str, help="Output Unit Hydrograph File Prefix (default=Agg_UH_)", default="Agg_UH_")
+    parser.add_argument("--time", type=str, help="Input Unit Hydrograph time variable name (default=time)",default='time')
+    parser.add_argument("--lon", type=str, help="Input Unit Hydrograph longitude variable name (default=lon)",default='lon')
+    parser.add_argument("--lat", type=str, help="Input Unit Hydrograph latitude variable name (default=lat)",default='lat')
+    parser.add_argument("--fraction", type=str, help="Input Unit Hydrograph fraction variable name (default=fraction)",default='fraction')
+    parser.add_argument("--unit_hydrograph",type=str, help="Input unit hydrograph variable name (default=unit_hydrograph)",default='unit_hydrograph')
+    parser.add_argument("--xc", type=str, help="Input target grid longitude variable (default=xc)",default='xc')
+    parser.add_argument("--yc", type=str, help="Input target grid latitude variable (default=yc)",default='yc')    
     parser.add_argument("--testAgg",help="Do a test aggregation, where all inpoint points are aggregated into one file, remapping can be done afterwards using the --remap flag",action="store_true")
     parser.add_argument("--cdoDebug",help="Enable CDO debuging (prings each step to screen)",action="store_true")
     parser.add_argument("--cdoForce",help="Enable CDO force output (will overwrite existing files during remap)",action="store_true")
     parser.add_argument("--verbose",help="Make script verbose",action="store_true")
     parser.add_argument("--remap",help="Remap the aggregated Unit Hydrographs to outDir and put the aggregated files in the tempDir",action='store_true')
-    parser.add_argument("--fill_value",type=float,help="value to use as masked value",default = 9.96920996839e+36)
-    parser.add_argument("--pad",type=int,help="Set number of empty cells to include around each aggregated basin",default=10)
-    parser.add_argument("--resolution",type=float,help="Set resolution of input Unit Hydrographs",default=1/16.)
+    parser.add_argument("--agg",help="Aggregate the input files onto the targetGrid (gridFile)",action='store_true')
+    parser.add_argument("--fill_value",type=float,help="value to use as masked value (default=9.96920996839e+36)",default = 9.96920996839e+36)
+    parser.add_argument("--pad",type=int,help="Set number of empty cells to include around each aggregated basin (default=10)",default=10)
+    parser.add_argument("--resolution",type=float,help="Set resolution of input Unit Hydrographs (default=1/16.)",default=1/16.)
     parser.add_argument("--clean",help="Clean up aggregated Unit Hydrograph grids if remapping", action='store_true')
     parser.add_argument("--dryrun",help="Do the mapping between the source and target grid based on the files in the input directory, return the performance stats for the run", action='store_true')
     args = parser.parse_args()
@@ -398,6 +407,7 @@ def process_command_line():
     paths = {}
     # parse the basics
     Rvars = (args.time,args.lon,args.lat,args.fraction,args.unit_hydrograph)
+    Cvars = (args.yc,args.xc)
     paths['srcDir'] = args.srcDir
     paths['gridFile'] = args.gridFile
 
@@ -418,6 +428,7 @@ def process_command_line():
     options['testAgg'] = args.testAgg
     options['clean']=args.clean
     options['remap']=args.remap
+    options['agg']=args.agg
     
     if options['remap']:
         cdo.debug=args.cdoDebug
@@ -430,7 +441,7 @@ def process_command_line():
                 os.makedirs(paths['remapDir'])
         print paths['remapDir']        
 
-    return Rvars,paths,options
+    return Rvars,Cvars,paths,options
 
 def clean(aggDir):
     for file in os.listdir(aggDir):
