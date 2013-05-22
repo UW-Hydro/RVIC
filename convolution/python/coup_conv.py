@@ -50,7 +50,7 @@ def main(re = 6.37122e6,rho_h20=1000):
             out_dict['latitudes'] = f.variables['yc'][:]
             shape = area.shape
         else:
-            shape = (len(uh_files))
+            shape = (len(uh_files),)
         f.close()
     except:
         e = sys.exc_info()[0]
@@ -66,8 +66,6 @@ def main(re = 6.37122e6,rho_h20=1000):
         print 'starting convolution now'
     time_dict = {}
     for i,ff in enumerate(flux_files):
-        if options['verbose']:
-            print ff
         # Check to see if it's time to save a state file
         if any(date in ff for date in outputs['state']):
             print 'making statefile from %s' %ff
@@ -125,7 +123,7 @@ def main(re = 6.37122e6,rho_h20=1000):
             write_output(out_name,out_state,out_dict,time_dict,"state",options,shape=shape)
     return
 
-def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape="array"):
+def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape):
     """
     Write output file
     This routine is setup to handle the creation of streamflow or state files
@@ -149,13 +147,8 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape="ar
     else:
         time[:] = time_dict['time_step']
     
-    if shape=="array":
-        if out_flow.ndim==2:
-            l = out_flow.shape[1]
-        else:
-            l=out_flow.shape[0]
-
-        points = f.createDimension('point', l)
+    if len(shape)==1:
+        points = f.createDimension('point', shape[0])
         
         xis = f.createVariable('xi','i8',('point',))
         xis.standard_name = "x_outlet"
@@ -235,6 +228,7 @@ def make_point_dict(uh_files,area,out_dict,initial_state=None):
         d = {}
         f=Dataset(uh_file,'r')
         if f.variables['time'].units =="seconds since 0-01-01 00:00:00":
+            # convert to ordinal of day since...
             d['time'] = f.variables['time'][:]/86400
         else:
             # for now assume they are in days since 0-01-01 00:00:00
@@ -306,7 +300,7 @@ def convolve(point_dict,time_dict,flux,return_state,shape):
     for i,(point,d) in enumerate(point_dict.iteritems()):
         if i == 0:
             if return_state and out_type=='array':
-                out_state = np.zeros((len(d['uh']),shape))
+                out_state = np.zeros((len(d['uh']),shape[0]))
                 time_dict['out_state_time'] = d['time']+ time_dict['time_step']
             elif return_state and out_type=='grid':
                 out_state = np.zeros((len(d['uh']),shape[0],shape[1]))
@@ -327,15 +321,15 @@ def convolve(point_dict,time_dict,flux,return_state,shape):
         
         #get the current state from the ring
         if return_state and out_type=='array':
-            out_state[:,i] = shift(d['ring'],-now)
+            out_state[:,i] = shift(d['ring'],now-1-d['end'])
 
         elif return_state and out_type=='grid':
-            out_state[:,point[0],point[1]]=shift(d['ring'],-now)
+            out_state[:,point[0],point[1]]=shift(d['ring'],now-1-d['end'])
         
         #Set the current ring value to 0
         d['ring'][now]=0
         
-        # move to next timestep
+        # move the counter to the next timestep
         if now==d['end']:
             d['now']=0
         else:
