@@ -47,20 +47,33 @@ def main():
         if options['testAgg']:
             # limit the inputs arrays to a single point
             # so that all points are mapped to just one location
-            combined = np.dstack(([Inputs['xc'][0,0].ravel(),Inputs['yc'][0,0].ravel()]))[0]
+            combined = np.dstack(([Inputs['yc'][0,0].ravel(),Inputs['xc'][0,0].ravel()]))[0]
         else:
-            combined = np.dstack(([Inputs['xc'].ravel(),Inputs['yc'].ravel()]))[0]
+            combined = np.dstack(([Inputs['yc'].ravel(),Inputs['xc'].ravel()]))[0]
         
-        points=list(np.vstack((np.array(lons),np.array(lats))).transpose())
+        points=list(np.vstack((np.array(lats),np.array(lons))).transpose())
 
         mytree = cKDTree(combined)
         dist,indexes =mytree.query(points,k=1)
         indexes = np.array(indexes)
-
+        
         d = defaultdict(list)
         for i,ind in enumerate(indexes):
             key = (combined[ind][0],combined[ind][1])
             d[key].append(file_list[i])
+
+        # find grid index locations of outlet points        
+        lons = []; lats=[]; keys=[]
+        for i,pair in enumerate(d):
+            lats.append(pair[0]); lons.append(pair[1])
+            keys.append(pair)
+        points = list(np.vstack((np.array(lats),np.array(lons))).transpose())
+        mytree = cKDTree(combined)
+        dist,indexes =mytree.query(points,k=1)
+        yinds,xinds = np.unravel_index(np.array(indexes),Inputs['xc'].shape)
+        ind_dict={}
+        for i,key in enumerate(keys):
+            ind_dict[key] = (yinds[i],xinds[i])
             
         if options['dryrun']:
             print 'Starting dry run now'
@@ -125,7 +138,7 @@ def main():
                 # Write out to netCDF
                 write_netcdf(os.path.join(paths['aggDir'],aggFile),aggData['lon'],
                              aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
-                             aggData['fraction'],key,Flist,velocity,diffusion,
+                             aggData['fraction'],key,ind_dict[key],Flist,velocity,diffusion,
                              options['fill_value'],options['verbose'])
             if (flag == 1 and options['remap']):
                 remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],
@@ -167,8 +180,8 @@ def make_degrees(vars,Inputs,verbose):
 
 ##################################################################################
 def filename(prefix,tup):
-    lon = str(round(tup[0],2))
-    lat = str(round(tup[1],2))
+    lon = str(round(tup[1],2))
+    lat = str(round(tup[0],2))
     string = prefix+lon+'_'+lat+'.nc'
     return string
 
@@ -185,7 +198,7 @@ def remap_file(gridFile,inFile,inDir,remapDir,verbose):
 ##  Write output to netCDF
 ##  Writes out a netCD4 data file containing the UH_S and fractions
 ##################################################################################
-def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,diffusion,fill_value,verbose):
+def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,inds,Flist,velocity,diffusion,fill_value,verbose):
     """
     Write output to netCDF.  Writes out a netCDF4 data file containing
     the UH_S and fractions and a full set of history and description attributes.
@@ -211,8 +224,10 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,Flist,velocity,d
     f.source = sys.argv[0] # prints the name of script used
     f.velocity = velocity
     f.diffusion = diffusion
-    f.outlet_lon = loc[0]
-    f.outlet_lat = loc[1]
+    f.outlet_y= inds[0].astype(np.int16)
+    f.outlet_x = inds[1].astype(np.int16) # this is change is a cdo work around.  Othewise cdo removes the attribute.  
+    f.outlet_lat = loc[0]
+    f.outlet_lon = loc[1]
     f.includes = ', '.join(Flist)
 
     lat.long_name = 'latitude coordinate'
