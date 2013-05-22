@@ -50,7 +50,7 @@ def main(re = 6.37122e6,rho_h20=1000):
             out_dict['latitudes'] = f.variables['yc'][:]
             shape = area.shape
         else:
-            shape = 'array'
+            shape = (len(uh_files))
         f.close()
     except:
         e = sys.exc_info()[0]
@@ -112,7 +112,7 @@ def main(re = 6.37122e6,rho_h20=1000):
 
         # do the covolutions for this timestep
         point_dict,out_flow,out_state,time_dict = convolve(point_dict,time_dict,flux,
-                                                           return_state,outputs['out_type'])
+                                                           return_state,shape=shape)
 
         # write this timestep's streamflows to out_name
         if outputs['out_type'] != "false":
@@ -190,18 +190,16 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape="ar
             flow[0,:] = out_flow
     else:
         # Put all data into a grid
-        x = f.createDimension('x', shape)
-        y = f.createDimension('y', shape)
+        x = f.createDimension('x', shape[1])
+        y = f.createDimension('y', shape[0])
         
         lat = f.createVariable('latitudes','f8',('y','x',))
-        lat = f.createVariable('latitudes','f8',('point',))
         lat.standard_name = "latitude"
         lat.long_name = "latitude of grid cell center"
         lat.units = "degrees_north"
         lat[:,:] = out_dict['latitudes']
         
         lon = f.createVariable('longitudes','f8',('y','x',))
-        lon = f.createVariable('longitudes','f8',('point',))
         lon.standard_name = "longitude"
         lon.long_name = "longitude of grid cell center"
         lon.units = "degrees_east"
@@ -211,9 +209,9 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape="ar
         flow.description = 'Streamflow'
         flow.units = 'm^3/s'
         if out_type=='state':
-            flow[:,out_dict['outlet_ys'],out_dict['outlet_xs']] = out_flow
+            flow[:,:,:] = out_flow
         else:
-            flow[0,out_dict['outlet_ys'],out_dict['outlet_xs']] = out_flow
+            flow[0,:,:] = out_flow
             
     # write attributes for netcdf
     if out_type=='state':
@@ -292,24 +290,27 @@ def make_point_dict(uh_files,area,out_dict,initial_state=None):
         
     return point_dict, out_dict
 
-def convolve(point_dict,time_dict,flux,return_state,out_type='array',grid_shape=None,):
+def convolve(point_dict,time_dict,flux,return_state,shape):
     """
     This convoluition funciton works by looping over all points and doing the
     convolution one timestep at a time.  This is accomplished by creating an
     convolution ring.  Contributing flow from each timestep is added to the
     convolution ring.  The convolution ring is unwrapped when state is being saved.    
     """
-    out_flow = np.zeros(len(point_dict))
-    
+    out_flow = np.zeros(shape)
+    if out_flow.ndim==1:
+        out_type='array'
+    else:
+        out_type='grid'
+            
     for i,(point,d) in enumerate(point_dict.iteritems()):
         if i == 0:
             if return_state and out_type=='array':
-                out_state = np.zeros((len(d['uh']),len(point_dict)))
+                out_state = np.zeros((len(d['uh']),shape))
                 time_dict['out_state_time'] = d['time']+ time_dict['time_step']
             elif return_state and out_type=='grid':
-                out_state = np.zeros((len(d['uh']),grid_shape))
+                out_state = np.zeros((len(d['uh']),shape[0],shape[1]))
                 time_dict['out_state_time'] = d['time']+ time_dict['time_step']
-
             else:
                 out_state = None
                 time_dict['out_state_time'] = None
@@ -329,7 +330,7 @@ def convolve(point_dict,time_dict,flux,return_state,out_type='array',grid_shape=
             out_state[:,i] = shift(d['ring'],-now)
 
         elif return_state and out_type=='grid':
-            out_state[:,point]=shift(d['ring'],-now)
+            out_state[:,point[0],point[1]]=shift(d['ring'],-now)
         
         #Set the current ring value to 0
         d['ring'][now]=0
