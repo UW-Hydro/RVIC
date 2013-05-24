@@ -6,11 +6,11 @@ Written by Joe Hamman, May 2013
 """
 from netCDF4 import Dataset, num2date, date2num
 import numpy as np
-import glob, os
+import glob, os, shutil
 import ConfigParser
 import argparse
 import time as tm
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 def main(re = 6.37122e6,rho_h20=1000):
     """
@@ -27,18 +27,25 @@ def main(re = 6.37122e6,rho_h20=1000):
     """
     
     # read command line and config file
-    uh_files, flux_files, grid_file, out_path,initial_state,outputs, options = process_command_line()
+    config_file = process_command_line()
+    Config, uh_files,flux_files,grid_file,out_path,initial_state,outputs,options = process_config_file(config_file)
 
     # find the grid cell area in square meters
     try:
         f=Dataset(grid_file,'r')
-        if (f.variables['area'].units in ["rad2", "radians2", "radian2","rad^2", "radians^2", "rads^2","radians squared","square-radians"]):
+        if (f.variables['area'].units in ["rad2", "radians2", "radian2","rad^2",
+                                          "radians^2", "rads^2","radians squared",
+                                          "square-radians"]):
             area = f.variables['area'][:]*re*re
-        elif f.variables['area'].units in ["m2","m^2","meters^2","meters2","square-meters","meters squared"]:
+        elif f.variables['area'].units in ["m2","m^2","meters^2","meters2",
+                                           "square-meters","meters squared"]:
             area = f.variables['area'][:]
-        elif f.variables['area'].units in ["km2","km^2","kilometers^2","kilometers2","square-kilometers","kilometers squared"]:
+        elif f.variables['area'].units in ["km2","km^2","kilometers^2",
+                                           "kilometers2","square-kilometers",
+                                           "kilometers squared"]:
             area = f.variables['area'][:]/1000./1000.
-        elif f.variables['area'].units in ["mi2","mi^2","miles^2","miles","square-miles","miles squared"]:
+        elif f.variables['area'].units in ["mi2","mi^2","miles^2","miles",
+                                           "square-miles","miles squared"]:
             area = f.variables['area'][:]*2.59e+6
         elif f.variables['area'].units in ["acres", "ac","ac."]:
             area = f.variables['area'][:]*4046.86
@@ -65,7 +72,10 @@ def main(re = 6.37122e6,rho_h20=1000):
     if options['verbose']:
         print 'starting convolution now'
     time_dict = {}
-    for i,ff in enumerate(flux_files):
+    i = 0
+    while flux_files:
+        ff = flux_files.popleft()
+        i += 1
         # Check to see if it's time to save a state file
         if any(date in ff for date in outputs['state']):
             print 'making statefile from %s' %ff
@@ -76,7 +86,7 @@ def main(re = 6.37122e6,rho_h20=1000):
         f=Dataset(ff,'r')
         # read time step
         time_dict['time_step'] = f.variables['time'][:]
-        if i == 0:
+        if i == 1:
             time_dict['units'] = f.variables['time'].units
             time_dict['cal'] = f.variables['time'].calendar
             time_dict['long_name'] = f.variables['time'].long_name
@@ -119,9 +129,25 @@ def main(re = 6.37122e6,rho_h20=1000):
         
         # write this timestep's state
         if return_state:
-            out_name = os.path.join(out_path,'state_'+os.path.split(ff)[1])
-            write_output(out_name,out_state,out_dict,time_dict,"state",options,shape=shape)
+            state_name = os.path.join(out_path,'state_'+os.path.split(ff)[1])
+            restart_name = os.path.join(out_path,'restart_'+os.path.split(ff)[1][:-2]+'cfg')
+            write_output(state_name,out_state,out_dict,time_dict,"state",options,shape=shape)
+
+            # make an associated restart file
+            Config = write_restart(Config,state_name,restart_name,flux_files)
     return
+
+def write_restart(Config,state_name,restart_name,flux_files):
+    """
+    Write a restart configuration file for startup of next simulation, use current state
+    """
+    # use the configuration parser to update the fields in restart_file
+    Config.set('Paths', 'flux_files', ",".join(flux_files))
+    Config.set('Paths', 'initial_state',state_name)
+    # Writing our configuration file to 'example.cfg'
+    with open(restart_name, 'wb') as configfile:
+        Config.write(configfile)
+    return Config
 
 def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape):
     """
@@ -264,13 +290,18 @@ def make_point_dict(uh_files,area,out_dict,initial_state=None):
         print "Reading Initial State File: %s" %initial_state
         f=Dataset(initial_state,'r')
         state = f.variables['Streamflow'][:]
-        x_outlets = f.variables['xi'][:]
-        y_outlets = f.variables['yi'][:]
-        for i,temp in enumerate(state):
-            key = (yinds[i],xinds[i])
-            point_dict[key]['ring']=temp
+
+        if state.ndim==3:
+            for i,(key,d) in enumerate(point_dict.iteritems()):
+                point_dict[key]['ring']=state[:,key[0],key[1]]
+        else:
+            for i in xrange(state.shape[1]):
+                x_outlets = f.variables['xi'][:]
+                y_outlets = f.variables['yi'][:]
+                key = (y_outlets[i],x_outlets[i])
+                point_dict[key]['ring']=state[:,i]
         f.close()
-        
+
     # Now make a few numpy arrays from the point dict that will go in each output file
     out_dict['lats'] = np.zeros(len(point_dict))
     out_dict['lons'] = np.zeros(len(point_dict))
@@ -308,33 +339,27 @@ def convolve(point_dict,time_dict,flux,return_state,shape):
             else:
                 out_state = None
                 time_dict['out_state_time'] = None
-        now = d['now']
-
+        
         # Get the convolved hydrograph from the flux and add to convolution ring
-        d['ring'] += shift((flux[:,d['yi'],d['xi']]*d['uh']).sum(axis=1), now)
-
+        d['ring'] += (flux[:,d['yi'],d['xi']]*d['uh']).sum(axis=1)
+        
         # Store the streamflow for this timestep
         if out_type=='array':
-            out_flow[i] = d['ring'][now]
+            out_flow[i] = d['ring'][0]
         elif out_type=='grid':
-            out_flow[d['y'],d['x']]=d['ring'][now]
-        
-        #get the current state from the ring
-        if return_state and out_type=='array':
-            out_state[:,i] = shift(d['ring'],now-1-d['end'])
-
-        elif return_state and out_type=='grid':
-            out_state[:,point[0],point[1]]=shift(d['ring'],now-1-d['end'])
+            out_flow[d['y'],d['x']]=d['ring'][0]
         
         #Set the current ring value to 0
-        d['ring'][now]=0
-        
-        # move the counter to the next timestep
-        if now==d['end']:
-            d['now']=0
-        else:
-            d['now']+=1
-            
+        d['ring'][d['now']]=0
+
+        # Shift the ring 
+        d['ring'] = shift(d['ring'],1)
+                
+        #get the starting state for the next timestep from the ring
+        if return_state and out_type=='array':
+            out_state[:,i] = d['ring']
+        elif return_state and out_type=='grid':
+            out_state[:,point[0],point[1]] = d['ring']
         point_dict[point]=d
         
     return  point_dict, out_flow, out_state, time_dict
@@ -348,29 +373,62 @@ def process_command_line():
     parser = argparse.ArgumentParser()
     parser.add_argument("configFile", type=str, help="Input Configuration File")
     args = parser.parse_args()
+    config_file = args.configFile
+    return config_file
 
+def process_config_file(config_file):
     Config = ConfigParser.ConfigParser()
-    Config.read(args.configFile)
+    Config.read(config_file)
 
     # Read Options Section
     options = {}
-    options['verbose'] = Config.getboolean("Options", "verbose")
-
+    try:
+        options['verbose'] = Config.getboolean("Options", "verbose")
+    except:
+        options['verbose'] = False
     # Read Outputs Section
     outputs={}
-    outputs["out_type"] = Config.get("Outputs","out_type")
-    outputs["state"] = Config.get("Outputs","state").split(',')
-    outputs["case_name"] = Config.get("Outputs","case_name")
-    # Read Paths section
-    uh_files = sorted(glob.glob(Config.get("Paths","uh_files")))
-    flux_files = sorted(glob.glob(Config.get("Paths","flux_files")))
-    grid_file = Config.get("Paths","grid_file")
-    out_path = Config.get("Paths","out_path")
     try:
-        initial_state = Config.get("Paths","initial_state")
+        outputs["out_type"] = Config.get("Outputs","out_type")
+    except:
+        print "WARNING:  outputs[out_type] not found in configuration file, output type will be array"
+        outputs["out_type"] = "array"
+
+    try:
+        outputs["state"] = Config.get("Outputs","state").split(',')
+    except:
+        outputs["state"] = False
+    try:
+        outputs["case_name"] = Config.get("Outputs","case_name")
+    except:
+        pass
+    # Read Paths section
+    uh_files = deque(sorted(glob.glob(Config.get("Paths","uh_files"))))
+
+    f = Config.get("Paths","flux_files").split(',')
+    if len(f)>1:
+        flux_files = deque(f) # this is a list of files to read
+    else:
+        flux_files = deque(sorted(glob.glob(f[0]))) # this is a string for glob
+
+    try:
+        grid_file = Config.get("Paths","grid_file")
+    except:
+        raise IOerror('REQUIRED FILE NOT PROVIDED:  grid_file')
+
+    try:
+        out_path = Config.get("Paths","out_path")
+    except:
+        raise IOerror('REQUIRED PATH NOT PROVIDED:  out_path')
+
+    try:
+        f = Config.get("Paths","initial_state")
+        if os.path.exists(f):  initial_state = Config.get("Paths","initial_state")
+        else: raise IOerror('Initial State file %s does not exist' %initial_state)
     except:
         initial_state = None
-    return uh_files, flux_files, grid_file, out_path, initial_state, outputs, options
+        
+    return Config, uh_files, flux_files, grid_file, out_path, initial_state, outputs, options
 
 def shift(l, offset): 
     """
