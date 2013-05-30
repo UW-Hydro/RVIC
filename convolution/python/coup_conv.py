@@ -12,24 +12,46 @@ import argparse
 import time as tm
 from collections import OrderedDict, deque
 
-def main(re = 6.37122e6,rho_h20=1000):
+def main(config_file=None):
     """
     The basic workflow of the main routine of the coupled model convolution is:
-    1.  Read configuration file
-    2.  Read Grid File
-    3.  Load the unit hydrograph files (put into point_dict)
-        - Load the initial state file and put in convolution ring
-    4.  Loop over flux files
+    1.  Read command line / configuration file
+    2.  Run init
+        - Read Grid File
+        - Load the unit hydrograph files (put into point_dict)
+        - Load the initial state file and put it in convolution rings
+    3.  Run
+        - Loop over flux files
         - Combine the Baseflow and Runoff Variables
         - Adjust units as necessary
         - Do convolution
         - Write output files
-    """
-    
-    # read command line and config file
-    config_file = process_command_line()
-    Config, uh_files,flux_files,grid_file,out_path,initial_state,outputs,options = process_config_file(config_file)
+    4.  Final
+    """ 
+    if not config_file:
+        config_file = process_command_line()
+    Config,uh_files,flux_files,grid_file,out_path,initial_state,outputs,options = process_config_file(config_file)
 
+    point_dict,out_dict,area,shape,counts = init(uh_files,flux_files,grid_file,
+                                          initial_state,outputs,options)
+
+    out_name,state_name,restart_name,counts = run(Config,flux_files,out_path,
+                                           outputs,options,point_dict,out_dict,area,shape,counts)
+
+    final(counts,outputs,out_path)
+
+def init(uh_files,flux_files,grid_file,initial_state,outputs,options,re = 6.37122e6,rho_h20=1000):
+    """
+    - Read Grid File
+    - Load the unit hydrograph files (put into point_dict)
+    - Load the initial state file and put it in convolution rings
+    """
+    counts = {}
+    counts['timesteps'] = 0
+    counts['out_files'] = 0
+    counts['state_files'] = 0
+    counts['restart_files'] = 0
+    
     # find the grid cell area in square meters
     try:
         f=Dataset(grid_file,'r')
@@ -64,25 +86,41 @@ def main(re = 6.37122e6,rho_h20=1000):
         print "Either no grid_file with area variable was provided or there was a problem loading the file"
         print "In the future, we can calculate the area of the grid cells based on their spacing (if on regular grid)"
         raise e
-
+    
     if options['verbose']:
         print 'reading input files'
-    point_dict, out_dict = make_point_dict(uh_files,area,out_dict,initial_state)
+        
+    point_dict, out_dict,counts = make_point_dict(uh_files,area,out_dict,counts, initial_state=initial_state)
 
+    return point_dict,out_dict,area,shape,counts
+
+def run(Config,flux_files,out_path,outputs,options,point_dict,out_dict,area,shape,counts):
+    """
+    - Loop over flux files
+    - Combine the Baseflow and Runoff Variables
+    - Adjust units as necessary
+    - Do convolution
+    - Write output files
+    """
+    state_name = None
+    restart_name = None
+    out_name = None
     if options['verbose']:
         print 'starting convolution now'
+
     time_dict = {}
     i = 0
     while flux_files:
         ff = flux_files.popleft()
         i += 1
+        counts['timesteps'] +=1
         # Check to see if it's time to save a state file
         if any(date in ff for date in outputs['state']):
             print 'making statefile from %s' %ff
             return_state = True
         else:
             return_state = False
-
+        
         f=Dataset(ff,'r')
         # read time step
         time_dict['time_step'] = f.variables['time'][:]
@@ -90,7 +128,7 @@ def main(re = 6.37122e6,rho_h20=1000):
             time_dict['units'] = f.variables['time'].units
             time_dict['cal'] = f.variables['time'].calendar
             time_dict['long_name'] = f.variables['time'].long_name
-
+            
             # convert to m3/s
             if f.output_frequency=='hourly' and f.output_mode=='instantaneous':
                 div = 1200 # assumes vic timestep of 20min
@@ -126,15 +164,33 @@ def main(re = 6.37122e6,rho_h20=1000):
         if outputs['out_type'] != "false":
             out_name = os.path.join(out_path,os.path.split(ff)[1])
             write_output(out_name,out_flow,out_dict,time_dict,"streamflow",options,shape=shape)
-        
+            counts['out_files'] += 1
+            
         # write this timestep's state
         if return_state:
             state_name = os.path.join(out_path,'state_'+os.path.split(ff)[1])
             restart_name = os.path.join(out_path,'restart_'+os.path.split(ff)[1][:-2]+'cfg')
             write_output(state_name,out_state,out_dict,time_dict,"state",options,shape=shape)
+            counts['state_files'] += 1
+
 
             # make an associated restart file
             Config = write_restart(Config,state_name,restart_name,flux_files)
+            counts['restart_files'] += 1
+
+    return out_name,state_name,restart_name,counts
+
+def final(counts,outputs,out_path):
+    print "-----------------------------------------------------------"
+    print 'Done with streamflow convolution'
+    print 'Processed %i timesteps' %counts['timesteps']
+    print 'File output type was %s' %outputs['out_type']
+    print 'Output Directory was %s' %out_path
+    print 'Routed to %i points' %counts['points']
+    print 'Wrote %i output files' %counts['out_files']
+    print 'Wrote %i state files' %counts['state_files']
+    print 'Wrote %i restart files' %counts['restart_files']
+    print "-----------------------------------------------------------"
     return
 
 def write_restart(Config,state_name,restart_name,flux_files):
@@ -239,7 +295,7 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape):
         f.description = 'Streamflow'
     f.close()
 
-def make_point_dict(uh_files,area,out_dict,initial_state=None):
+def make_point_dict(uh_files,area,out_dict,counts,initial_state=None):
     """
     Read the initial state file if present
     Open all the unit hydrograph grids and store in dictionary
@@ -249,8 +305,11 @@ def make_point_dict(uh_files,area,out_dict,initial_state=None):
     """
     # Create an ordered dictionary so that we can trust that the outputs will always be the same
     point_dict = OrderedDict()
-    
+
+    counts['points'] =0
+
     for i,uh_file in enumerate(uh_files):
+        counts['points'] += 1
         d = {}
         f=Dataset(uh_file,'r')
         if f.variables['time'].units =="seconds since 0-01-01 00:00:00":
@@ -275,7 +334,6 @@ def make_point_dict(uh_files,area,out_dict,initial_state=None):
         d['lon'] = f.outlet_lon
         f.close()
         
-        d['end'] = len(d['uh'])-1
         d['now'] = 0
 
         # If there is an inital state, put that in the ring, if now, make a ring of zeros
@@ -313,7 +371,7 @@ def make_point_dict(uh_files,area,out_dict,initial_state=None):
         out_dict['outlet_ys'][i] = d['y']
         out_dict['outlet_xs'][i] = d['x']
         
-    return point_dict, out_dict
+    return point_dict, out_dict, counts
 
 def convolve(point_dict,time_dict,flux,return_state,shape):
     """
