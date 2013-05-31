@@ -30,14 +30,12 @@ def rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
      load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
         BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS):
 
-    # Load input arrays, store in python list.  (Format - Inputs['var'])
+    # Load input arrays, store in dictionary.  (Format - Inputs['var'])
     Inputs = read_netcdf(infile,('Basin_ID','lon','lat'),verbose)
 
-    # Find boudnds of basin and basin_id
+    # Find bounds of basin and basin_id
     (basin_id,x_min,x_max,y_min,y_max) = read_global_inputs(basin_x,basin_y,Inputs['lon'],Inputs['lat'],
                                                             Inputs['Basin_ID'],verbose)
-    if verbose:
-        print 'basin_id: ', basin_id
     
     # Load input arrays, store in python list.  (Format -Basin['var'])
     vars =['Basin_ID','Flow_Direction','Flow_Distance','lon','lat']
@@ -272,6 +270,10 @@ def read_global_inputs(basin_x,basin_y,lons,lats,basins,verbose):
     if verbose:
         print 'reading global inputs'
     basin_id = basins[find_nearest(lats,basin_y),find_nearest(lons,basin_x)]
+    if verbose:
+        print 'input lon:', basin_x
+        print 'input lat:', basin_y
+        print 'basid id:',basin_id
     inds = np.nonzero(basins==basin_id)
     x,y = np.meshgrid(np.arange(len(lons)), np.arange(len(lats)))
     x_inds = x[inds]
