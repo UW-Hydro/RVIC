@@ -1,10 +1,8 @@
 #!/usr/local/bin/python
-
-# PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
-# Routing algorithm developed by D. Lohmann.
-#
-# WHATS LEFT TO DO
-# Testing
+"""
+PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
+Routing algorithm developed by D. Lohmann.
+"""
 
 ####################################################################################
 import sys
@@ -18,13 +16,19 @@ from netCDF4 import Dataset
 ###############################  MAIN PROGRAM ####################################
 ##################################################################################
 def main():
-    (infile,UHfile,basin_x,basin_y,load_velocity,velocity,
+    (infile,UHfile,Plons,Plats,load_velocity,velocity,
      load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
         BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)=process_command_line()
 
-    rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
-     load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
-        BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
+    for i,basin_x,basin_y in enumerate(zip(lons,lats)):
+        rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
+             load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
+            BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
+        if verbose:
+            print 'finished point #',i,'(',basin_x,',',basin_y,')'
+    if verbose:
+        print 'routing program finished.'
+    return
         
 def rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
      load_diffusion,diffusion,verbose,NODATA,CELL_FLOWTIME,
@@ -88,8 +92,7 @@ def rout(infile,UHfile,basin_x,basin_y,load_velocity,velocity,
     write_netcdf(basin_x,basin_y,Basin['lon'],Basin['lat'],
                  times,UH_out,fractions,velocity,diffusion,basin_id,NODATA,verbose)
 
-    if verbose:
-        print 'routing program finished.'
+    return
     
 ##################################################################################
 ############### Routines #########################################################
@@ -106,8 +109,8 @@ def process_command_line():
     parser.add_argument("-C","--configFile", type=str, help="Input configuration file",default=False)
     parser.add_argument("-i","--infile", type=str, help="Input netCDF containing all input grids")
     parser.add_argument("-UH","--UHfile", type=str, help="Input UH_BOX hydrograph")
-    parser.add_argument("-lon","--longitude", type=float, help="Input longitude of point to route to")
-    parser.add_argument("-lat","--latitude", type=float, help="Input latitude of point to route to")
+    parser.add_argument("-lon","--longitude", type=float, nargs='*',help="Input longitude of point to route to")
+    parser.add_argument("-lat","--latitude", type=float,nargs='*',help="Input latitude of point to route to")
     parser.add_argument("-vel","--velocity", type=float, help="Input wave velocity, may be variable in infile or scalar")
     parser.add_argument("-diff","--diffusion", type=float, help="Input diffusion")
     parser.add_argument("-v", "--verbose", help="Increase output verbosity", action="store_true")
@@ -139,20 +142,20 @@ def process_command_line():
             raise IOError('Need input Unit Hydrograph File from command line or configuration file')
 
     if args.longitude:
-        basin_x = args.longitude
+        Plons = args.longitude
     else:
         try:
-            basin_x = float(inputs['longitude'])
+            Plons = map(float,inputs['longitude'])
         except:
-            raise IOError('Need logitude from command line or configuration file')
+            raise IOError('Need logitude(s) from command line or configuration file')
         
     if args.latitude:
-        basin_y = args.latitude
+        Plats = args.latitude
     else:
         try:
-            basin_y = float(inputs['latitude'])
+            Plats = map(float,inputs['latitude'])
         except:
-            raise IOError('Need latitude from command line or configuration file')        
+            raise IOError('Need latitude(s) from command line or configuration file')        
     
     try:
         velocity = float(inputs['velocity'])
@@ -213,7 +216,7 @@ def process_command_line():
     except:
         DAY_SECONDS = args.DAY_SECONDS
         
-    return (infile,UHfile,basin_x,basin_y,load_velocity,velocity,load_diffusion,
+    return (infile,UHfile,Plons,Plats,load_velocity,velocity,load_diffusion,
             diffusion,verbose,NODATA,CELL_FLOWTIME,BASIN_FLOWTIME,PREC,OUTPUT_INTERVAL,DAY_SECONDS)
 
 ##################################################################################
@@ -636,7 +639,10 @@ def write_netcdf(basin_x,basin_y,lons,lats,times,UH_S,fractions,
     lon.standard_name = 'longitude'
     lon.units = 'degrees_east'
 
-    time.units = 'seconds'
+    time.units = 'seconds since 0000-1-1 0:0:0'
+    time.calendar = 'noleap'
+    time.longname = 'time'
+    time.type_prefered = 'int'
     time.description = 'Seconds since initial impulse'
 
     UHS.units = 'unitless'
