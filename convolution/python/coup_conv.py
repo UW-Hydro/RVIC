@@ -33,12 +33,14 @@ def main(config_file=None):
     Config,uh_files,flux_files,grid_file,out_path,initial_state,outputs,options = process_config_file(config_file)
 
     point_dict,out_dict,area,shape,counts = init(uh_files,flux_files,grid_file,
-                                          initial_state,outputs,options)
+                                                 initial_state,outputs,options)
 
     out_name,state_name,restart_name,counts = run(Config,flux_files,out_path,
-                                           outputs,options,point_dict,out_dict,area,shape,counts)
+                                                  outputs,options,point_dict,out_dict,area,shape,counts)
 
     final(counts,outputs,out_path)
+
+    return
 
 def init(uh_files,flux_files,grid_file,initial_state,outputs,options,re = 6.37122e6,rho_h20=1000):
     """
@@ -86,11 +88,16 @@ def init(uh_files,flux_files,grid_file,initial_state,outputs,options,re = 6.3712
         print "Either no grid_file with area variable was provided or there was a problem loading the file"
         print "In the future, we can calculate the area of the grid cells based on their spacing (if on regular grid)"
         raise e
+
+    if outputs['out_units'] == 'mass':
+        out_dict['units'] = 'kg/m2*s'
+    elif outputs['out_units'] == 'volume':
+        out_dict['units'] = 'm3/s'
     
     if options['verbose']:
         print 'reading input files'
         
-    point_dict, out_dict,counts = make_point_dict(uh_files,area,out_dict,counts, initial_state=initial_state)
+    point_dict, out_dict,counts = make_point_dict(uh_files,area,out_dict,counts,rho_h20,initial_state=initial_state)
 
     return point_dict,out_dict,area,shape,counts
 
@@ -172,7 +179,6 @@ def run(Config,flux_files,out_path,outputs,options,point_dict,out_dict,area,shap
             restart_name = os.path.join(out_path,'restart_'+os.path.split(ff)[1][:-2]+'cfg')
             write_output(state_name,out_state,out_dict,time_dict,"state",options,shape=shape)
             counts['state_files'] += 1
-
 
             # make an associated restart file
             Config = write_restart(Config,state_name,restart_name,flux_files)
@@ -258,7 +264,7 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape):
         
         flow = f.createVariable('Streamflow','f8',('time','point',))
         flow.description = 'Streamflow'
-        flow.units = 'm^3/s'
+        flow.units = out_dict['units']
         if out_type=='state':
             flow[:,:] = out_flow
         else:
@@ -282,7 +288,7 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape):
         
         flow = f.createVariable('Streamflow','f8',('time','y','x',))
         flow.description = 'Streamflow'
-        flow.units = 'm^3/s'
+        flow.units = out_dict['units']
         if out_type=='state':
             flow[:,:,:] = out_flow
         else:
@@ -295,7 +301,9 @@ def write_output(out_name,out_flow,out_dict,time_dict,out_type,options,shape):
         f.description = 'Streamflow'
     f.close()
 
-def make_point_dict(uh_files,area,out_dict,counts,initial_state=None):
+    return
+
+def make_point_dict(uh_files,area,out_dict,counts,rho_h20=1000, initial_state=None):
     """
     Read the initial state file if present
     Open all the unit hydrograph grids and store in dictionary
@@ -323,15 +331,19 @@ def make_point_dict(uh_files,area,out_dict,counts,initial_state=None):
         d['xi'] = f.variables['xi'][:]
         d['yi'] = f.variables['yi'][:]
 
-        # make unit hydrograph (no longer has volume of 1)
-        frac = f.variables['fraction'][:]
-        d['uh']=f.variables['unit_hydrograph'][:]*frac*area[d['yi'],d['xi']]
-
         # Get grid outlet locations
         d['x'] = f.outlet_x
         d['y'] = f.outlet_y
         d['lat'] = f.outlet_lat
         d['lon'] = f.outlet_lon
+
+        # make unit hydrograph (no longer has volume of 1)
+        # divide by outlet grid cell's area
+        if out_dict['units'] == 'kg/m2*s':
+            d['uh']=f.variables['unit_hydrograph'][:]*f.variables['fraction'][:]*area[d['yi'],d['xi']]*rho_h20/area[d['y'],d['x']]
+        elif out_dict['units'] == 'm3/s':
+            d['uh']=f.variables['unit_hydrograph'][:]*f.variables['fraction'][:]*area[d['yi'],d['xi']]
+
         f.close()
         
         d['now'] = 0
@@ -453,6 +465,12 @@ def process_config_file(config_file):
         outputs["out_type"] = "array"
 
     try:
+        outputs["out_units"] = Config.get("Outputs","out_units")
+    except:
+        print "WARNING:  outputs[out_units] not found in configuration file, output_type will be volume"
+        outputs["out_units"] = "volume"
+
+    try:
         outputs["state"] = Config.get("Outputs","state").split(',')
     except:
         outputs["state"] = False
@@ -476,6 +494,8 @@ def process_config_file(config_file):
 
     try:
         out_path = Config.get("Paths","out_path")
+        if not os.path.exists(out_path):
+            os.makedirs(out_path)
     except:
         raise IOerror('REQUIRED PATH NOT PROVIDED:  out_path')
 
