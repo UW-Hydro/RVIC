@@ -51,6 +51,8 @@ def main():
         else:
             combined = np.dstack(([Inputs['yc'].ravel(),Inputs['xc'].ravel()]))[0]
         
+        cell_ids = np.flipud(np.arange(Inputs['yc'].size).reshape(Inputs['yc'].shape))
+
         points=list(np.vstack((np.array(lats),np.array(lons))).transpose())
 
         mytree = cKDTree(combined)
@@ -95,7 +97,6 @@ def main():
             print 'FILES LEFT IN FILE LIST:\n',file_list
             return
         
-        
         # Aggregate all basins in each key
         count = 0
         if options['verbose']:
@@ -138,7 +139,7 @@ def main():
                 # Write out to netCDF
                 write_netcdf(os.path.join(paths['aggDir'],aggFile),aggData['lon'],
                              aggData['lat'],aggData['time'],aggData['unit_hydrograph'],
-                             aggData['fraction'],key,ind_dict[key],Flist,velocity,diffusion,
+                             aggData['fraction'],key,cell_ids[ind_dict[key]], ind_dict[key],Flist,velocity,diffusion,
                              options['fill_value'],options['verbose'])
             if (flag == 1 and options['remap']):
                 remap_file(paths['gridFile'],aggFile,paths['aggDir'],paths['remapDir'],
@@ -198,7 +199,8 @@ def remap_file(gridFile,inFile,inDir,remapDir,verbose):
 ##  Write output to netCDF
 ##  Writes out a netCD4 data file containing the UH_S and fractions
 ##################################################################################
-def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,inds,Flist,velocity,diffusion,fill_value,verbose):
+def write_netcdf(file, lons, lats, times, hydrographs, fractions, loc, grid_id,
+                 inds, Flist, velocity, diffusion, fill_value, verbose):
     """
     Write output to netCDF.  Writes out a netCDF4 data file containing
     the UH_S and fractions and a full set of history and description attributes.
@@ -224,6 +226,7 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,inds,Flist,veloc
     f.source = sys.argv[0] # prints the name of script used
     f.velocity = velocity
     f.diffusion = diffusion
+    f.outlet_id = grid_id
     f.outlet_y= inds[0].astype(np.int16)
     f.outlet_x = inds[1].astype(np.int16) # this is change is a cdo work around.  Othewise cdo removes the attribute.  
     f.outlet_lat = loc[0]
@@ -238,7 +241,7 @@ def write_netcdf(file,lons,lats,times,hydrographs,fractions,loc,inds,Flist,veloc
     lon.standard_name = 'longitude'
     lon.units = 'degrees_east'
 
-    time.units = 'seconds since 0000-1-1 0:0:0'
+    time.units = 'seconds since 0001-1-1 0:0:0'
     time.calendar = 'noleap'
     time.longname = 'time'
     time.type_prefered = 'float'
