@@ -16,28 +16,29 @@ from netCDF4 import Dataset
 ###############################  MAIN PROGRAM ################################
 ##############################################################################
 def main(config_file = None):
-    (infile, UHfile, Plons, Plats, load_velocity, 
-    velocity, load_diffusion, diffusion, verbose, 
-     NODATA, CELL_FLOWTIME, BASIN_FLOWTIME, PREC, 
-     OUTPUT_INTERVAL, DAY_SECONDS) = process_command_line(config_file = config_file)
 
-    for i, basin_y, basin_x in enumerate(zip(lats, lons)):
-        out_file = rout(infile, UHfile, basin_y, basin_x, load_velocity, velocity,
-                        load_diffusion, diffusion, verbose, NODATA, CELL_FLOWTIME,
-                        BASIN_FLOWTIME, PREC, OUTPUT_INTERVAL, DAY_SECONDS)
+    (infile, UHfile, Plons, Plats, 
+     velocity, diffusion, verbose,
+     NODATA, CELL_FLOWTIME, BASIN_FLOWTIME, 
+     PREC, OUTPUT_INTERVAL, DAY_SECONDS) = process_command_line(config_file = config_file)
+
+    for i, (basin_y, basin_x) in enumerate(zip(Plats, Plons)):
+        out_file = rout(infile, UHfile, basin_y, basin_x, velocity,diffusion, 
+                        verbose, NODATA, CELL_FLOWTIME, BASIN_FLOWTIME, PREC, 
+                        OUTPUT_INTERVAL, DAY_SECONDS)
         if verbose:
             print 'Finished routing to point %i of %i (%f, %f)' \
-                    % (i, len(lons), basin_y, basin_x)
+                    % (i, len(Plons), basin_y, basin_x)
             print 'Wrote %s' % out_file
     if verbose:
         print 'Routing Program Finished.'
     return
         
-def rout(infile, UHfile, basin_x, basin_y, velocity, diffusion, verbose,
+def rout(infile, UHfile, basin_y, basin_x, velocity, diffusion, verbose,
     NODATA, CELL_FLOWTIME, BASIN_FLOWTIME, PREC, OUTPUT_INTERVAL, DAY_SECONDS):
 
-    Basin, dy, dx = init(infile, basin_y, basin_x, velocity, diffusion, verbose)
-   
+    Basin, dy, dx, basin_id = init(infile, basin_y, basin_x, velocity, diffusion, verbose)
+       
     # Load UH_BOX input
     (uh_t,UH_Box) = load_uh(UHfile, verbose)
     
@@ -100,21 +101,22 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
     vars = ['Basin_ID', 'lat', 'lon']
     f = Dataset(infile, 'r')
     for var in vars:
-        Inputs[var] = f.variables[var]
+        Inputs[var] = f.variables[var][:]
     
     # Find Basin Dims and ID
     # Reads input lons/lats/basins_ids and returns basin bounds.
     if verbose:
         print 'Reading Global Inputs'
-    outlet_loc = (find_nearest(lats,basin_y), find_nearest(lons, basin_x))
+    print basin_y, basin_x
+    outlet_loc = (find_nearest(Inputs['lat'], basin_y), find_nearest(Inputs['lon'], basin_x))
     basin_id = Inputs['Basin_ID'][outlet_loc]
     
     if verbose:
         print 'Input Latitude:', basin_y
         print 'Input Longitude:', basin_x
         print 'Input Basid ID:', basin_id
-    inds = np.nonzero(basins == basin_id)
-    x,y = np.meshgrid(np.arange(len(lons)), np.arange(len(lats)))
+    inds = np.nonzero(Inputs['Basin_ID'] == basin_id)
+    x,y = np.meshgrid(np.arange(len(Inputs['lon'])), np.arange(len(Inputs['lat'])))
     x_inds = x[inds]
     y_inds = y[inds]
     x_min = min(x_inds)
@@ -166,7 +168,7 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
     if verbose:
         print 'grid cells in subset: %i' % (len(Basin['lon'])*len(Basin['lat']))
     
-    return Basin, dy, dx 
+    return Basin, dy, dx, basin_id
 
 def process_command_line(config_file = None):
     """
@@ -322,8 +324,7 @@ def process_config(configFile):
     in configuration file will be filled in during the rest of the command 
     line parsing.
     """
-    config = ConfigParser.ConfigParser(description = process_config.__doc__,
-        formatter_class=argparse.RawTextHelpFormatter)
+    config = ConfigParser.ConfigParser()
     config.read(configFile)
     file_paths = ConfigSectionMap(config,'file_paths')
     inputs = ConfigSectionMap(config,'inputs')
@@ -380,8 +381,12 @@ def read_direction(fdr, basin_ids, dy, dx, basin_id, NODATA, verbose):
     to_y = np.zeros((fdr.shape[0], fdr.shape[1]), dtype=int)
 
     for (y, x), d in np.ndenumerate(fdr):
-        to_x[y, x] = x+dx[d]
-        to_y[y, x] = y+dy[d]
+        if d:
+            to_x[y, x] = x+dx[d]
+            to_y[y, x] = y+dy[d]
+        else:
+           to_x[y, x] = -1
+           to_y[y, x] = -1
 
     return (to_x,to_y)
 
