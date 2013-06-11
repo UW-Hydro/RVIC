@@ -1,6 +1,7 @@
 #!/usr/local/bin/python
 """
-This is the convolution routine developed in preparation in coupling RVIC to RASM
+This is the convolution routine developed in preparation in coupling RVIC to 
+CESM.  Eventually, this will be the offline RVIC model.  
 
 Written by Joe Hamman, May 2013
 """
@@ -8,15 +9,14 @@ from netCDF4 import Dataset
 import numpy as np
 import glob
 import os
-import sys  # BART COMMENT: You use sys.exc_info() , but never import sys
+import sys  
 import ConfigParser
 import argparse
 import time as tm
 from collections import OrderedDict, deque
 
-# BART COMMENT: Don't bury hardwired constants in the code, but specify them explicitly
-earthRadius = 6.37122e6  # Should come from CESM constants file
-waterDensity = 1000.  # in coupled mode all fluxes will be in kg/m2/s, so not sure you need this
+earthRadius = 6.37122e6  
+waterDensity = 1000.  
 metersPerKm = 1000.
 metersPerMile = 1609.34
 meters2PerAcre = 4046.856
@@ -44,20 +44,26 @@ def main(config_file=None):
     """
     if not config_file:
         config_file = process_command_line()
-    Config, uh_files, flux_files, grid_file, out_path, initial_state, outputs, options = process_config_file(config_file)
+    
+    Config, uh_files, flux_files, 
+    grid_file, out_path, initial_state, 
+    outputs, options = process_config_file(config_file)
 
-    point_dict, out_dict, area, shape, counts = init(uh_files, flux_files, grid_file,
-                                                     initial_state, outputs, options)
+    point_dict, out_dict, area, 
+    shape, counts = init(uh_files, flux_files, grid_file, 
+                         initial_state, outputs, options)
 
     out_name, state_name, restart_name, counts = run(Config, flux_files, out_path,
-                                                     outputs, options, point_dict, out_dict, area, shape, counts)
+                                                     outputs, options, point_dict, 
+                                                     out_dict, area, shape, counts)
 
     final(counts, outputs, out_path)
 
     return
 
 
-def init(uh_files, flux_files, grid_file, initial_state, outputs, options, radius=earthRadius, rho_h20=waterDensity):
+def init(uh_files, flux_files, grid_file, initial_state, outputs, options, 
+         radius=earthRadius, rho_h20=waterDensity):
     """
     - Read Grid File
     - Load the unit hydrograph files (put into point_dict)
@@ -72,9 +78,6 @@ def init(uh_files, flux_files, grid_file, initial_state, outputs, options, radiu
     # find the grid cell area in square meters
     try:
         f = Dataset(grid_file, 'r')
-        # BART COMMENT: You could use regular expressions to match these in general.
-        # You would import the re module and use re.match(). It would be easy to handle
-        # case as well that way
         if (f.variables['area'].units in ["rad2", "radians2", "radian2", "rad^2",
                                           "radians^2", "rads^2", "radians squared",
                                           "square-radians"]):
@@ -85,14 +88,15 @@ def init(uh_files, flux_files, grid_file, initial_state, outputs, options, radiu
         elif f.variables['area'].units in ["km2", "km^2", "kilometers^2",
                                            "kilometers2", "square-kilometers",
                                            "kilometers squared"]:
-            area = f.variables['area'][:] * metersPerKm * metersPerKm  # BART COMMENT: Multiply, not divide
+            area = f.variables['area'][:] * metersPerKm * metersPerKm  
         elif f.variables['area'].units in ["mi2", "mi^2", "miles^2", "miles",
                                            "square-miles", "miles squared"]:
             area = f.variables['area'][:] * metersPerMile * metersPerMile
         elif f.variables['area'].units in ["acres", "ac", "ac."]:
             area = f.variables['area'][:] * meters2PerAcre
         else:
-            print "WARNING: UNKNOWN AREA UNITS (%s), ASSUMING THEY ARE IN SQUARE METERS" % f.variables['area'].units
+            print("WARNING: UNKNOWN AREA UNITS (%s), ASSUMING THEY ARE IN "
+                  "SQUARE METERS" % f.variables['area'].units)
         out_dict = {}
         if outputs['out_type'] == 'grid':
             out_dict['longitudes'] = f.variables['xc'][:]
@@ -103,8 +107,10 @@ def init(uh_files, flux_files, grid_file, initial_state, outputs, options, radiu
         f.close()
     except:
         e = sys.exc_info()[0]
-        print "Either no grid_file with area variable was provided or there was a problem loading the file"
-        print "In the future, we can calculate the area of the grid cells based on their spacing (if on regular grid)"
+        print("Either no grid_file with area variable was provided or there "
+              "was a problem loading the file")
+        print("In the future, we can calculate the area of the grid cells "
+              "based on their spacing (if on regular grid)")
         raise e
 
     if outputs['out_units'] == 'mass':
@@ -115,12 +121,14 @@ def init(uh_files, flux_files, grid_file, initial_state, outputs, options, radiu
     if options['verbose']:
         print 'reading input files'
 
-    point_dict, out_dict, counts = make_point_dict(uh_files, area, out_dict, counts, rho_h20, initial_state=initial_state)
+    point_dict, out_dict, counts = make_point_dict(uh_files, area, out_dict, 
+                                   counts, rho_h20, initial_state=initial_state)
 
     return point_dict, out_dict, area, shape, counts
 
 
-def run(Config, flux_files, out_path, outputs, options, point_dict, out_dict, area, shape, counts):
+def run(Config, flux_files, out_path, outputs, options, point_dict, 
+        out_dict, area, shape, counts):
     """
     - Loop over flux files
     - Combine the Baseflow and Runoff Variables
@@ -186,8 +194,9 @@ def run(Config, flux_files, out_path, outputs, options, point_dict, out_dict, ar
         f.close()
 
         # do the covolutions for this timestep
-        point_dict, out_flow, out_state, time_dict = convolve(point_dict, time_dict, flux,
-                                                              return_state, shape=shape)
+        point_dict, out_flow, 
+        out_state, time_dict = convolve(point_dict, time_dict, flux, 
+                                        return_state, shape=shape)
 
         # write this timestep's streamflows to out_name
         # BART COMMENT: You should compare to False, not "false"
@@ -239,7 +248,8 @@ def write_restart(Config, state_name, restart_name, flux_files):
     return Config
 
 
-def write_output(out_name, out_flow, out_dict, time_dict, out_type, options, shape):
+def write_output(out_name, out_flow, out_dict, time_dict, out_type, options, 
+                 shape):
     """
     Write output file
     This routine is setup to handle the creation of streamflow or state files
@@ -247,11 +257,10 @@ def write_output(out_name, out_flow, out_dict, time_dict, out_type, options, sha
     """
     if options['verbose']:
         print 'writing %s' % out_name
-    f = Dataset(out_name, 'w', format='NETCDF4')
+    f = Dataset(out_name, 'w', format = 'NETCDF4')
 
     # Items that apply for all cases
     f.history = 'Created ' + tm.ctime(tm.time())
-    # BART COMMENT: You can access the script name directly
     f.source = 'Streamflow convolution program {}'.format(os.path.basename(__file__))
     time = f.createDimension('time', None)
     time = f.createVariable('time', 'f8', ('time', ))
@@ -303,13 +312,13 @@ def write_output(out_name, out_flow, out_dict, time_dict, out_type, options, sha
         x = f.createDimension('x', shape[1])
         y = f.createDimension('y', shape[0])
 
-        lat = f.createVariable('latitudes', 'f8', ('y', 'x', ))
+        lat = f.createVariable('latitude', 'f8', ('y', 'x', ))
         lat.standard_name = "latitude"
         lat.long_name = "latitude of grid cell center"
         lat.units = "degrees_north"
         lat[:, :] = out_dict['latitudes']
 
-        lon = f.createVariable('longitudes', 'f8', ('y', 'x', ))
+        lon = f.createVariable('longitude', 'f8', ('y', 'x', ))
         lon.standard_name = "longitude"
         lon.long_name = "longitude of grid cell center"
         lon.units = "degrees_east"
@@ -318,6 +327,7 @@ def write_output(out_name, out_flow, out_dict, time_dict, out_type, options, sha
         flow = f.createVariable('Streamflow', 'f8', ('time', 'y', 'x', ))
         flow.description = 'Streamflow'
         flow.units = out_dict['units']
+        flow.coordinates = 'longitude latitude'
         if out_type == 'state':
             flow[:, :, :] = out_flow
         else:
@@ -333,7 +343,8 @@ def write_output(out_name, out_flow, out_dict, time_dict, out_type, options, sha
     return
 
 
-def make_point_dict(uh_files, area, out_dict, counts, rho_h20=1000, initial_state=None):
+def make_point_dict(uh_files, area, out_dict, counts, rho_h20=1000, 
+                    initial_state=None):
     """
     Read the initial state file if present
     Open all the unit hydrograph grids and store in dictionary
@@ -341,7 +352,8 @@ def make_point_dict(uh_files, area, out_dict, counts, rho_h20=1000, initial_stat
     Turn IRFs to true Unit Hydrographs
     Setup convolution structures in save dictionary
     """
-    # Create an ordered dictionary so that we can trust that the outputs will always be the same
+    # Create an ordered dictionary so that we can trust that the outputs will 
+    # always be the same
     point_dict = OrderedDict()
 
     counts['points'] = 0
@@ -378,7 +390,8 @@ def make_point_dict(uh_files, area, out_dict, counts, rho_h20=1000, initial_stat
 
         d['now'] = 0
 
-        # If there is an inital state, put that in the ring, if now, make a ring of zeros
+        # If there is an inital state, put that in the ring, if not, make a 
+        # ring of zeros
         if not initial_state:
             d['ring'] = np.zeros(len(d['uh']))
 
@@ -402,7 +415,8 @@ def make_point_dict(uh_files, area, out_dict, counts, rho_h20=1000, initial_stat
                 point_dict[key]['ring'] = state[:, i]
         f.close()
 
-    # Now make a few numpy arrays from the point dict that will go in each output file
+    # Now make a few numpy arrays from the point dict that will go in each 
+    # output file
     out_dict['lats'] = np.zeros(len(point_dict))
     out_dict['lons'] = np.zeros(len(point_dict))
     out_dict['outlet_xs'] = np.zeros(len(point_dict))
@@ -421,7 +435,8 @@ def convolve(point_dict, time_dict, flux, return_state, shape):
     This convoluition funciton works by looping over all points and doing the
     convolution one timestep at a time.  This is accomplished by creating an
     convolution ring.  Contributing flow from each timestep is added to the
-    convolution ring.  The convolution ring is unwrapped when state is being saved.
+    convolution ring.  The convolution ring is unwrapped when state is being 
+    saved.
     """
     out_flow = np.zeros(shape)
     if out_flow.ndim == 1:
@@ -494,13 +509,15 @@ def process_config_file(config_file):
     try:
         outputs["out_type"] = Config.get("Outputs", "out_type")
     except:
-        print "WARNING:  outputs[out_type] not found in configuration file, output type will be array"
+        print("WARNING:  outputs[out_type] not found in configuration file, "
+              "output type will be array")
         outputs["out_type"] = "array"
 
     try:
         outputs["out_units"] = Config.get("Outputs", "out_units")
     except:
-        print "WARNING:  outputs[out_units] not found in configuration file, output_type will be volume"
+        print("WARNING:  outputs[out_units] not found in configuration file, "
+              "output_type will be volume")
         outputs["out_units"] = "volume"
 
     try:
@@ -545,7 +562,8 @@ def process_config_file(config_file):
     # Would probably be cleaner if you did not return Config. I think the only reason
     # you have this is to update the list of restart files, so maybe make that part of
     # outputs or have a separate state dict
-    return Config, uh_files, flux_files, grid_file, out_path, initial_state, outputs, options
+    return Config, uh_files, flux_files, grid_file, out_path, initial_state, \
+           outputs, options
 
 
 # BART COMMENT: This makes sense because we are using this as a prototype for
