@@ -28,7 +28,7 @@ def main(config_file = None):
                         OUTPUT_INTERVAL, DAY_SECONDS)
         if verbose:
             print 'Finished routing to point %i of %i (%f, %f)' \
-                    % (i, len(Plons), basin_y, basin_x)
+                    % (i+1, len(Plons), basin_y, basin_x)
             print 'Wrote %s' % out_file
     if verbose:
         print 'Routing Program Finished.'
@@ -48,45 +48,45 @@ def rout(infile, UHfile, basin_y, basin_x, velocity, diffusion, verbose,
     T_UH = BASIN_FLOWTIME*DAY_SECONDS/INPUT_INTERVAL
     
     # Read direction grid and find to_col (to_x) and to_row (to_y)
-    (to_x,to_y) = read_direction(Basin['Flow_Direction'], Basin['Basin_ID'],
-                                 dy, dx, basin_id, NODATA, verbose)
+    to_y, to_x = read_direction(Basin['Flow_Direction'], Basin['Basin_ID'],
+                                dy, dx, basin_id, NODATA, verbose)
     
     # Find row/column indicies of lat/lon inputs
     x_ind = find_nearest(Basin['lon'], basin_x)
     y_ind = find_nearest(Basin['lat'], basin_y)
     
     # Find all grid cells upstream of pour point
-    (Catchment, fractions) = search_catchment(to_x, to_y, x_ind, y_ind,
-                                              Basin['Basin_ID'], basin_id, 
-                                              verbose)
+    Catchment, fractions = search_catchment(to_y, to_x, y_ind, x_ind,
+                                            Basin['Basin_ID'], basin_id, 
+                                            verbose)
     
     # Make UH for each grid cell upstream of basin pour point 
     # (linear routing model - Saint-Venant equation)
-    UH = make_UH(INPUT_INTERVAL, T_Cell,Catchment['x_inds'], 
-                Catchment['y_inds'], Basin['Velocity'], Basin['Diffusion'], 
+    UH = make_UH(INPUT_INTERVAL, T_Cell,Catchment['y_inds'], 
+                Catchment['x_inds'], Basin['Velocity'], Basin['Diffusion'], 
                 Basin['Flow_Distance'], PREC,verbose)
     
     # Make UH_RIVER by incrementally moving upstream comining UH functions
-    UH_RIVER = make_grid_UH_river(T_UH, T_Cell, UH, to_x, to_y, x_ind, y_ind,
-                                  Catchment['x_inds'], Catchment['y_inds'], 
+    UH_RIVER = make_grid_UH_river(T_UH, T_Cell, UH, to_y, to_x, y_ind, x_ind,
+                                  Catchment['y_inds'], Catchment['x_inds'], 
                                   Catchment['count_ds'], PREC, verbose)
     
     # Make UH_S for each grid cell upstream of basin pour point 
     # (combine IRFs for all grid cells in flow path)
-    UH_S = make_grid_UH(T_UH, T_Cell, UH_RIVER, UH_Box, to_x, to_y,
-                        Catchment['x_inds'], Catchment['y_inds'], 
+    UH_S = make_grid_UH(T_UH, T_Cell, UH_RIVER, UH_Box, to_y, to_x,
+                        Catchment['y_inds'], Catchment['x_inds'], 
                         Catchment['count_ds'], PREC,NODATA,verbose)
     
     # Agregate to output timestep
     UH_out = aggregate(UH_S, T_UH, INPUT_INTERVAL, OUTPUT_INTERVAL,
-                        Catchment['x_inds'], Catchment['y_inds'], NODATA, verbose)
+                       Catchment['x_inds'], Catchment['y_inds'], NODATA, verbose)
     
     #Write to output netcdf
     times = np.linspace(0, OUTPUT_INTERVAL*UH_out.shape[0], UH_out.shape[0],
                         endpoint=False)
     out_file = write_netcdf(basin_x, basin_y, Basin['lon'], Basin['lat'],
-                        times, UH_out, fractions, velocity, diffusion, 
-                        basin_id, NODATA, verbose)
+                            times, UH_out, fractions, velocity, diffusion, 
+                            basin_id, NODATA, verbose)
 
     return out_file
     
@@ -107,7 +107,7 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
     # Reads input lons/lats/basins_ids and returns basin bounds.
     if verbose:
         print 'Reading Global Inputs'
-    print basin_y, basin_x
+    
     outlet_loc = (find_nearest(Inputs['lat'], basin_y), find_nearest(Inputs['lon'], basin_x))
     basin_id = Inputs['Basin_ID'][outlet_loc]
     
@@ -117,15 +117,13 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
         print 'Input Basid ID:', basin_id
     inds = np.nonzero(Inputs['Basin_ID'] == basin_id)
     x,y = np.meshgrid(np.arange(len(Inputs['lon'])), np.arange(len(Inputs['lat'])))
-    x_inds = x[inds]
-    y_inds = y[inds]
-    x_min = min(x_inds)
-    x_max = max(x_inds)
-    y_min = min(y_inds)
-    y_max = max(y_inds)
+    x_min = min(x[inds])
+    x_max = max(x[inds])+1
+    y_min = min(y[inds])
+    y_max = max(y[inds])+1
 
     # Load input arrays, store in python dictionary.  (Format -Basin['var'])
-    vars = ['Basin_ID', 'Flow_Direction', 'Flow_Distance', 'lon','lat']
+    vars = ['Basin_ID', 'Flow_Direction', 'Flow_Distance', 'lon', 'lat']
     if not velocity:
         vars.append('velocity')
     if not diffusion:
@@ -133,7 +131,7 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
 
     #  Clip netCDF Inputs
     if verbose:
-        print 'Reading input data vars: %s' % ",".join(vars)
+        print 'Reading input data vars: %s' % ", ".join(vars)
     Basin={}
     for var in vars:
         try:
@@ -143,11 +141,11 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
                     % (var, nc_str)
             raise
         if np.rank(temp) > 1:
-            Basin[var] = temp[y_min:y_max+1, x_min:x_max+1]
+            Basin[var] = temp[y_min:y_max, x_min:x_max]
         elif var == 'lon':
-            Basin['lon'] = temp[x_min:x_max+1]
+            Basin['lon'] = temp[x_min:x_max]
         elif var == 'lat':
-            Basin['lat'] = temp[y_min:y_max+1]
+            Basin['lat'] = temp[y_min:y_max]
     
     if velocity:
         Basin['Velocity'] = np.zeros((Basin['Flow_Direction'].shape))+velocity
@@ -158,16 +156,27 @@ def init(infile, basin_y, basin_x, velocity, diffusion, verbose):
         # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/VIC/Documentation/Routing/FlowDirection.shtml
         dy = {1:-1, 2:-1, 3:0, 4:1, 5:1, 6:1, 7:0, 8:-1}
         dx = {1:0, 2:1, 3:1, 4:1, 5:0, 6:-1, 7:-1, 8:-1}
+        if verbose:
+            print 'Using VIC flow directions (1-8).'
     else:
         # ARCMAP Directions: http://webhelp.esri.com/arcgisdesktop/9.2/index.cfm?TopicName=flow_direction
         dy = {1:0, 2:1, 4:1, 8:1, 16:0, 32:-1, 64:-1, 128:-1}
         dx = {1:1, 2:1, 4:0, 8:-1, 16:-1, 32:-1, 64:0, 128:1}
+        if verbose:
+            print 'Using ARCMAP flow directions (1-128).'
     
     f.close()
-    
     if verbose:
-        print 'grid cells in subset: %i' % (len(Basin['lon'])*len(Basin['lat']))
-    
+        print 'grid cells in subset: %i' % Basin['Velocity'].size
+
+    # Check latitude order, flip if necessary.
+    if Basin['lat'][-1]>Basin['lat'][0]:
+        if verbose:
+            print 'Inputs came in upside down, flipping everything now.'
+        vars.remove('lon')
+        for var in vars:
+            Basin[var] = np.flipud(Basin[var])
+        
     return Basin, dy, dx, basin_id
 
 def process_command_line(config_file = None):
@@ -365,6 +374,8 @@ def find_TS(uh_t, verbose):
         print 'Input Timestep = %i seconds' % INPUT_INTERVAL
     return INPUT_INTERVAL
 
+
+
 ##############################################################################
 ##  Read Direction
 ##  Determines downstream row/col numbers from flow direction input
@@ -377,18 +388,19 @@ def read_direction(fdr, basin_ids, dy, dx, basin_id, NODATA, verbose):
     """
     if verbose:
         print 'Reading direction input and finding target row/columns'
-    to_x = np.zeros((fdr.shape[0], fdr.shape[1]), dtype=int)
-    to_y = np.zeros((fdr.shape[0], fdr.shape[1]), dtype=int)
+        
+    to_y = np.zeros(fdr.shape, dtype=int)
+    to_x = np.zeros(fdr.shape, dtype=int)
 
     for (y, x), d in np.ndenumerate(fdr):
-        if d:
-            to_x[y, x] = x+dx[d]
+        try:
             to_y[y, x] = y+dy[d]
-        else:
-           to_x[y, x] = -1
-           to_y[y, x] = -1
-
-    return (to_x,to_y)
+            to_x[y, x] = x+dx[d]
+        except:
+           to_y[y, x] = -9999
+           to_x[y, x] = -9999
+           
+    return to_y, to_x
 
 ##############################################################################
 ##  Find Indicies
@@ -404,7 +416,7 @@ def find_nearest(array, value):
 ## Find all cells upstream of pour point.  Retrun a dictionary with x_inds, yinds,
 ## and #of cell to downstream pour point.  All are sorted the by the latter.
 ##############################################################################
-def search_catchment(to_x, to_y, x_ind, y_ind, basin_ids, basin_id, verbose):
+def search_catchment(to_y, to_x, y_ind, x_ind, basin_ids, basin_id, verbose):
     """
     Find all cells upstream of pour point.  Retrun a dictionary with x_inds, 
     yinds, and #of cell to downstream pour point.  All are sorted the by the 
@@ -415,41 +427,40 @@ def search_catchment(to_x, to_y, x_ind, y_ind, basin_ids, basin_id, verbose):
     """
     if verbose:
         print 'Searching Catchment'
+    
     COUNT = 0
     (len_y,len_x) = to_x.shape
-    x_inds = np.zeros(len_y*len_x, dtype=int)
-    y_inds = np.zeros(len_y*len_x, dtype=int)
-    count_ds = np.zeros(len_y*len_x, dtype=int)
+    CATCH = {}
+    CATCH['x_inds'] = np.array([], dtype=int)
+    CATCH['y_inds'] = np.array([], dtype=int)
+    CATCH['count_ds'] = np.array([], dtype=int)
     fractions = np.zeros((len_y, len_x))
     for (y, x), basin_num in np.ndenumerate(basin_ids):
         if basin_num == basin_id:
-            yy,xx = y,x
-            op,cells = 0,0
+            yy, xx = y, x
+            op, cells = 0,0
             while op == 0:
                 if (yy == y_ind and xx == x_ind):
                     op = 1
-                    x_inds[COUNT] = x
-                    y_inds[COUNT] = y
-                    count_ds[COUNT] = cells
+                    CATCH['x_inds'] = np.append(CATCH['x_inds'], x)
+                    CATCH['y_inds'] = np.append(CATCH['y_inds'], y)
+                    CATCH['count_ds'] = np.append(CATCH['count_ds'], cells)
                     COUNT += 1
-                    fractions[y,x] = 1.
-                elif (to_x[yy,xx] > -1 and to_y[yy,xx] > -1):
-                    (xx, yy) = (to_x[yy,xx], to_y[yy,xx])
+                    fractions[y, x] = 1.
+                else:
+                    yy, xx = to_y[yy, xx], to_x[yy, xx]
                     cells += 1
                     if (xx>len_x-1 or xx<0 or yy>len_y-1 or yy<0):
                         op =-1
-                else:
-                    op = -1
     if verbose:
         print "Upstream grid cells from present station: %i" % COUNT
-    # Save to sorted dictionary
-    CATCH = {}
-    ii = np.argsort(count_ds[:COUNT])
-    x_inds = x_inds[:COUNT]
-    y_inds = y_inds[:COUNT]
-    CATCH['x_inds'] = x_inds[ii]
-    CATCH['y_inds'] = y_inds[ii]
-    CATCH['count_ds'] = count_ds[ii]
+    
+    # sort CATCH
+    ii = np.argsort(CATCH['count_ds'])
+    CATCH['count_ds'] = CATCH['count_ds'][ii]
+    CATCH['x_inds'] = CATCH['x_inds'][ii]
+    CATCH['y_inds'] = CATCH['y_inds'][ii]
+
     return (CATCH, fractions)
 
 ##############################################################################
@@ -457,7 +468,7 @@ def search_catchment(to_x, to_y, x_ind, y_ind, basin_ids, basin_id, verbose):
 ##  Calculate impulse response function for grid cells using equation (15) 
 ##  from Lohmann, et al. (1996) Tellus article.  Return 3d UH grid.
 ##############################################################################
-def make_UH(DELTA_T, T_Cell, x_inds, y_inds, velocity, diffusion, xmask, 
+def make_UH(DELTA_T, T_Cell, y_inds, x_inds, velocity, diffusion, xmask, 
             PREC, verbose):
     """
     Calculate the impulse response function for grid cells using equation 15 
@@ -489,8 +500,8 @@ def make_UH(DELTA_T, T_Cell, x_inds, y_inds, velocity, diffusion, xmask,
 ##  Calculate impulse response function for river routing
 ##  Steps upstream combining unit hydrographs
 ##############################################################################
-def make_grid_UH_river(T_UH, T_Cell, UH,to_x, to_y, x_ind, y_ind, x_inds,
-                       y_inds, count_ds, PREC, verbose):
+def make_grid_UH_river(T_UH, T_Cell, UH,to_y, to_x, y_ind, x_ind, y_inds,
+                       x_inds, count_ds, PREC, verbose):
     """
     Calculate impulse response function for river routing.  Starts at 
     downstream point incrementally moves upstream.
@@ -512,7 +523,6 @@ def make_grid_UH_river(T_UH, T_Cell, UH,to_x, to_y, x_ind, y_ind, x_inds,
                 UH_RIVER[:, y, x] = IRF_temp[:T_UH]/sum
         elif d==0:
             UH_RIVER[:T_Cell, y_ind, x_ind] = UH[:, y_ind, x_ind]
-        active_timesteps=[]
        
     return UH_RIVER
 
@@ -521,7 +531,7 @@ def make_grid_UH_river(T_UH, T_Cell, UH,to_x, to_y, x_ind, y_ind, x_inds,
 ## Combines the UH_BOX with downstream cell UH_River IRF.
 ## Cell [0] is given the UH_Box without river routing
 ##############################################################################
-def make_grid_UH(T_UH, T_Cell, UH_RIVER, UH_BOX, to_x, to_y, x_inds, y_inds, 
+def make_grid_UH(T_UH, T_Cell, UH_RIVER, UH_BOX, to_y, to_x, y_inds, x_inds, 
     count_ds, PREC, NODATA, verbose):
     """
     Combines the UH_BOX with downstream cell UH_RIVER.  Cell [0] is given the
@@ -542,10 +552,9 @@ def make_grid_UH(T_UH, T_Cell, UH_RIVER, UH_BOX, to_x, to_y, x_inds, y_inds,
             sum = np.sum(IRF_temp[:T_UH])
             if sum>0:
                 UH_S[:, y, x] = IRF_temp[:T_UH]/sum
-        elif d==0:
+        else:
             IRF_temp[:len(UH_BOX)] = UH_BOX[:]
             UH_S[:, y, x] = IRF_temp[:T_UH]
-        active_timesteps=[]
     return UH_S
 
 ##############################################################################
