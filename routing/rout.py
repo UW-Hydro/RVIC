@@ -1,4 +1,4 @@
-#!/opt/local/bin/python2.7
+#!/usr/local/bin/python
 """
 PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
 Routing algorithm developed by D. Lohmann.
