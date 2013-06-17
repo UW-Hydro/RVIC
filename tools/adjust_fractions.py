@@ -7,6 +7,8 @@ import numpy.ma as ma
 from netCDF4 import Dataset
 import time as tm
 import glob
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import ImageGrid
 import argparse
@@ -76,7 +78,7 @@ def main():
                 print 'On file %i of %i' %(i,lf)
             x = xs[fname]
             y = ys[fname]
-            out_fracs = fracs[fname]*ratioFracs[y,x]         #Adjust fracs based on ratioFracs 
+            out_fracs = fracs[fname]*ratioFracs[y,x]  #Adjust fracs based on ratioFracs 
             aggFracs2[y,x] += out_fracs
     
             # write flat uh file 
@@ -85,18 +87,9 @@ def main():
                 if options['verbose']:
                     print 'Making flat uh file %s' %outFile
 
-            # try:
-            #     print "outFracs Shape:",out_fracs.shape
-            #     print "outFracs min/max: %f/%f" %(out_fracs.min(),out_fracs.max())
-            #     print "uhs[fname] Shape:",uhs[fname].shape
-            #     print "uhs[fname] min/max: %f/%f" %(uhs[fname].min(),uhs[fname].max())
-            #     print "location of max:", np.argmax(out_fracs)
-            #     print "original fraction at this location:", fracs[fname][np.argmax(out_fracs)]
-
                 write_flat_netcdf(outFile,times[fname],out_fracs,uhs[fname],
                                   x,y,xcs[fname],ycs[fname],globs[fname],attrs[fname])
-            except:
-                print "something went wrong with outFile:", outFile
+
         if files['diagPath']:
             make_plot(gridFracs,"gridFracs",aggFracs,"aggFracs",aggFracs2,"aggFracs2",aggFracs2-gridFracs
                       ,"aggFracs2-gridFracs",'Diagnostic Plot-2 for Aggregated Fractions'
@@ -243,8 +236,9 @@ def write_flat_netcdf(outFile,time,frac,uh,x,y,xc,yc,inGlobs,inAttrs):
     f.diffusion = inGlobs['diffusion']
     f.outlet_lon = inGlobs['outlet_lon']
     f.outlet_lat = inGlobs['outlet_lat']
-    f.outlet_y = inGlobs['outlet_y']
-    f.outlet_x = inGlobs['outlet_x']
+    f.outlet_y = int(inGlobs['outlet_y'])
+    f.outlet_x = int(inGlobs['outlet_x'])
+    f.outlet_id = int(inGlobs['outlet_id'])
     try:
         f.includes = inGlobs['includes']
     except:
@@ -320,11 +314,6 @@ def process_command_line():
             os.makedirs(files['diagPath'])
     except:
         files['diagPath'] = False
-    try:
-        files['diagFile'] = args.diagFile
-
-    except:
-        files['diagFile'] = False
 
     files['inputFiles'] = []
     for fi in temp:
@@ -346,7 +335,7 @@ def make_plot(d0,t0,d1,t1,d2,t2,d3,t3,suptitle,path_out):
     Make a 4 pannel plot that shows map views of the domain of interest
     No projection is defined.  
     """
-    fig0 = plt.figure(1,(10.,7.))
+    fig0 = plt.figure()
     grid = ImageGrid(fig0, 111, # similar to subplot(111)
                      nrows_ncols = (2, 2), # creates 2x2 grid of axes
                      axes_pad=0.4, # pad between axes in inch.
@@ -374,9 +363,9 @@ def make_plot(d0,t0,d1,t1,d2,t2,d3,t3,suptitle,path_out):
     grid[0].axis([0,d3.shape[1],0,d3.shape[0]])
 
     
-    fig0.suptitle(suptitle,fontsize=18)
+    fig0.suptitle(suptitle)
     
-    fig0.savefig(path_out, dpi=300)
+    fig0.savefig(path_out)
     fig0.clf()
     return
 
