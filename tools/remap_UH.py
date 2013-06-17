@@ -226,9 +226,9 @@ def write_netcdf(file, lons, lats, times, hydrographs, fractions, loc, grid_id,
     f.source = sys.argv[0] # prints the name of script used
     f.velocity = velocity
     f.diffusion = diffusion
-    f.outlet_id = grid_id
-    f.outlet_y= inds[0].astype(np.int16)
-    f.outlet_x = inds[1].astype(np.int16) # this is change is a cdo work around.  Othewise cdo removes the attribute.  
+    f.outlet_id = str(grid_id.astype(np.int64))
+    f.outlet_y= str(inds[0].astype(np.int64))
+    f.outlet_x = str(inds[1].astype(np.int64)) # this is change is a cdo work around.  Othewise cdo removes the attribute.  
     f.outlet_lat = loc[0]
     f.outlet_lon = loc[1]
     f.includes = ', '.join(Flist)
