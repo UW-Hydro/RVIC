@@ -87,14 +87,34 @@ def main():
                 if options['verbose']:
                     print 'Making flat uh file %s' %outFile
 
-                write_flat_netcdf(outFile,times[fname],out_fracs,uhs[fname],
-                                  x,y,xcs[fname],ycs[fname],globs[fname],attrs[fname])
+                # Subset if needed
+                if options['subset']:
+                    offset, out_uh, full_length = subset(uhs[fname], options['subset'], options['threshold'])
+                    time = np.arange(options['subset'])
+                else:
+                    offset = np.zeros(len(out_fracs))
+                    full_length = uhs[fname].shape[0]
+                    out_uh = uhs[fname]
+                    time = np.arange(full_length)
+
+                write_flat_netcdf(outFile, time, offset, full_length, out_fracs, out_uh, x, y, xcs[fname], ycs[fname], options['out_format'], globs[fname], attrs[fname])
 
         if files['diagPath']:
             make_plot(gridFracs,"gridFracs",aggFracs,"aggFracs",aggFracs2,"aggFracs2",aggFracs2-gridFracs
                       ,"aggFracs2-gridFracs",'Diagnostic Plot-2 for Aggregated Fractions'
                       ,os.path.join(files['diagPath'],'diag_2.png'))
     return
+
+def subset(uh, subset, threshold):
+    full_length = uh.shape[0]
+    offset = np.empty(uh.shape[1])
+    out_uh = np.zeros((subset, uh.shape[1]))
+    for i in xrange(uh.shape[1]):
+        offset[i]  = np.nonzero(uh[:,i]>threshold)[0][0]     # find position of first index > threshold
+        end = np.minimum(uh.shape[0],offset[i]+subset)        # find end point
+        out_uh[:end-offset[i],i] = uh[offset[i]:end,i]/uh[offset[i]:end,i].sum() # clip and normalize
+
+    return offset, out_uh, full_length
 
 ##################################################################################
 ## Read netCDF Inputs
@@ -210,11 +230,11 @@ def write_netcdf(file,xc,xc_bnd,yc,yc_bnd,times,hydrographs,fractions,loc,Flist,
 
     return
 
-def write_flat_netcdf(outFile,time,frac,uh,x,y,xc,yc,inGlobs,inAttrs):
+def write_flat_netcdf(outFile, time, offset, full_length, frac, uh, x, y, xc, yc, out_format, inGlobs, inAttrs):
     """
     Write a flattened uh file that includes the fractions, uhs, and flows
     """
-    f = Dataset(outFile, 'w', format='NETCDF4')
+    f = Dataset(outFile, 'w', format=out_format)
 
     # set dimensions
     times = f.createDimension('time', len(time))
@@ -222,9 +242,10 @@ def write_flat_netcdf(outFile,time,frac,uh,x,y,xc,yc,inGlobs,inAttrs):
     
     # initialize variables
     times = f.createVariable('time','f8',('time',))
+    time_offset = f.createVariable('time_offset', 'i8', ('npoints'))
     fracs = f.createVariable('fraction','f8',('npoints',))
-    xis = f.createVariable('xi','i4',('npoints',))
-    yis = f.createVariable('yi','i4',('npoints',))
+    xis = f.createVariable('xi','i8',('npoints',))
+    yis = f.createVariable('yi','i8',('npoints',))
     xcs = f.createVariable('xc','f8',('npoints',))
     ycs = f.createVariable('yc','f8',('npoints',))
     uhs = f.createVariable('unit_hydrograph','f8',('time','npoints',))
@@ -244,9 +265,16 @@ def write_flat_netcdf(outFile,time,frac,uh,x,y,xc,yc,inGlobs,inAttrs):
     except:
         pass
     
-    times.standard_name = inAttrs['time']['standard_name']
-    times.units = inAttrs['time']['units']
-    times.calendar = inAttrs['time']['calendar']
+    #times.standard_name = inAttrs['time']['standard_name']
+    #times.units = inAttrs['time']['units']
+    #times.calendar = inAttrs['time']['calendar']
+    times.standard_name = 'time'
+    times.units = 'timesteps'
+    times.full_length = full_length 
+
+    time_offset.standard_name = 'time_offset'
+    time_offset.units = 'timesteps'
+    time_offset.description = 'Number of leading timesteps'
     
     try:
         fracs.units = inAttrs['fraction']['units']
@@ -272,6 +300,7 @@ def write_flat_netcdf(outFile,time,frac,uh,x,y,xc,yc,inGlobs,inAttrs):
     ycs.units =inAttrs['yc']['units']
     
     times[:] = time
+    time_offset[:] = offset
     fracs[:] = frac
     uhs[:,:] = uh
     xis[:] = x
@@ -295,11 +324,15 @@ def process_command_line():
     parser.add_argument("--inputFiles", help="Input netcdf grid(s) containing fraction/uh data")
     parser.add_argument("--verbose",help="Make script verbose",action="store_true")
     parser.add_argument("--diagPath",type=str,help="Path to place diagnostic outputs")
+    parser.add_argument("--subset", type = int, default = 0, help = "Number of timesteps to include of each UH after first point > threshold.")
+    parser.add_argument("--threshold", type = float, default = 0, help = "Threshold to use to select the unit hydrograph.")
+    parser.add_argument("--out_format", type = str, help="Output netcdf format for flat uh files", default = "NETCDF4_CLASSIC")
 
     args = parser.parse_args()
 
     options = {}
     options['verbose'] = args.verbose
+    options['out_format'] = args.out_format
             
     files={}
     temp = glob.glob(args.inputFiles)
@@ -314,6 +347,13 @@ def process_command_line():
             os.makedirs(files['diagPath'])
     except:
         files['diagPath'] = False
+
+    if (args.subset and args.threshold):
+        options['subset'] = args.subset
+        options['threshold'] = args.threshold
+    else:
+        options['subset'] = False
+        options['threshold'] = False
 
     files['inputFiles'] = []
     for fi in temp:
