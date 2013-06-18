@@ -18,7 +18,7 @@ def main():
     files, options = process_command_line()
     # read gridFile
     try:
-        gridData, gridAttrs, gridGlobs = read_netcdf(files['gridFile'],verbose = options['verbose'])
+        gridData, gridAttrs, gridGlobs = read_netcdf(files['gridFile'], verbose = options['verbose'])
     except:
         raise IOError('Need gridFile')
     
@@ -29,11 +29,11 @@ def main():
     xs = {}; ys = {}
     attrs = {}; globs = {}
     for i, fname in enumerate(files['inputFiles']):
-        inputFile = os.path.join(files['inPath'],fname)
+        inputFile = os.path.join(files['inPath'], fname)
         if options['verbose']:
             print 'On file %i of %i' %(i+1,lf)
 
-        fData, attrs[fname], globs[fname] = read_netcdf(inputFile,verbose=options['verbose'])
+        fData, attrs[fname], globs[fname] = read_netcdf(inputFile,verbose = options['verbose'])
 
         if i==0:
             aggFracs = np.zeros(fData['fraction'].shape)
@@ -41,8 +41,8 @@ def main():
 
         y,x = ((fData['fraction']>0.0)*(gridData['mask']==1)).nonzero()
         
-        aggFracs[y,x] +=fData['fraction'][y,x]
-        aggUHs[:,y,x] +=fData['unit_hydrograph'][:,y,x]
+        aggFracs[y,x] += fData['fraction'][y,x]
+        aggUHs[:,y,x] += fData['unit_hydrograph'][:,y,x]
         
         fracs[fname] = fData['fraction'][y,x]
         uhs[fname] = fData['unit_hydrograph'][:,y,x]
@@ -62,13 +62,16 @@ def main():
     ratioFracs[yi,xi] = gridFracs[yi,xi]/aggFracs[yi,xi]
 
     if files['diagPath']:
-        make_plot(gridFracs,"gridFracs",aggFracs,"aggFracs",diffFracs,'diffFracs=aggFracs-gridFracs',ratioFracs
-                  ,'ratioFracs=gridFracs/aggFracs','Diagnostic Plot-0 for Aggregated Fractions'
-                  ,os.path.join(files['diagPath'],'diag_0.png'))
+        make_plot(gridFracs, "gridFracs", aggFracs, "aggFracs", diffFracs, 
+                  'diffFracs=aggFracs-gridFracs',ratioFracs, 
+                  'ratioFracs=gridFracs/aggFracs', 
+                  'Diagnostic Plot-0 for Aggregated Fractions', 
+                  os.path.join(files['diagPath'],'diag_0.png'))
 
-        make_plot(gridData['mask'],"Land Mask",gridFracs,"gridFracs",aggUHs.sum(axis=0),'Sum of UHs'
-                  ,gridData['mask']-aggUHs.sum(axis=0),'land+mask-uh_sum',
-                  'Diagnostic Plot-1 for Aggregated Fractions',os.path.join(files['diagPath'],'diag_1.png'))
+        make_plot(gridData['mask'], "Land Mask",gridFracs, "gridFracs", 
+                  aggUHs.sum(axis=0),'Sum of UHs', gridData['mask']-aggUHs.sum(axis=0),
+                  'land+mask-uh_sum', 'Diagnostic Plot-1 for Aggregated Fractions',
+                  os.path.join(files['diagPath'],'diag_1.png'))
 
     if (files['outPath']):
         aggFracs2 = np.zeros(aggFracs.shape)
@@ -89,7 +92,8 @@ def main():
 
                 # Subset if needed
                 if options['subset']:
-                    offset, out_uh, full_length = subset(uhs[fname], options['subset'], options['threshold'])
+                    offset, out_uh, full_length = subset(uhs[fname], options['subset'], 
+                                                         options['threshold'])
                     time = np.arange(options['subset'])
                 else:
                     offset = np.zeros(len(out_fracs))
@@ -97,11 +101,14 @@ def main():
                     out_uh = uhs[fname]
                     time = np.arange(full_length)
 
-                write_flat_netcdf(outFile, time, offset, full_length, out_fracs, out_uh, x, y, xcs[fname], ycs[fname], options['out_format'], globs[fname], attrs[fname])
+                write_flat_netcdf(outFile, time, offset, full_length, out_fracs, 
+                                  out_uh, x, y, xcs[fname], ycs[fname],
+                                  options['out_format'], globs[fname], attrs[fname])
 
         if files['diagPath']:
-            make_plot(gridFracs,"gridFracs",aggFracs,"aggFracs",aggFracs2,"aggFracs2",aggFracs2-gridFracs
-                      ,"aggFracs2-gridFracs",'Diagnostic Plot-2 for Aggregated Fractions'
+            make_plot(gridFracs, "gridFracs", aggFracs,"aggFracs", aggFracs2,
+                      "aggFracs2",aggFracs2-gridFracs ,"aggFracs2-gridFracs",
+                      'Diagnostic Plot-2 for Aggregated Fractions'
                       ,os.path.join(files['diagPath'],'diag_2.png'))
     return
 
@@ -113,7 +120,6 @@ def subset(uh, subset, threshold):
         offset[i]  = np.nonzero(uh[:,i]>threshold)[0][0]     # find position of first index > threshold
         end = np.minimum(uh.shape[0],offset[i]+subset)        # find end point
         out_uh[:end-offset[i],i] = uh[offset[i]:end,i]/uh[offset[i]:end,i].sum() # clip and normalize
-
     return offset, out_uh, full_length
 
 ##################################################################################
@@ -157,80 +163,8 @@ def read_netcdf(ncFile,vars = [],coords = False, verbose = False):
     
     return d,a,g
 
-##################################################################################
-##  Write output to netCDF
-##  Writes out a netCDF4 data file containing the UH_S and fractions
-##################################################################################
-def write_netcdf(file,xc,xc_bnd,yc,yc_bnd,times,hydrographs,fractions,loc,Flist,velocity,diffusion,NODATA,verbose):
-    """
-    Write output to netCDF.  Writes out a netCDF4 data file containing
-    the UH_S and fractions and a full set of history and description attributes.
-    """
-    
-    f = Dataset(file,'w', format='NETCDF4')
-
-    # set dimensions
-    time = f.createDimension('time', None)
-    x = f.createDimension('x',xc.shape[1])
-    y = f.createDimension('y',xc.shape[0])
-    nv4 = f.createDimension('nv4',4)
-
-    # initialize variables
-    time = f.createVariable('time','f8',('time',))
-    xcs = f.createVariable('xc','f8',('y','x',))
-    ycs = f.createVariable('yc','f8',('y','x',))
-    xc_bnds = f.createVariable('xc_bnds','f8',('y','x','nv4',))
-    yc_bnds = f.createVariable('yc_bnds','f8',('y','x','nv4',))
-    fraction = f.createVariable('fraction','f8',('y','x',),fill_value=NODATA)
-    UHS = f.createVariable('unit_hydrograph','f8',('time','y','x',),fill_value=NODATA)
-
-    # write attributes for netcdf
-    f.description = 'Aggregated UH_S and Fraction Vars for full RASM domain'
-    f.history = 'Created: {}\n'.format(tm.ctime(tm.time()))
-    f.history += ' '.join(sys.argv) + '\n'
-    f.source = sys.argv[0] # prints the name of script used
-    f.velocity = velocity
-    f.diffusion = diffusion
-    f.outlet_lon = loc[0]
-    f.outlet_lat = loc[1]
-    f.includes = str(len(Flist))+' files'
-
-    ycs.long_name = 'latitude of grid cell center'
-    ycs.standard_name = 'latitude'
-    ycs.units = 'degrees_north'
-    ycs._CoordinateAxisType = 'Lat'
-    ycs.bounds = 'yc_bnds'
-
-    xcs.long_name = 'longitude of grid cell center'
-    xcs.standard_name = 'longitude'
-    xcs.units = 'degrees_east'
-    xcs._CoordinateAxisType = 'Lon'
-    xcs.bounds = 'xc_bnds'
-
-    time.standard_name = 'time'
-    time.units = 'seconds'
-    time.description = 'Seconds since initial impulse'
-    time.calendar = 'proleptic_gregorian'
-
-    UHS.units = 'unitless'
-    UHS.description = 'unit hydrograph for each grid cell with respect to basin outlet location'
-    
-    fraction.units = 'unitless'
-    fraction.description = 'fraction of grid cell contributing to guage location'
-
-    # write data to variables initialized above
-    time[:]= times
-    xcs[:,:] = xc
-    ycs[:,:] = yc
-    xc_bnds[:,:,:] = xc_bnd
-    yc_bnds[:,:,:] = yc_bnd
-    UHS[:,:,:] = hydrographs
-    fraction[:,:]= fractions
-    f.close()
-
-    return
-
-def write_flat_netcdf(outFile, time, offset, full_length, frac, uh, x, y, xc, yc, out_format, inGlobs, inAttrs):
+def write_flat_netcdf(outFile, time, offset, full_length, frac, uh, 
+                      x, y, xc, yc, out_format, inGlobs, inAttrs):
     """
     Write a flattened uh file that includes the fractions, uhs, and flows
     """
@@ -265,9 +199,6 @@ def write_flat_netcdf(outFile, time, offset, full_length, frac, uh, x, y, xc, yc
     except:
         pass
     
-    #times.standard_name = inAttrs['time']['standard_name']
-    #times.units = inAttrs['time']['units']
-    #times.calendar = inAttrs['time']['calendar']
     times.standard_name = 'time'
     times.units = 'timesteps'
     times.full_length = full_length 
@@ -293,7 +224,7 @@ def write_flat_netcdf(outFile, time, offset, full_length, frac, uh, x, y, xc, yc
     
     xcs.standard_name =inAttrs['xc']['standard_name']
     xcs.long_name = inAttrs['xc']['long_name']
-    xcs.units =inAttrs['xc']['units']
+    xcs.units = inAttrs['xc']['units']
     
     ycs.standard_name =inAttrs['yc']['standard_name']
     ycs.long_name = inAttrs['yc']['long_name']
@@ -319,14 +250,14 @@ def process_command_line():
     """
     # Parse arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument("--outPath", type=str, help="Output path for flat uh files with adjusted fractions")
-    parser.add_argument("--gridFile", type=str, help="Grid File containing full domain fractions variable ")
-    parser.add_argument("--inputFiles", help="Input netcdf grid(s) containing fraction/uh data")
-    parser.add_argument("--verbose",help="Make script verbose",action="store_true")
-    parser.add_argument("--diagPath",type=str,help="Path to place diagnostic outputs")
+    parser.add_argument("--outPath", type = str, help = "Output path for flat uh files with adjusted fractions")
+    parser.add_argument("--gridFile", type = str, help = "Grid File containing full domain fractions variable ")
+    parser.add_argument("--inputFiles", help = "Input netcdf grid(s) containing fraction/uh data")
+    parser.add_argument("--verbose", help = "Make script verbose", action = "store_true")
+    parser.add_argument("--diagPath", type = str,help="Path to place diagnostic outputs")
     parser.add_argument("--subset", type = int, default = 0, help = "Number of timesteps to include of each UH after first point > threshold.")
     parser.add_argument("--threshold", type = float, default = 0, help = "Threshold to use to select the unit hydrograph.")
-    parser.add_argument("--out_format", type = str, help="Output netcdf format for flat uh files", default = "NETCDF4_CLASSIC")
+    parser.add_argument("--out_format", type = str, help = "Output netcdf format for flat uh files", default = "NETCDF4_CLASSIC")
 
     args = parser.parse_args()
 
@@ -368,9 +299,9 @@ def process_command_line():
     except:
         files['outPath'] = False
     
-    return files,options
+    return files, options
 
-def make_plot(d0,t0,d1,t1,d2,t2,d3,t3,suptitle,path_out):
+def make_plot(d0, t0, d1, t1, d2, t2, d3, t3, suptitle, path_out):
     """
     Make a 4 pannel plot that shows map views of the domain of interest
     No projection is defined.  
