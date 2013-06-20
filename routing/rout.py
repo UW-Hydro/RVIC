@@ -82,11 +82,13 @@ def rout(infile, UHfile, basin_y, basin_x, velocity, diffusion, verbose,
                        Catchment['x_inds'], Catchment['y_inds'], NODATA, verbose)
     
     #Write to output netcdf
+    time_steps = np.arange(UH_out.shape[0])
     times = np.linspace(0, OUTPUT_INTERVAL*UH_out.shape[0], UH_out.shape[0],
                         endpoint=False)
+    time_res = "%s seconds" % OUTPUT_INTERVAL
     out_file = write_netcdf(basin_x, basin_y, Basin['lon'], Basin['lat'],
-                            times, UH_out, fractions, velocity, diffusion, 
-                            basin_id, NODATA, verbose)
+                            times, time_steps, time_res, UH_out, fractions, 
+                            velocity, diffusion, basin_id, NODATA, verbose)
 
     return out_file
     
@@ -592,8 +594,8 @@ def aggregate(UH_S, T_UH, INPUT_INTERVAL, OUTPUT_INTERVAL, x_inds, y_inds,
 ##  Write output to netCDF
 ##  Writes out a netCDF3-64BIT data file containing the UH_S and fractions
 ##############################################################################
-def write_netcdf(basin_x, basin_y, lons, lats, times, UH_S, fractions, 
-                 velocity, diffusion, basin_id, NODATA, verbose):
+def write_netcdf(basin_x, basin_y, lons, lats, times, time_steps, time_res, UH_S, 
+                 fractions, velocity, diffusion, basin_id, NODATA, verbose):
     """
     Write output to netCDF.  Writes out a netCDF4 data file containing the
     UH_S and fractions.
@@ -607,7 +609,8 @@ def write_netcdf(basin_x, basin_y, lons, lats, times, UH_S, fractions,
     lat = f.createDimension('lat', (len(lats)))
 
     # initialize variables
-    time = f.createVariable('time', 'f8', ('time', ))
+    time = f.createVariable('time', 'f8', ('time'))
+    time_step = f.createVariable('time_step', 'i8', ('time', ))
     lon = f.createVariable('lon', 'f8', ('lon', ))
     lat = f.createVariable('lat', 'f8', ('lat', ))
     fraction = f.createVariable('fraction', 'f8', ('lat', 'lon', ),
@@ -617,8 +620,8 @@ def write_netcdf(basin_x, basin_y, lons, lats, times, UH_S, fractions,
 
     # write attributes for netcdf
     f.description = 'UH_S grid'
-    f.history = 'Created: {}\n'.format(tm.ctime(tm.time()))
-    f.history += ' '.join(sys.argv) + '\n'
+    f.created = tm.ctime(tm.time())
+    f.history = ' '.join(sys.argv)
     f.source = sys.argv[0] # returns the name of script used
     f.velocity = velocity
     f.diffusion = diffusion
@@ -640,13 +643,19 @@ def write_netcdf(basin_x, basin_y, lons, lats, times, UH_S, fractions,
     time.type_prefered = 'int'
     time.description = 'Seconds since initial impulse'
 
+    time_step.longname = 'timestep'
+    time_step.type_prefered = 'int'
+    time_step.description = 'timestep number'
+    time_step.resolution = time_res
+
     UHS.units = 'unitless'
     UHS.description = 'unit hydrograph'
     
-    fraction.description = 'fraction of grid cell contributing to guage location'
+    fraction.description = 'fraction of grid cell contributing to outlet location'
 
     # write data to variables initialized above
-    time[:]= times
+    time_step[:]= time_steps
+    time[:] = times
     lon[:] = lons
     lat[:] = lats
     UHS[:, :, :] = UH_S
