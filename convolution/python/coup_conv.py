@@ -81,7 +81,7 @@ def init(uh_files, flux_files, grid_file, initial_state, outputs, options,
         if (f.variables['area'].units in ["rad2", "radians2", "radian2", "rad^2",
                                           "radians^2", "rads^2", "radians squared",
                                           "square-radians"]):
-            area = f.variables['area'][:] * radius * radius
+            area = f.variables['area'][:] * earthRadius * earthRadius
         elif f.variables['area'].units in ["m2", "m^2", "meters^2", "meters2",
                                            "square-meters", "meters squared"]:
             area = f.variables['area'][:]
