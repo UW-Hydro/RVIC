@@ -1,3 +1,3 @@
-Streamflow_Routing
+RVIC Routing Model
 ==================
 
