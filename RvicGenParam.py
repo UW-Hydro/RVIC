@@ -191,10 +191,10 @@ def GenUH_run_sp(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths
         # write temporary file #1
         if  ConfigDict['options']['remap']:
             GlobAts = ncGlobals(title='RVIC Unit Hydrograph Grid File',
-                                RvicPourPointsFile=ConfigDict['pour_points']['file_name'],
-                                RvicUHFile=ConfigDict['uh_box']['file_name'],
-                                RvicFdrFile=ConfigDict['routing']['file_name'],
-                                RvicDomainFile=ConfigDict['domain']['file_name'])
+                                RvicPourPointsFile=os.path.split(ConfigDict['pour_points']['file_name'])[1],
+                                RvicUHFile=os.path.split(ConfigDict['uh_box']['file_name'])[1],
+                                RvicFdrFile=os.path.split(ConfigDict['routing']['file_name'])[1],
+                                RvicDomainFile=os.path.split(ConfigDict['domain']['file_name'])[1])
 
             TempFile1 = os.path.join(dirPaths['aggregated'], 'aggUH_%i.nc' % cell_id)
 

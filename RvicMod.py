@@ -152,10 +152,10 @@ def rvic_init(configFile=None):
                                    GlobAts=ncGlobals(title='RVIC history file',
                                                      casename=options['CASEID'],
                                                      casestr=options['CASESTR'],
-                                                     RvicPourPointsFile=routVar.RvicPourPointsFile,
-                                                     RvicUHFile=routVar.RvicUHFile,
-                                                     RvicFdrFile=routVar.RvicFdrFile,
-                                                     RvicDomainFile=Domain['file_name']))
+                                                     RvicPourPointsFile=os.path.split(routVar.RvicPourPointsFile)[1],
+                                                     RvicUHFile=os.path.split(routVar.RvicUHFile)[1],
+                                                     RvicFdrFile=os.path.split(routVar.RvicFdrFile)[1],
+                                                     RvicDomainFile=os.path.split(Domain['file_name'])[1]))
         HistTapes[tapename].write_initial()
     # ---------------------------------------------------------------- #
 
