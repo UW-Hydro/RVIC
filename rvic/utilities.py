@@ -3,7 +3,7 @@ utilities.py
 """
 import os
 import shutil
-import ConfigParser
+from ConfigParser import SafeConfigParser
 import numpy as np
 from netCDF4 import Dataset
 from cdo import *
@@ -25,7 +25,7 @@ def write_rpointer(restart_dir, restart_file, timestamp):
     """ Write a configuration file with restart file and time """
     rpointer_file = os.path.join(restart_dir, rpointer)
 
-    config = ConfigParser.RawConfigParser()
+    config = SafeConfigParser()
 
     time_str = timestamp.strftime(timeStampForm)
 
@@ -92,7 +92,7 @@ def ReadConfig(ConfigFile):
     """
     Return a dictionary with subdictionaries of all configFile options/values
     """
-    Config = ConfigParser.ConfigParser()
+    Config = SafeConfigParser()
     Config.optionxform = str
     Config.read(ConfigFile)
     sections = Config.sections()
@@ -215,7 +215,7 @@ def CopyInputs(ConfigFile, InputsDir):
 
     ConfigDict = ReadConfig(ConfigFile)
 
-    Config = ConfigParser.RawConfigParser()
+    Config = SafeConfigParser()
     Config.read(ConfigFile)
 
     new_config = os.path.join(InputsDir, os.path.split(ConfigFile)[1])
