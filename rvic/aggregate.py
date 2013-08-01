@@ -5,21 +5,21 @@ aggregate.py
 
 import numpy as np
 from scipy.spatial import cKDTree
-from rvic.share import fillValue_f
-from rvic.log import log_name
-from rvic.utilities import find_nearest
-from rvic.vars import Point
-import logging
+from share import FILLVALUE_F
+from utilities import find_nearest
+from variables import Point
+from logging import getLogger
+from log import LOG_NAME
 
 # -------------------------------------------------------------------- #
 # create logger
-log = logging.getLogger(log_name)
+log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Find target cells for pour points
-def MakeAggPairs(lons, lats, DomLon, DomLat, DomIds, agg_type='agg'):
+def make_agg_pairs(lons, lats, DomLon, DomLat, DomIds, agg_type='agg'):
     """
     Group pour points by domain grid outlet cell
     """
@@ -86,7 +86,7 @@ def MakeAggPairs(lons, lats, DomLon, DomLat, DomIds, agg_type='agg'):
 
 # -------------------------------------------------------------------- #
 # Aggregate the UH grids
-def agg(inData, aggData, res=0, pad=0, maskandnorm=False):
+def aggregate(inData, aggData, res=0, pad=0, maskandnorm=False):
     """
     Add the two data sets together and return the combined arrays.
     Expand the horizontal dimensions as necessary to fit inData with aggData.
@@ -163,8 +163,8 @@ def agg(inData, aggData, res=0, pad=0, maskandnorm=False):
 
         # Mask the hydrographs and make sure they sum to 1 at each grid cell
         yv, xv = np.nonzero(((fractions <= 0) * (hydrographs.sum(axis=0) <= 0)))
-        hydrographs[:, yv, xv] = fillValue_f
-        #hydrographs = np.ma.masked_where(hydrographs == fillValue_f, hydrographs, copy=False)
+        hydrographs[:, yv, xv] = FILLVALUE_F
+        #hydrographs = np.ma.masked_where(hydrographs == FILLVALUE_F, hydrographs, copy=False)
 
         log.info('Done with Aggregation')
     # ---------------------------------------------------------------- #

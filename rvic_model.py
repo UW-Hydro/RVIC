@@ -13,17 +13,17 @@ Changed input file type to standard RVIC parameter file
 Made necessary changes to run routines to accept the new parameter file structure.
 Major updates to the...
 """
-import argparse
 import os
-import logging
-from rvic.log import init_logger, log_name
-from rvic.utilities import ReadConfig, MakeDirs, CopyInputs, Rvar, ReadDomain
-from rvic.utilities import write_rpointer, TarInputs
-from rvic.time_util import Dtime
+from argparse import ArgumentParser
+from logging import getLogger
+from rvic.log import init_logger, LOG_NAME
+from rvic.utilities import read_config, make_directories, copy_inputs, read_domain
+from rvic.utilities import write_rpointer, tar_inputs
+from rvic.variables import Rvar
+from rvic.time_utility import Dtime
 from rvic.read_forcing import DataModel
 from rvic.history import Tape
-from rvic.share import ncGlobals
-
+from rvic.share import NcGlobals
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
@@ -32,11 +32,11 @@ def main(config_file=None):
     Top level driver for RVIC model.
     """
 
-    HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict = rvic_init()
+    HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict = rvic_mod_init()
 
-    Time, HistTapes = rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict)
+    Time, HistTapes = rvic_mod_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict)
 
-    rvic_final(Time, HistTapes)
+    rvic_mod_final(Time, HistTapes)
 
     return
 # -------------------------------------------------------------------- #
@@ -44,7 +44,7 @@ def main(config_file=None):
 
 # -------------------------------------------------------------------- #
 # Initialize RVIC
-def rvic_init(configFile=None):
+def rvic_mod_init(configFile=None):
     """
     - Read Grid File
     - Load the unit hydrograph files (put into point_dict)
@@ -59,18 +59,18 @@ def rvic_init(configFile=None):
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
-    ConfigDict = ReadConfig(configFile)
+    ConfigDict = read_config(configFile)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
-    dirPaths = MakeDirs(ConfigDict['options']['case_dir'],
+    dirPaths = make_directories(ConfigDict['options']['case_dir'],
                         ['hist', 'logs', 'params', 'restarts'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Copy Inputs to $case_dir/inputs and update configuration
-    ConfigDict = CopyInputs(configFile, dirPaths['inputs'])
+    ConfigDict = copy_inputs(configFile, dirPaths['inputs'])
     options = ConfigDict['options']
     # ---------------------------------------------------------------- #
 
@@ -82,7 +82,7 @@ def rvic_init(configFile=None):
     # ---------------------------------------------------------------- #
     # Read Domain File
     Domain = ConfigDict['domain']
-    DomData, DomVats, DomGats = ReadDomain(Domain['file_name'])
+    DomData, DomVats, DomGats = read_domain(Domain['file_name'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -95,7 +95,7 @@ def rvic_init(configFile=None):
     # ---------------------------------------------------------------- #
     # Read the State File
     if options['RUN_TYPE'] == 'restart':
-        restart = ReadConfig(os.path.join(dirPaths['restarts'], 'rpointer'))
+        restart = read_config(os.path.join(dirPaths['restarts'], 'rpointer'))
         timestr = restart['restart']['timestamp']
         routVar.initial_state(restart['restart']['file_name'])
     elif options['RUN_TYPE'] == 'startup':
@@ -149,7 +149,7 @@ def rvic_init(configFile=None):
                                    dom_lats=DomData[Domain['latitude_var']],
                                    out_dir=dirPaths['hist'],
                                    calendar=Time.calendar,
-                                   GlobAts=ncGlobals(title='RVIC history file',
+                                   GlobAts=NcGlobals(title='RVIC history file',
                                                      casename=options['CASEID'],
                                                      casestr=options['CASESTR'],
                                                      RvicPourPointsFile=os.path.split(routVar.RvicPourPointsFile)[1],
@@ -164,7 +164,7 @@ def rvic_init(configFile=None):
 
 
 # -------------------------------------------------------------------- #
-def rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict):
+def rvic_mod_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict):
     """
     - Loop over flux files
     - Combine the Baseflow and Runoff Variables
@@ -177,8 +177,8 @@ def rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict):
 
     # ---------------------------------------------------------------- #
     # Start log
-    log = logging.getLogger(log_name)
-    log.info('Starting rvic_run')
+    log = getLogger(LOG_NAME)
+    log.info('Starting rvic_mod_run')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -223,11 +223,11 @@ def rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict):
 
 # -------------------------------------------------------------------- #
 # Final
-def rvic_final(Time, HistTapes):
+def rvic_mod_final(Time, HistTapes):
     """ Finalize RVIC """
     # ---------------------------------------------------------------- #
     # Start log
-    log = logging.getLogger(log_name)
+    log = getLogger(LOG_NAME)
     log.info('Finalizing RVIC')
     # ---------------------------------------------------------------- #
 
@@ -244,7 +244,7 @@ def rvic_final(Time, HistTapes):
 
     # ---------------------------------------------------------------- #
     # tar the inputs directory / log file
-    LogTar = TarInputs(log.filename)
+    LogTar = tar_inputs(log.filename)
 
     log.info('Done with RvicGenParam.')
     log.info('Location of Log: %s' % LogTar)
@@ -260,7 +260,7 @@ def process_command_line():
     Get the path to the configFile
     """
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Do the RVIC Convoluition')
+    parser = ArgumentParser(description='Do the RVIC Convoluition')
     parser.add_argument("configFile", type=str, help="Input configuration file")
 
     args = parser.parse_args()

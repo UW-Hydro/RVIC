@@ -1,18 +1,26 @@
 """
+make_uh.py
+
 PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
 Routing algorithm developed by D. Lohmann.
+__________________________________
+REVISION HISTORY
+--------
+July 2013, Joe Hamman
+Removed read and write functions to make more modular.
+Now called from make_parameters.py
 """
 
 import numpy as np
 import logging
 from scipy.interpolate import interp1d
-from rvic.share import secsPerDay, precision
-from rvic.log import log_name
-from rvic.utilities import find_nearest
-from rvic.vars import Point
+from utilities import find_nearest
+from variables import Point
+from share import SECSPERDAY, PRECISION
+from log import LOG_NAME
 
 # create logger
-log = logging.getLogger(log_name)
+log = logging.getLogger(LOG_NAME)
 
 
 def rout(PourPoint, UHbox, FdrData, FdrAtts, RoutDict):
@@ -96,8 +104,8 @@ def rout(PourPoint, UHbox, FdrData, FdrAtts, RoutDict):
     # Find timestep (timestep is determined from UH_BOX input file)
     InputInterval = find_TS(UH_t)
     OutData['unit_hydrogaph_dt'] = InputInterval
-    Tcell = int(RoutDict['cell_flowdays']*secsPerDay/InputInterval)
-    Tuh = int(RoutDict['basin_flowdays']*secsPerDay/InputInterval)
+    Tcell = int(RoutDict['cell_flowdays']*SECSPERDAY/InputInterval)
+    Tuh = int(RoutDict['basin_flowdays']*SECSPERDAY/InputInterval)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -249,7 +257,7 @@ def make_UH(DELTA_T, T_Cell, y_inds, x_inds, velocity, diffusion, xmask):
         green = np.zeros(T_Cell)
         while (t < T_Cell and flag == 0):
             exponent = -1*np.power(velocity[y, x]*time-xmask[y, x], 2)/(4*diffusion[y, x]*time)
-            if exponent > np.log(precision):
+            if exponent > np.log(PRECISION):
                 green[t] = xmask[y, x]/(2*time*np.sqrt(np.pi*time*diffusion[y, x]))*np.exp(exponent)
                 t += 1
                 time = time+DELTA_T
@@ -279,7 +287,7 @@ def make_grid_UH_river(T_UH, T_Cell, UH, to_y, to_x, BasinPoint, y_inds,
             yy = to_y[y, x]
             xx = to_x[y, x]
             IRF_temp = np.zeros(T_UH+T_Cell)
-            active_timesteps = np.nonzero(UH_RIVER[:, yy, xx] > precision)[0]
+            active_timesteps = np.nonzero(UH_RIVER[:, yy, xx] > PRECISION)[0]
             for t in active_timesteps:
                 for l in xrange(T_Cell):
                     IRF_temp[t+l] = IRF_temp[t + l] + UH[l, y, x] * UH_RIVER[t, yy, xx]
@@ -309,7 +317,7 @@ def make_grid_UH(T_UH, T_Cell, UH_RIVER, UH_BOX, to_y, to_x, y_inds, x_inds,
         if d > 0:
             yy = to_y[y, x]
             xx = to_x[y, x]
-            active_timesteps = np.nonzero(UH_RIVER[:, yy, xx] > precision)[0]
+            active_timesteps = np.nonzero(UH_RIVER[:, yy, xx] > PRECISION)[0]
             for t in active_timesteps:
                 for l in xrange(len(UH_BOX)):
                     IRF_temp[t + l] = IRF_temp[t + l] + UH_BOX[l] * UH_RIVER[t, yy, xx]

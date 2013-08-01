@@ -2,20 +2,20 @@
 utilities.py
 """
 import os
-import shutil
-from ConfigParser import SafeConfigParser
-import numpy as np
-from netCDF4 import Dataset
-from cdo import *
-cdo = Cdo()
-from rvic.log import log_name
-import logging
-from share import timeStampForm, rpointer, earthRadius
 import tarfile
+import numpy as np
+from shutil import rmtree, copyfile
+from ConfigParser import SafeConfigParser
+from netCDF4 import Dataset
+from cdo import Cdo
+cdo = Cdo()
+from logging import getLogger
+from log import LOG_NAME
+from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE, METERS2PERACRE, METERSPERKM
 
 # -------------------------------------------------------------------- #
 # create logger
-log = logging.getLogger(log_name)
+log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
 
@@ -23,11 +23,11 @@ log = logging.getLogger(log_name)
 # Write rpointer file
 def write_rpointer(restart_dir, restart_file, timestamp):
     """ Write a configuration file with restart file and time """
-    rpointer_file = os.path.join(restart_dir, rpointer)
+    rpointer_file = os.path.join(restart_dir, RPOINTER)
 
     config = SafeConfigParser()
 
-    time_str = timestamp.strftime(timeStampForm)
+    time_str = timestamp.strftime(TIMESTAMPFORM)
 
     config.add_section('restart')
     config.set('restart', 'file_name', os.path.join(restart_dir, restart_file))
@@ -40,7 +40,7 @@ def write_rpointer(restart_dir, restart_file, timestamp):
 
 # -------------------------------------------------------------------- #
 # A helper function to read a netcdf file
-def ReadNetcdf(ncFile, variables=None, coords=None):
+def read_netcdf(ncFile, variables=None, coords=None):
     """
     Read data from input netCDF. Will read all variables if none provided.
     Will also return all variable attributes.
@@ -75,7 +75,7 @@ def ReadNetcdf(ncFile, variables=None, coords=None):
 
 # -------------------------------------------------------------------- #
 # Check to make sure all the expected variables are present in the dictionary
-def CheckNcvars(configSection, nckeys):
+def check_ncvars(configSection, nckeys):
     """Make sure the variables listed in the config file are present in the netcdf"""
     for key, value in configSection.iteritems():
         if key.endswith('var'):
@@ -88,7 +88,7 @@ def CheckNcvars(configSection, nckeys):
 
 # -------------------------------------------------------------------- #
 # Read the Configuration File
-def ReadConfig(ConfigFile):
+def read_config(ConfigFile):
     """
     Return a dictionary with subdictionaries of all configFile options/values
     """
@@ -101,7 +101,7 @@ def ReadConfig(ConfigFile):
         options = Config.options(section)
         dict2 = {}
         for option in options:
-            dict2[option] = configType(Config.get(section, option))
+            dict2[option] = config_type(Config.get(section, option))
         dict1[section] = dict2
     return dict1
 # -------------------------------------------------------------------- #
@@ -109,7 +109,7 @@ def ReadConfig(ConfigFile):
 
 # -------------------------------------------------------------------- #
 # Find the type of the config options
-def configType(value):
+def config_type(value):
     """
     Parse the type of the configuration file option.
     First see the value is a bool, then try float, finally return a string.
@@ -194,7 +194,7 @@ def remap(gridFile, inFile, remapFile, operator='remapcon',
 
 # -------------------------------------------------------------------- #
 # Make a set of directories
-def MakeDirs(rundir, subdir_names):
+def make_directories(rundir, subdir_names):
     """Make rvic directory structure"""
 
     if not os.path.exists(rundir):
@@ -211,9 +211,9 @@ def MakeDirs(rundir, subdir_names):
 
 # -------------------------------------------------------------------- #
 # Move all the input files to a central location
-def CopyInputs(ConfigFile, InputsDir):
+def copy_inputs(ConfigFile, InputsDir):
 
-    ConfigDict = ReadConfig(ConfigFile)
+    ConfigDict = read_config(ConfigFile)
 
     Config = SafeConfigParser()
     Config.read(ConfigFile)
@@ -227,7 +227,7 @@ def CopyInputs(ConfigFile, InputsDir):
             new_file_name = os.path.join(InputsDir,
                                          os.path.split(section['file_name'])[1])
 
-            shutil.copyfile(section['file_name'], new_file_name)
+            copyfile(section['file_name'], new_file_name)
 
             # update the config file for an easy restart
             Config.set(key, 'file_name',
@@ -248,7 +248,7 @@ def CopyInputs(ConfigFile, InputsDir):
 # -------------------------------------------------------------------- #
 
 
-def TarInputs(Input, suffix=''):
+def tar_inputs(Input, suffix=''):
     """ Tar the inputs directory or file at the end of a run"""
 
     # ---------------------------------------------------------------- #
@@ -263,7 +263,7 @@ def TarInputs(Input, suffix=''):
         # ------------------------------------------------------------ #
         # Remove the Input
         if os.path.isdir(Input):
-            shutil.rmtree(Input)
+            rmtree(Input)
         elif os.path.isfile(Input):
             os.unlink(Input)
         # ------------------------------------------------------------ #
@@ -293,14 +293,14 @@ def subset(uh, subset, threshold):
 
 # -------------------------------------------------------------------- #
 # Read the domain
-def ReadDomain(DomainDict):
+def read_domain(DomainDict):
     """
     Read the domain file and return all the variables and attributes.
     Area is returned in m2
     """
-    DomData, DomVats, DomGats = ReadNetcdf(DomainDict['file_name'])
+    DomData, DomVats, DomGats = read_netcdf(DomainDict['file_name'])
 
-    CheckNcvars(DomainDict, DomData.keys())
+    check_ncvars(DomainDict, DomData.keys())
 
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
@@ -312,19 +312,19 @@ def ReadDomain(DomainDict):
     if DomVats[DomainDict['area_var']]['units'] in ["rad2", "radians2", "radian2", "rad^2",
                                                     "radians^2", "rads^2", "radians squared",
                                                     "square-radians"]:
-        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * earthRadius * earthRadius
+        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * EARTHRADIUS * EARTHRADIUS
     elif DomVats[DomainDict['area_var']]['units'] in ["m2", "m^2", "meters^2", "meters2",
                                                       "square-meters", "meters squared"]:
         DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']]
     elif DomVats[DomainDict['area_var']]['units'] in ["km2", "km^2", "kilometers^2",
                                                       "kilometers2", "square-kilometers",
                                                       "kilometers squared"]:
-        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * metersPerKm * metersPerKm
+        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * METERSPERKM * METERSPERKM
     elif DomVats[DomainDict['area_var']]['units'] in ["mi2", "mi^2", "miles^2", "miles",
                                                       "square-miles", "miles squared"]:
-        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * metersPerMile * metersPerMile
+        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * METERSPERMILE * METERSPERMILE
     elif DomVats[DomainDict['area_var']]['units'] in ["acres", "ac", "ac."]:
-        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * meters2PerAcre
+        DomData[DomainDict['area_var']] = DomData[DomainDict['area_var']] * METERS2PERACRE
     else:
         log.warning("WARNING: UNKNOWN AREA UNITS (%s), ASSUMING THEY ARE IN "
                     "SQUARE METERS" % DomData[DomainDict['area_var']]['units'])

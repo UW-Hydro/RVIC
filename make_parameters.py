@@ -5,16 +5,16 @@ RVIC parameter file development driver
 import os
 import numpy as np
 import argparse
-import logging
 from datetime import date
-from rvic.log import init_logger, log_name
-from rvic.utilities import ReadConfig, MakeDirs, CopyInputs, ReadNetcdf, TarInputs
-from rvic.utilities import CheckNcvars, remap, clean_file, subset, ReadDomain
-from rvic.aggregate import MakeAggPairs, agg
-from rvic.makeUH import rout
-from rvic.share import ncGlobals
+from logging import getLogger
+from rvic.log import init_logger, LOG_NAME
+from rvic.utilities import read_config, make_directories, copy_inputs, read_netcdf, tar_inputs
+from rvic.utilities import check_ncvars, remap, clean_file, subset, read_domain
+from rvic.aggregate import make_agg_pairs, aggregate
+from rvic.make_uh import rout
+from rvic.share import NcGlobals
 from rvic.write import write_agg_netcdf, write_param_file
-from rvic.vars import Point
+from rvic.variables import Point
 # try:
 #     from IPython.parallel import Client
 # except:
@@ -28,17 +28,17 @@ from rvic.vars import Point
 # Top level driver
 def main():
 
-    UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths = GenUH_init()
+    UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths = gen_uh_init()
 
-    Outlets, Fractions, UH = GenUH_run_sp(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths)
+    Outlets, Fractions, UH = gen_uh_run(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths)
 
-    GenUH_final(Outlets, Fractions, UH, DomData, ConfigDict, dirPaths)
+    gen_uh_final(Outlets, Fractions, UH, DomData, ConfigDict, dirPaths)
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Initialize the GenUH Program
-def GenUH_init(configFile=None):
+def gen_uh_init(configFile=None):
     """Initialize RVIC parameter """
 
     # ---------------------------------------------------------------- #
@@ -49,19 +49,19 @@ def GenUH_init(configFile=None):
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
-    ConfigDict = ReadConfig(configFile)
+    ConfigDict = read_config(configFile)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
-    dirPaths = MakeDirs(ConfigDict['options']['case_dir'],
+    dirPaths = make_directories(ConfigDict['options']['case_dir'],
                         ['aggregated', 'remapped', 'plots',
                         'logs', 'params', 'inputs'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # copy inputs to $case_dir/inputs and update configuration
-    ConfigDict = CopyInputs(configFile, dirPaths['inputs'])
+    ConfigDict = copy_inputs(configFile, dirPaths['inputs'])
     options = ConfigDict['options']
     # ---------------------------------------------------------------- #
 
@@ -97,7 +97,7 @@ def GenUH_init(configFile=None):
     # ---------------------------------------------------------------- #
     # Read FDR file
     try:
-        FdrData, FdrVats, FdrGats = ReadNetcdf(ConfigDict['routing']['file_name'])
+        FdrData, FdrVats, FdrGats = read_netcdf(ConfigDict['routing']['file_name'])
         fdr_shape = FdrData[ConfigDict['routing']['flow_direction_var']].shape
         # Add velocity and/or diffusion grids if not present yet
         if not type(ConfigDict['routing']['velocity']) == str:
@@ -112,7 +112,7 @@ def GenUH_init(configFile=None):
         FdrData['resolution'] = np.abs(FdrData[ConfigDict['routing']['longitude_var']][1] -
                                        FdrData[ConfigDict['routing']['longitude_var']][0])
 
-        CheckNcvars(ConfigDict['routing'], FdrData.keys())
+        check_ncvars(ConfigDict['routing'], FdrData.keys())
     except:
         log.exception('Error opening FDR file')
         raise
@@ -121,7 +121,7 @@ def GenUH_init(configFile=None):
     # ---------------------------------------------------------------- #
     # Read domain file (if applicable)
     if options['remap']:
-        DomData, DomVats, DomGats = ReadDomain(ConfigDict['domain'])
+        DomData, DomVats, DomGats = read_domain(ConfigDict['domain'])
     else:
         DomData = {}
     # ---------------------------------------------------------------- #
@@ -129,7 +129,7 @@ def GenUH_init(configFile=None):
     # ---------------------------------------------------------------- #
     # Group pour points (if aggregate)
     if options['aggregate']:
-        Outlets = MakeAggPairs(PourPoints['lons'], PourPoints['lats'],
+        Outlets = make_agg_pairs(PourPoints['lons'], PourPoints['lats'],
                                DomData[ConfigDict['domain']['longitude_var']],
                                DomData[ConfigDict['domain']['latitude_var']],
                                DomData['cell_ids'], agg_type='agg')
@@ -145,13 +145,13 @@ def GenUH_init(configFile=None):
 
 # -------------------------------------------------------------------- #
 # The standard single processor driver for gerating parameter files
-def GenUH_run_sp(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths):
+def gen_uh_run(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths):
     """
     Run GenUH_run on a single processor (slow)
     """
-    log = logging.getLogger(log_name)
+    log = getLogger(LOG_NAME)
 
-    log.info('Starting GenUH_run_sp now.')
+    log.info('Starting gen_uh_run now.')
 
     # ---------------------------------------------------------------- #
     # Loop over agg points
@@ -175,9 +175,9 @@ def GenUH_run_sp(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths
             # aggregate
             if ConfigDict['options']['aggregate']:
                 if j != len(Outlets[cell_id].PourPoints)-1:
-                    aggData = agg(routData, aggData, res=FdrData['resolution'])
+                    aggData = aggregate(routData, aggData, res=FdrData['resolution'])
                 else:
-                    aggData = agg(routData, aggData, res=FdrData['resolution'],
+                    aggData = aggregate(routData, aggData, res=FdrData['resolution'],
                                   pad=ConfigDict['options']['agg_pad'], maskandnorm=True)
 
                     log.debug('aggData: %f, %f' % (aggData['UHgrid'].min(), aggData['UHgrid'].max()))
@@ -190,7 +190,7 @@ def GenUH_run_sp(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths
         # ------------------------------------------------------------ #
         # write temporary file #1
         if  ConfigDict['options']['remap']:
-            GlobAts = ncGlobals(title='RVIC Unit Hydrograph Grid File',
+            GlobAts = NcGlobals(title='RVIC Unit Hydrograph Grid File',
                                 RvicPourPointsFile=os.path.split(ConfigDict['pour_points']['file_name'])[1],
                                 RvicUHFile=os.path.split(ConfigDict['uh_box']['file_name'])[1],
                                 RvicFdrFile=os.path.split(ConfigDict['routing']['file_name'])[1],
@@ -222,7 +222,7 @@ def GenUH_run_sp(UHbox, FdrData, FdrVats, DomData, Outlets, ConfigDict, dirPaths
 
             # -------------------------------------------------------- #
             # Read temporary file #2
-            RmpData, RmpVats, RmpGats = ReadNetcdf(TempFile2)
+            RmpData, RmpVats, RmpGats = read_netcdf(TempFile2)
             # -------------------------------------------------------- #
 
             # -------------------------------------------------------- #
@@ -352,14 +352,14 @@ def GenUH_run_ipp():
 
 
 # -------------------------------------------------------------------- #
-def GenUH_final(Outlets, Fractions, UH, DomData, ConfigDict, dirPaths):
+def gen_uh_final(Outlets, Fractions, UH, DomData, ConfigDict, dirPaths):
     """
     Make the RVIC Parameter File
     """
 
-    log = logging.getLogger(log_name)
+    log = getLogger(LOG_NAME)
 
-    log.info('Starting GenUH_final now.')
+    log.info('Starting gen_uh_final now.')
 
     options = ConfigDict['options']
     # ---------------------------------------------------------------- #
@@ -464,7 +464,7 @@ def GenUH_final(Outlets, Fractions, UH, DomData, ConfigDict, dirPaths):
                      y_ind_source, outlet_decomp_id, time_offset_source,
                      source2outlet_index, lon_outlet, lat_outlet, x_ind_outlet,
                      y_ind_outlet, outlet_nums,
-                     ncGlobals(title='RVIC parameter file',
+                     NcGlobals(title='RVIC parameter file',
                                RvicPourPointsFile=os.path.split(ConfigDict['pour_points']['file_name'])[1],
                                RvicUHFile=os.path.split(ConfigDict['uh_box']['file_name'])[1],
                                RvicFdrFile=os.path.split(ConfigDict['routing']['file_name'])[1],
@@ -479,8 +479,8 @@ def GenUH_final(Outlets, Fractions, UH, DomData, ConfigDict, dirPaths):
 
     # ---------------------------------------------------------------- #
     # tar the inputs directory / log file
-    InputsTar = TarInputs(dirPaths['inputs'], suffix=today)
-    LogTar = TarInputs(log.filename)
+    InputsTar = tar_inputs(dirPaths['inputs'], suffix=today)
+    LogTar = tar_inputs(log.filename)
 
     log.info('Done with RvicGenParam.')
     log.info('Location of Inputs: %s' % InputsTar)
