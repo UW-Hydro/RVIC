@@ -6,7 +6,7 @@ import numpy as np
 from netCDF4 import Dataset
 import time as tm
 import argparse
-import os,sys
+import os, sys
 
 def main():
     input_file, output_file, verbose = process_command_line()
@@ -23,8 +23,8 @@ def main():
     lats = f.variables['lat'][:]
     f.close()
 
-    res = lons[1]-lons[0]
-    
+    res = lons[1] - lons[0]
+
     #Make arrays of same dimensions as input arrays of lat/lon values
     x,y = np.meshgrid(lons,lats)
 
@@ -40,7 +40,7 @@ def main():
     max_x = np.zeros(num_basins,dtype='f')
     min_y = np.zeros(num_basins,dtype='f')
     max_y = np.zeros(num_basins,dtype='f')
-    
+
     #Loop over every basin id, finding the maximum upstream area [and location]
     #and record the basin#,longitude,latitude,area
     if verbose:
@@ -67,7 +67,7 @@ def main():
 
     if verbose:
         print 'writing to outfile:', output_file
-    if os.path.splitext(output_file)[1] != '.nc':    
+    if os.path.splitext(output_file)[1] != '.nc':
         write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
                          max_x, max_y, output_file)
     else:
@@ -94,13 +94,13 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
     min_ys = f.createVariable('min_y','f8',('points',))
     max_xs = f.createVariable('max_x','f8',('points',))
     max_ys = f.createVariable('max_y','f8',('points',))
-    
+
     # write attributes for netcdf
     f.description = 'Pour Points'
     f.history += ' '.join(sys.argv) + '\n'
     f.history = 'Created: {}\n'.format(tm.ctime(tm.time()))
     f.source = sys.argv[0] # prints the name of script used
-    
+
     OIDs.long_name = 'Basin Identifier'
     OIDs.standard_name = 'OID'
 
@@ -144,7 +144,8 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 
     f.close()
     return
-    
+
+
 def write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
                         max_x, max_y, out_file):
     """
@@ -160,6 +161,7 @@ def write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
         outfile.write(header)
         np.savetxt(outfile,out,fmt=fmt,delimiter=',')
     return
+
 
 def process_command_line():
     """
@@ -185,8 +187,10 @@ def process_command_line():
     input_file = args.input_file
     output_file = args.output_file
     verbose = args.verbose
-    
+
     return input_file, output_file, verbose
+
+
 #################################
 if __name__ == '__main__':
     main()
