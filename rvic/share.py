@@ -52,7 +52,7 @@ class ncGlobals:
                  institution='Univeristy of Washington', source=sys.argv[0],
                  references='Based on the initial model of Lohmann, et al., 1996, Tellus, 48(A), 708-721',
                  comment='Output from the RVIC Streamflow Routing Model.',
-                 convention='CF-1.6',
+                 Conventions='CF-1.6',
                  RvicPourPointsFile='',
                  RvicFdrFile='',
                  RvicUHFile='',
