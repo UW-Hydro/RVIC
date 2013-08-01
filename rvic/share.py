@@ -64,7 +64,7 @@ class ncGlobals:
         self.source = source
         self.references = references
         self.comment = comment
-        self.convention = convention
+        self.Conventions = Conventions
         self.RvicPourPointsFile = RvicPourPointsFile
         self.RvicUHFile = RvicUHFile
         self.RvicFdrFile = RvicFdrFile
