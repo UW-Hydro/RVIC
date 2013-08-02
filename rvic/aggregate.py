@@ -100,13 +100,13 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
         lat_max = np.maximum(in_data['lat'].max(), agg_data['lat'].max())
         lon_min = np.minimum(in_data['lon'].min(), agg_data['lon'].min())
         lon_max = np.maximum(in_data['lon'].max(), agg_data['lon'].max())
-        tshape = in_data['UHgrid'].shape[0]
+        tshape = in_data['uhgrid'].shape[0]
     else:
         lat_min = in_data['lat'].min()
         lat_max = in_data['lat'].max()
         lon_min = in_data['lon'].min()
         lon_max = in_data['lon'].max()
-        tshape = in_data['UHgrid'].shape[0]
+        tshape = in_data['uhgrid'].shape[0]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -147,11 +147,11 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
     # ---------------------------------------------------------------- #
     # Place data
     fractions[ilat_min_ind:ilat_max_ind, ilon_min_ind:ilon_max_ind] += in_data['fractions']
-    hydrographs[:, ilat_min_ind:ilat_max_ind, ilon_min_ind:ilon_max_ind] += in_data['UHgrid']
+    hydrographs[:, ilat_min_ind:ilat_max_ind, ilon_min_ind:ilon_max_ind] += in_data['uhgrid']
 
     if agg_data:
         fractions[alat_min_ind:alat_max_ind, alon_min_ind:alon_max_ind] += agg_data['fractions']
-        hydrographs[:, alat_min_ind:alat_max_ind, alon_min_ind:alon_max_ind] += agg_data['UHgrid']
+        hydrographs[:, alat_min_ind:alat_max_ind, alon_min_ind:alon_max_ind] += agg_data['uhgrid']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -177,7 +177,7 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
     agg_data['lon'] = lons
     agg_data['lat'] = lats
     agg_data['fractions'] = fractions
-    agg_data['UHgrid'] = hydrographs
+    agg_data['uhgrid'] = hydrographs
     # ---------------------------------------------------------------- #
     return agg_data
 # -------------------------------------------------------------------- #

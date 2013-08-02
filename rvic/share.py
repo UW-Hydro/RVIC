@@ -101,10 +101,10 @@ yc = NcVar(long_name='latitude',
            units='degrees_north')
 
 # Data Variables
-fractions = NcVar(long_name='fraction of grid cell that is active',
+fraction = NcVar(long_name='fraction of grid cell that is active',
                   units='unitless')
 
-unit_hydrographs = NcVar(long_name='Unit Hydrograph',
+unit_hydrograph = NcVar(long_name='Unit Hydrograph',
                          units='unitless')
 
 avg_velocity = NcVar(long_name='Flow Velocity Parameter',
@@ -113,56 +113,55 @@ avg_velocity = NcVar(long_name='Flow Velocity Parameter',
 avg_diffusion = NcVar(long_name='Diffusion Parameter',
                       units='m2 s-1')
 
-lon_outlet = NcVar(long_name='Longitude coordinate of outlet grid cell',
-                   units='degrees_east')
-
-lat_outlet = NcVar(long_name='Latitude coordinate of outlet grid cell',
-                   units='degrees_north')
-
 global_basin_id = NcVar(long_name='Global Basin ID from RvicFdrFile',
                         units='unitless')
-
-y_ind_outlet = NcVar(long_name='y grid coordinate of outlet grid cell',
-                     units='unitless')
-
-x_ind_outlet = NcVar(long_name='x grid coordinate of outlet grid cell',
-                     units='unitless')
-
-outlet_decomp_id = NcVar(long_name='1d grid location of outlet grid cell',
-                        units='unitless')
-
-subset_length = NcVar(long_name='Shortened length of the unit hydrograph',
-                      units='timesteps')
 
 full_time_length = NcVar(long_name='Length of original unit hydrograph',
                          units='timesteps')
 
+subset_length = NcVar(long_name='Shortened length of the unit hydrograph',
+                      units='timesteps')
+
 unit_hydrogaph_dt = NcVar(long_name='Unit hydrograph timestep',
                           units='seconds')
 
-source_decomp_id = NcVar(long_name='1d grid location of source grid cell',
-                         units='unitless')
-
-y_ind_source = NcVar(long_name='y grid coordinate of source grid cell',
+outlet_x_ind = NcVar(long_name='x grid coordinate of outlet grid cell',
                      units='unitless')
 
-x_ind_source = NcVar(long_name='x grid coordinate of source grid cell',
+outlet_y_ind = NcVar(long_name='y grid coordinate of outlet grid cell',
                      units='unitless')
 
-lon_source = NcVar(long_name='Longitude coordinate of source grid cell',
+outlet_lon = NcVar(long_name='Longitude coordinate of outlet grid cell',
                    units='degrees_east')
 
-lat_source = NcVar(long_name='Latitude coordinate of source grid cell',
+outlet_lat = NcVar(long_name='Latitude coordinate of outlet grid cell',
                    units='degrees_north')
 
-time_offset_source = NcVar(long_name='Number of leading timesteps ommited',
+outlet_decomp_ind = NcVar(long_name='1d grid location of outlet grid cell',
+                          units='unitless')
+
+outlet_number = NcVar(long_name='outlet number',
+                      units='unitless')
+
+source_x_ind = NcVar(long_name='x grid coordinate of source grid cell',
+                     units='unitless')
+
+source_y_ind = NcVar(long_name='y grid coordinate of source grid cell',
+                     units='unitless')
+
+source_lon = NcVar(long_name='Longitude coordinate of source grid cell',
+                   units='degrees_east')
+
+source_lat = NcVar(long_name='Latitude coordinate of source grid cell',
+                   units='degrees_north')
+
+source_decomp_ind = NcVar(long_name='1d grid location of source grid cell',
+                          units='unitless')
+source_time_offset = NcVar(long_name='Number of leading timesteps ommited',
                            units='timesteps')
 
-source2outlet_index = NcVar(long_name='source to outlet index mapping',
-                            units='unitless')
-
-outlet_num = NcVar(long_name='outlet number',
-                   units='unitless')
+source2outlet_ind = NcVar(long_name='source to outlet index mapping',
+                          units='unitless')
 
 streamflow = NcVar(long_name='Streamflow at outlet grid cell',
                    units='kg m-2 s-1')

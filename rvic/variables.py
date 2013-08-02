@@ -51,16 +51,18 @@ class Rvar(object):
         self.subset_length = f.variables['subset_length'][:]
         self.full_time_length = f.variables['full_time_length'][:]
         self.unit_hydrogaph_dt = f.variables['unit_hydrogaph_dt'][:]
-        self.x_ind_source = f.variables['x_ind_source'][:]
-        self.y_ind_source = f.variables['y_ind_source'][:]
-        self.t_offset_source = f.variables['t_offset_source'][:]
-        self.source2outlet_index = f.variables['source2outlet_index'][:]
+        self.source_lon = f.variables['source_lon'][:]
+        self.source_lat = f.variables['source_lat'][:]
+        self.source_x_ind = f.variables['source_x_ind'][:]
+        self.source_y_ind = f.variables['source_y_ind'][:]
+        self.source_time_offset = f.variables['source_time_offset'][:]
+        self.source2outlet_ind = f.variables['source2outlet_ind'][:]
+        self.outlet_x_ind = f.variables['outlet_x_ind '][:]
+        self.outlet_y_ind = f.variables['outlet_y_ind'][:]
+        self.outlet_lon = f.variables['outlet_lon '][:]
+        self.outlet_lat = f.variables['outlet_lat'][:]
         self.outlet_decomp_id = f.variables['outlet_decomp_id '][:]
-        self.lon_outlet = f.variables['lon_outlet '][:]
-        self.lat_outlet = f.variables['lat_outlet'][:]
-        self.x_ind_outlet = f.variables['x_ind_outlet '][:]
-        self.y_ind_outlet = f.variables['y_ind_outlet'][:]
-        self.unit_hydrographs = f.variables['unit_hydrographs'][:]
+        self.unit_hydrograph = f.variables['unit_hydrograph'][:]
         self.RvicPourPointsFile = f.RvicPourPointsFile
         self.RvicUHFile = f.RvicUHFile
         self.RvicFdrFile = f.RvicFdrFile
@@ -122,12 +124,12 @@ class Rvar(object):
 
         # this matches the fortran implementation, it may be faster to use np.convolve but testing
         # can be done later
-        for s, outlet in enumerate(self.source2outlet_index):   # loop over all source points
-            y = self.y_ind_source[s]
-            x = self.x_ind_source[s]
+        for s, outlet in enumerate(self.source2outlet_ind):   # loop over all source points
+            y = self.source_y_ind[s]
+            x = self.source_x_ind[s]
             for i in xrange(self.subset_length):
-                j = i + self.t_offset_source[s]
-                self.ring[j, outlet] = self.ring[j, outlet] + (self.unit_hydrogaphs[i, s] * aggrunin[y, x])
+                j = i + self.source_time_offset[s]
+                self.ring[j, outlet] = self.ring[j, outlet] + (self.unit_hydrogaph[i, s] * aggrunin[y, x])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -201,29 +203,29 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Write Fields
-        lon_outlet = f.createVariable('lon_outlet', NC_DOUBLE, coords)
-        lon_outlet[:] = self.lon_outlet
-        for key, val in share.lon_outlet.__dict__.iteritems():
+        outlet_lon = f.createVariable('outlet_lon', NC_DOUBLE, coords)
+        outlet_lon[:] = self.outlet_lon
+        for key, val in share.outlet_lon.__dict__.iteritems():
             if val:
-                setattr(lon_outlet, key, val)
+                setattr(outlet_lon, key, val)
 
-        lat_outlet = f.createVariable('lat_outlet', NC_DOUBLE, coords)
-        lat_outlet[:] = self.lat_outlet
-        for key, val in share.lat_outlet.__dict__.iteritems():
+        outlet_lat = f.createVariable('outlet_lat', NC_DOUBLE, coords)
+        outlet_lat[:] = self.outlet_lat
+        for key, val in share.outlet_lat.__dict__.iteritems():
             if val:
-                setattr(lat_outlet, key, val)
+                setattr(outlet_lat, key, val)
 
-        y_ind_outlet = f.createVariable('y_ind_outlet', NC_INT, coords)
-        y_ind_outlet[:] = self.y_ind_outlet
-        for key, val in share.y_ind_outlet.__dict__.iteritems():
+        outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
+        outlet_y_ind[:] = self.outlet_y_ind
+        for key, val in share.outlet_y_ind.__dict__.iteritems():
             if val:
-                setattr(y_ind_outlet, key, val)
+                setattr(outlet_y_ind, key, val)
 
-        x_ind_outlet = f.createVariable('x_ind_outlet', NC_INT, coords)
-        x_ind_outlet[:] = self.x_ind_outlet
-        for key, val in share.x_ind_outlet.__dict__.iteritems():
+        outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
+        outlet_x_ind[:] = self.outlet_x_ind
+        for key, val in share.outlet_x_ind.__dict__.iteritems():
             if val:
-                setattr(x_ind_outlet, key, val)
+                setattr(outlet_x_ind, key, val)
 
         s_outlet_decomp_id = f.createVariable('s_outlet_decomp_id', NC_INT, coords)
         s_outlet_decomp_id[:] = self.outlet_decomp_id

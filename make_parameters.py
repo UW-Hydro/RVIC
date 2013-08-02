@@ -192,7 +192,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, dire
         if  config_dict['options']['remap']:
             glob_atts = NcGlobals(title='RVIC Unit Hydrograph Grid File',
                                 RvicPourPointsFile=os.path.split(config_dict['pour_points']['file_name'])[1],
-                                RvicUhFile=os.path.split(config_dict['uh_box']['file_name'])[1],
+                                RvicUHFile=os.path.split(config_dict['uh_box']['file_name'])[1],
                                 RvicFdrFile=os.path.split(config_dict['routing']['file_name'])[1],
                                 RvicDomainFile=os.path.split(config_dict['domain']['file_name'])[1])
 
@@ -239,22 +239,22 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, dire
         # Add to adjust fractions Structure
         if config_dict['options']['remap']:
             if i == 0:
-                fractions = np.zeros(remap_data['fractions'].shape)
-                unit_hydrographs = np.zeros(remap_data['unit_hydrographs'].shape)
+                fractions = np.zeros(remap_data['fraction'].shape)
+                unit_hydrographs = np.zeros(remap_data['unit_hydrograph'].shape)
 
-            y, x = np.nonzero((remap_data['fractions'] > 0.0) * (dom_data[config_dict['domain']['land_mask_var']] == 1))
+            y, x = np.nonzero((remap_data['fraction'] > 0.0) * (dom_data[config_dict['domain']['land_mask_var']] == 1))
 
-            outlets[cell_id].fractions = remap_data['fractions'][y, x]
-            outlets[cell_id].unit_hydrographs = remap_data['unit_hydrographs'][:, y, x]
-            outlets[cell_id].time = np.arange(remap_data['unit_hydrographs'].shape[0])
+            outlets[cell_id].fractions = remap_data['fraction'][y, x]
+            outlets[cell_id].unit_hydrographs = remap_data['unit_hydrograph'][:, y, x]
+            outlets[cell_id].time = np.arange(remap_data['unit_hydrograph'].shape[0])
             outlets[cell_id].lon_source = remap_data[config_dict['domain']['longitude_var']][y, x]
             outlets[cell_id].lat_source = remap_data[config_dict['domain']['latitude_var']][y, x]
             outlets[cell_id].cell_id_source = dom_data['cell_ids'][y, x]
             outlets[cell_id].x_source = x
             outlets[cell_id].y_source = y
 
-            fractions[y, x] += remap_data['fractions'][y, x]
-            unit_hydrographs[:, y, x] += remap_data['unit_hydrographs'][:, y, x]
+            fractions[y, x] += remap_data['fraction'][y, x]
+            unit_hydrographs[:, y, x] += remap_data['unit_hydrograph'][:, y, x]
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
     return outlets, fractions, unit_hydrographs
@@ -392,25 +392,25 @@ def gen_uh_final(outlets, fractions, unit_hydrographs, dom_data, config_dict, di
         if i == 0:
             # -------------------------------------------------------- #
             # Source specific values
-            unit_hydrographs = out_uh
+            unit_hydrograph = out_uh
             frac_sources = outlets[cell_id].fractions
-            lon_sources = outlets[cell_id].lon_source
-            lat_sources = outlets[cell_id].lat_source
-            x_ind_source = x
-            y_ind_source = y
-            source_decomp_id = outlets[cell_id].cell_id_source
-            time_offset_source = offset
-            source2outlet_index = np.zeros(len(outlets[cell_id].fractions))
+            source_lon = outlets[cell_id].lon_source
+            source_lat = outlets[cell_id].lat_source
+            source_x_ind = x
+            source_y_ind = y
+            source_decomp_ind = outlets[cell_id].cell_id_source
+            source_time_offset = offset
+            source2outlet_ind = np.zeros(len(outlets[cell_id].fractions))
             # -------------------------------------------------------- #
 
             # -------------------------------------------------------- #
             # outlet specific inputs
-            outlet_decomp_id = np.array(cell_id)
-            lon_outlet = np.array(outlets[cell_id].lon)
-            lat_outlet = np.array(outlets[cell_id].lat)
-            x_ind_outlet = np.array(outlets[cell_id].x)
-            y_ind_outlet = np.array(outlets[cell_id].y)
-            outlet_nums = np.array(i)
+            outlet_decomp_ind = np.array(cell_id)
+            outlet_lon = np.array(outlets[cell_id].lon)
+            outlet_lat = np.array(outlets[cell_id].lat)
+            outlet_x_ind = np.array(outlets[cell_id].x)
+            outlet_y_ind = np.array(outlets[cell_id].y)
+            outlet_number = np.array(i)
 
             # -------------------------------------------------------- #
             # get a few global values
@@ -422,34 +422,34 @@ def gen_uh_final(outlets, fractions, unit_hydrographs, dom_data, config_dict, di
         else:
             # -------------------------------------------------------- #
             # Point specific values
-            unit_hydrographs = np.append(unit_hydrographs, out_uh, axis=1)
+            unit_hydrograph = np.append(unit_hydrograph, out_uh, axis=1)
             frac_sources = np.append(frac_sources, outlets[cell_id].fractions)
-            lon_sources = np.append(lon_sources, outlets[cell_id].lon_source)
-            lat_sources = np.append(lat_sources, outlets[cell_id].lat_source)
-            x_ind_source = np.append(x_ind_source, x)
-            y_ind_source = np.append(y_ind_source, y)
-            source_decomp_id = np.append(source_decomp_id, outlets[cell_id].cell_id_source)
-            time_offset_source = np.append(time_offset_source, offset)
-            source2outlet_index = np.append(source2outlet_index, np.zeros_like(offset) + i)
+            source_lon = np.append(source_lon, outlets[cell_id].lon_source)
+            source_lat = np.append(source_lat, outlets[cell_id].lat_source)
+            source_x_ind = np.append(source_x_ind, x)
+            source_y_ind = np.append(source_y_ind, y)
+            source_decomp_ind = np.append(source_decomp_ind, outlets[cell_id].cell_id_source)
+            source_time_offset = np.append(source_time_offset, offset)
+            source2outlet_ind = np.append(source2outlet_ind, np.zeros_like(offset) + i)
             # -------------------------------------------------------- #
 
             # -------------------------------------------------------- #
             # outlet specific inputs
-            outlet_decomp_id = np.append(outlet_decomp_id, cell_id)
-            lon_outlet = np.append(lon_outlet, outlets[cell_id].lon)
-            lat_outlet = np.append(lat_outlet, outlets[cell_id].lat)
-            x_ind_outlet = np.append(x_ind_outlet, outlets[cell_id].x)
-            y_ind_outlet = np.append(y_ind_outlet, outlets[cell_id].y)
-            outlet_nums = np.append(outlet_nums, i)
+            outlet_decomp_ind = np.append(outlet_decomp_ind, cell_id)
+            outlet_lon = np.append(outlet_lon, outlets[cell_id].lon)
+            outlet_lat = np.append(outlet_lat, outlets[cell_id].lat)
+            outlet_x_ind = np.append(outlet_x_ind, outlets[cell_id].x)
+            outlet_y_ind = np.append(outlet_y_ind, outlets[cell_id].y)
+            outlet_number = np.append(outlet_number, i)
             # -------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Adjust Unit Hydrographs for differences in source/outlet areas
-    unit_hydrographs *= frac_sources
-    unit_hydrographs *= dom_data[config_dict['domain']['area_var']][y_ind_source, x_ind_source]
+    unit_hydrograph *= frac_sources
+    unit_hydrograph *= dom_data[config_dict['domain']['area_var']][source_y_ind, source_x_ind]
 
-    for p, ind in enumerate(source2outlet_index):
-        unit_hydrographs[:, p] /= dom_data[config_dict['domain']['area_var']][y_ind_outlet[ind], x_ind_outlet[ind]]
+    for p, ind in enumerate(source2outlet_ind):
+        unit_hydrograph[:, p] /= dom_data[config_dict['domain']['area_var']][outlet_y_ind[ind], outlet_x_ind[ind]]
     # ---------------------------------------------------------------- #
     # ---------------------------------------------------------------- #
     # Write parameter file
@@ -458,17 +458,30 @@ def gen_uh_final(outlets, fractions, unit_hydrographs, dom_data, config_dict, di
                              '%s.rvic.prm.%s.%s.nc' % (options['caseid'],
                                                        options['gridid'], today))
 
-    write_param_file(param_file, options['netcdf_format'], subset_length,
-                     full_time_length, unit_hydrogaph_dt, unit_hydrographs,
-                     lon_sources, lat_sources, source_decomp_id, x_ind_source,
-                     y_ind_source, outlet_decomp_id, time_offset_source,
-                     source2outlet_index, lon_outlet, lat_outlet, x_ind_outlet,
-                     y_ind_outlet, outlet_nums,
-                     NcGlobals(title='RVIC parameter file',
-                               RvicPourPointsFile=os.path.split(config_dict['pour_points']['file_name'])[1],
-                               RvicuhFile=os.path.split(config_dict['uh_box']['file_name'])[1],
-                               RvicFdrFile=os.path.split(config_dict['routing']['file_name'])[1],
-                               RvicDomainFile=os.path.split(config_dict['domain']['file_name'])[1]))
+    write_param_file(param_file,
+                         nc_format = options['netcdf_format'],
+                         glob_atts = NcGlobals(title='RVIC parameter file',
+                                               RvicPourPointsFile=os.path.split(config_dict['pour_points']['file_name'])[1],
+                                               RvicUHFile=os.path.split(config_dict['uh_box']['file_name'])[1],
+                                               RvicFdrFile=os.path.split(config_dict['routing']['file_name'])[1],
+                                               RvicDomainFile=os.path.split(config_dict['domain']['file_name'])[1]),
+                         full_time_length = full_time_length,
+                         subset_length = subset_length,
+                         unit_hydrogaph_dt = unit_hydrogaph_dt,
+                         outlet_lon = outlet_lon,
+                         outlet_lat = outlet_lat,
+                         outlet_x_ind = outlet_x_ind,
+                         outlet_y_ind = outlet_y_ind,
+                         outlet_decomp_ind = outlet_decomp_ind,
+                         outlet_number = outlet_number,
+                         source_lon = source_lon,
+                         source_lat = source_lat,
+                         source_x_ind = source_x_ind,
+                         source_y_ind = source_y_ind,
+                         source_decomp_ind = source_decomp_ind,
+                         source_time_offset = source_time_offset,
+                         source2outlet_ind = source2outlet_ind,
+                         unit_hydrograph = unit_hydrograph)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
