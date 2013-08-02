@@ -77,6 +77,7 @@ def gen_uh_init(configFile=None):
         pour_points['lons'], pour_points['lats'] = np.genfromtxt(config_dict['pour_points']['file_name'],
                                                                  skip_header=int(config_dict['pour_points']['header_lines']),
                                                                  delimiter=',', unpack=True)
+        log.info('Opened Pour Points File: %s' % config_dict['pour_points']['file_name'])
     except:
         log.exception('Error opening pour points file: %s' % config_dict['pour_points']['file_name'])
         raise
@@ -89,6 +90,7 @@ def gen_uh_init(configFile=None):
         uh_box['time'], uh_box['func'] = np.genfromtxt(config_dict['uh_box']['file_name'],
                                                        skip_header=int(config_dict['uh_box']['header_lines']),
                                                        delimiter=',', unpack=True)
+        log.info('Opened UHbox File: %s' % config_dict['uh_box']['file_name'])
     except:
         log.exception('Error opening uh_box file: %s' % config_dict['pour_points']['file_name'])
         raise
@@ -113,6 +115,8 @@ def gen_uh_init(configFile=None):
                                        fdr_data[config_dict['routing']['longitude_var']][0])
 
         check_ncvars(config_dict['routing'], fdr_data.keys())
+
+        log.info('Opened FDR File: %s' % config_dict['routing']['file_name'])
     except:
         log.exception('Error opening FDR file')
         raise
@@ -122,6 +126,7 @@ def gen_uh_init(configFile=None):
     # Read domain file (if applicable)
     if options['remap']:
         dom_data, DomVats, DomGats = read_domain(config_dict['domain'])
+        log.info('Opened Domain File: %s' % config_dict['domain']['file_name'])
     else:
         dom_data = {}
     # ---------------------------------------------------------------- #
@@ -133,13 +138,19 @@ def gen_uh_init(configFile=None):
                                  dom_data[config_dict['domain']['longitude_var']],
                                  dom_data[config_dict['domain']['latitude_var']],
                                  dom_data['cell_ids'], agg_type='agg')
+
+        log.info('Finished making agg pairs of pour points and outlet grid cells')
+
     else:
         outlets = {}
         for i, (lon, lat) in enumerate(zip(pour_points['lons'], pour_points['lats'])):
             outlets[i] = Point(lat=lat, lon=lon)
             outlets[i].pour_points = [Point(lat=lat, lon=lon)]
-
     # ---------------------------------------------------------------- #
+
+    log.info('Finished winth gen_uh_init')
+    log.info('--------------------------------------------------------------------\n')
+
     return uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, directories
 # -------------------------------------------------------------------- #
 
@@ -151,22 +162,28 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, dire
     """
     log = getLogger(LOG_NAME)
 
+    log.info('--------------------------------------------------------------------')
     log.info('Starting gen_uh_run now.')
 
     # ---------------------------------------------------------------- #
     # Loop over agg points
     for i, cell_id in enumerate(outlets):
 
+        log.info('On Outlet #%i of %i' %(i+1, len(outlets)))
+
         agg_data = {}
         # ------------------------------------------------------------ #
         # Loop over pour points
         for j, pour_point in enumerate(outlets[cell_id].pour_points):
+
+            log.info('On pour_point #%i of %i' %(j+1, len(outlets[cell_id].pour_points)))
 
             # -------------------------------------------------------- #
             # Make the Unit Hydrograph Grid
             routData = rout(pour_point, uh_box, fdr_data, fdr_vatts,
                             config_dict['routing'])
 
+            log.debug('Done routing to pour_point')
             log.debug('routData: %f, %f' % (routData['uhgrid'].min(), routData['uhgrid'].max()))
 
             # -------------------------------------------------------- #
@@ -222,7 +239,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, dire
 
             # -------------------------------------------------------- #
             # Read temporary file #2
-            remap_data, remap_vatts, remap_gatts = read_netcdf(temp_file_2)
+            remap_data, remap_vatts, remap_gatts = read_netcdf(temp_file_2,
+                                                               variables=['unit_hydrograph', 'fraction'])
             # -------------------------------------------------------- #
 
             # -------------------------------------------------------- #
@@ -247,8 +265,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, dire
             outlets[cell_id].fractions = remap_data['fraction'][y, x]
             outlets[cell_id].unit_hydrographs = remap_data['unit_hydrograph'][:, y, x]
             outlets[cell_id].time = np.arange(remap_data['unit_hydrograph'].shape[0])
-            outlets[cell_id].lon_source = remap_data[config_dict['domain']['longitude_var']][y, x]
-            outlets[cell_id].lat_source = remap_data[config_dict['domain']['latitude_var']][y, x]
+            outlets[cell_id].lon_source = dom_data[config_dict['domain']['longitude_var']][y, x]
+            outlets[cell_id].lat_source = dom_data[config_dict['domain']['latitude_var']][y, x]
             outlets[cell_id].cell_id_source = dom_data['cell_ids'][y, x]
             outlets[cell_id].x_source = x
             outlets[cell_id].y_source = y

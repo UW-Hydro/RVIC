@@ -73,12 +73,14 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids, agg_type='agg'):
 
     # ---------------------------------------------------------------- #
     # Print Debug Results
-    log.debug('\n------------------ SUMMARY OF MakeAggPairs ------------------')
-    log.debug('NUMBER OF POUR POINTS IN INPUT LIST: %i' % num)
-    log.debug('NUMBER OF POINTS TO AGGREGATE TO: %i' % key_count)
-    log.debug('NUMBER OF POUR POINTS AGGREGATED: %i' % pp_count)
-    log.debug('EFFECIENCY OF: %.2f %%' % (100. * pp_count / num))
-    log.debug('UNASSIGNED POUR POINTS: %i \n' % (num - pp_count))
+    log.info('\n------------------ SUMMARY OF MakeAggPairs ------------------')
+    log.info('NUMBER OF POUR POINTS IN INPUT LIST: %i' % num)
+    log.info('NUMBER OF POINTS TO AGGREGATE TO: %i' % key_count)
+    log.info('NUMBER OF POUR POINTS AGGREGATED: %i' % pp_count)
+    log.info('EFFECIENCY OF: %.2f %%' % (100. * pp_count / num))
+    log.info('UNASSIGNED POUR POINTS: %i \n' % (num - pp_count))
+    log.info('---------------------------------------------------------------\n')
+
     # ---------------------------------------------------------------- #
     return outlets
 # -------------------------------------------------------------------- #
@@ -129,7 +131,7 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
     ilon_min_ind = find_nearest(lons, np.min(in_data['lon']))
     ilon_max_ind = find_nearest(lons, np.max(in_data['lon'])) + 1
 
-    log.info('___in_data fractions shape: %s' % str(in_data['fractions'].shape))
+    log.debug('in_data fractions shape: %s' % str(in_data['fractions'].shape))
 
     if agg_data:
         alat_min_ind = find_nearest(lats, np.max(agg_data['lat']))
@@ -137,7 +139,7 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
         alon_min_ind = find_nearest(lons, np.min(agg_data['lon']))
         alon_max_ind = find_nearest(lons, np.max(agg_data['lon'])) + 1
 
-        log.info('___agg_data fractions shape: %s' % str(agg_data['fractions'].shape))
+        log.debug('agg_data fractions shape: %s' % str(agg_data['fractions'].shape))
 
         print 'alat_max_ind: %i' % alat_max_ind
         print 'alat_min_ind: %i' % alat_min_ind
@@ -166,7 +168,7 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
         hydrographs[:, yv, xv] = FILLVALUE_F
         #hydrographs = np.ma.masked_where(hydrographs == FILLVALUE_F, hydrographs, copy=False)
 
-        log.info('Done with Aggregation')
+        log.info('Completed final aggregation step')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

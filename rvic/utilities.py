@@ -54,7 +54,7 @@ def read_netcdf(nc_file, variables=None, coords=None):
     if not coords:
         coords = slice(None)
 
-    log.info('Reading input data variables: %s, from file: %s' % (variables, nc_file))
+    log.debug('Reading input data variables: %s, from file: %s' % (variables, nc_file))
 
     d = {}
     a = {}
@@ -185,7 +185,7 @@ def remap(grid_file, in_file, out_file, operator='remapcon',
     else:
         remap_method(grid_file, input=in_file, output=out_file)
 
-    log.info('remapped to out file: %s' % os.path.split(out_file)[1])
+    log.debug('remapped to out file: %s' % os.path.split(out_file)[1])
 
     return
 # -------------------------------------------------------------------- #

@@ -68,7 +68,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     basin['velocity'] = fdr_data['velocity'][y_min:y_max, x_min:x_max]
     basin['diffusion'] = fdr_data['diffusion'][y_min:y_max, x_min:x_max]
 
-    log.info('Grid cells in subset: %i' % basin['velocity'].size)
+    log.debug('Grid cells in subset: %i' % basin['velocity'].size)
 
     basin_point = Point(x=find_nearest(basin['lon'], pour_point.lon),
                        y=find_nearest(basin['lat'], pour_point.lat),
@@ -85,18 +85,18 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
         # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/VIC/Documentation/Routing/FlowDirection.shtml
         dy = {1: -1, 2: -1, 3: 0, 4: 1, 5: 1, 6: 1, 7: 0, 8: -1}
         dx = {1: 0, 2: 1, 3: 1, 4: 1, 5: 0, 6: -1, 7: -1, 8: - 1}
-        log.info('Using VIC flow directions (1-8).')
+        log.debug('Using VIC flow directions (1-8).')
     else:
         # ARCMAP Directions: http://webhelp.esri.com/arcgisdesktop/9.2/index.cfm?TopicName=flow_direction
         dy = {1: 0, 2: 1, 4: 1, 8: 1, 16: 0, 32: -1, 64: -1, 128: -1}
         dx = {1: 1, 2: 1, 4: 0, 8: -1, 16: -1, 32: -1, 64: 0, 128: 1}
-        log.info('Using ARCMAP flow directions (1-128).')
+        log.debug('Using ARCMAP flow directions (1-128).')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Check latitude order, flip if necessary.
     if basin['lat'][-1] > basin['lat'][0]:
-        log.info('Inputs came in upside down, flipping everything now.')
+        log.debug('Inputs came in upside down, flipping everything now.')
         basin_vars = basin.keys()
         basin_vars.remove('lon')
         for var in basin_vars:
@@ -164,7 +164,7 @@ def find_ts(uh_t):
     Determines the (input_interval) based on the timestep given in uhfile
     """
     input_interval = uh_t[1]-uh_t[0]
-    log.info('Input Timestep = %i seconds' % input_interval)
+    log.debug('Input Timestep = %i seconds' % input_interval)
     return input_interval
 # -------------------------------------------------------------------- #
 
@@ -176,7 +176,7 @@ def read_direction(fdr, basin_ids, dy, dx, basin_id):
     The input grids follow the 1-8 or 1-128 grid directions as shown below.
     val = direction  [to_y][to_x]
     """
-    log.info('Reading direction input and finding target row/columns')
+    log.debug('Reading direction input and finding target row/columns')
 
     to_y = np.zeros(fdr.shape, dtype=int)
     to_x = np.zeros(fdr.shape, dtype=int)
@@ -204,7 +204,7 @@ def search_catchment(to_y, to_x, basin_point, basin_ids, basin_id):
     or the flowpath leads outside of grid.
     *** Does not handle wrapped coordinates. ***
     """
-    log.info('Searching catchment')
+    log.debug('Searching catchment')
 
     count = 0
     (len_y, len_x) = to_x.shape
@@ -231,7 +231,7 @@ def search_catchment(to_y, to_x, basin_point, basin_ids, basin_id):
                     cells += 1
                     if ((xx > (len_x - 1)) or (xx < 0) or (yy > (len_y - 1)) or (yy < 0)):
                         op = -1
-    log.info("Upstream grid cells from present station: %i" % count)
+    log.debug("Upstream grid cells from present station: %i" % count)
 
     # ---------------------------------------------------------------- #
     # sort catchment
@@ -251,7 +251,7 @@ def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
     Calculate the impulse response function for grid cells using equation 15
     from Lohmann, et al. (1996) Tellus article.  Return 3d uh grid.
     """
-    log.info('Making uh for each cell')
+    log.debug('Making uh for each cell')
 
     uh = np.zeros((t_cell, xmask.shape[0], xmask.shape[1]))
     for (y, x) in zip(y_inds, x_inds):
@@ -281,7 +281,7 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point, y_inds,
     Calculate impulse response function for river routing.  Starts at
     downstream point incrementally moves upstream.
     """
-    log.info("Making uh_river grid.... It takes a while...")
+    log.debug("Making uh_river grid.... It takes a while...")
     y_ind = basin_point.y
     x_ind = basin_point.x
 
