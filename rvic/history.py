@@ -26,7 +26,7 @@ class Tape(object):
     def __init__(self, timestamp, time_ord, caseid, Rvar, fincl=['streamflow'],
                  mfilt=1, ndens=2, nhtfrq=0, avgflag='A',
                  file_format='NETCDF4_CLASSIC', outtype='grid', grid_lons=False,
-                 grid_lats=False, out_dir='.', calendar=None, GlobAts=None):
+                 grid_lats=False, out_dir='.', calendar=None, glob_ats=None):
         self.timestamp = timestamp
         self.time_ord = time_ord        # Days since basetime
         self.caseid = caseid            # Case ID and prefix for outfiles
@@ -44,7 +44,7 @@ class Tape(object):
         self.file_format = file_format
         self.calendar = calendar
 
-        self.__getRvar(Rvar)            # Gen the Rvar fields
+        self.__get_rvar(Rvar)           # Get the initial Rvar fields
 
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid
@@ -144,15 +144,15 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # Get import rvar fields
-    def __getRvar(self, Rvar):
-        """ Get the Rvar Fields that are useful in writing output """
-        self.dt = Rvar.uh_timestep
-        self.num_outlets = Rvar.n_outlets
-        self.cell_id_outlet = Rvar.cell_id_outlet
-        self.x_ind_outlet = Rvar.x_ind_outlet
-        self.y_ind_outlet = Rvar.y_ind_outlet
-        self.lon_outlet = Rvar.lon_outlet
-        self.lat_outlet = Rvar.lat_outlet
+    def __get_rvar(self, rvar):
+        """ Get the rvar Fields that are useful in writing output """
+        self.dt = rvar.uh_timestep
+        self.num_outlets = rvar.n_outlets
+        self.cell_id_outlet = rvar.cell_id_outlet
+        self.x_ind_outlet = rvar.x_ind_outlet
+        self.y_ind_outlet = rvar.y_ind_outlet
+        self.lon_outlet = rvar.lon_outlet
+        self.lat_outlet = rvar.lat_outlet
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -322,8 +322,8 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # write global attributes
-        self.GlobAts.update()
-        for key, val in self.GlobAts.__dict__.iteritems():
+        self.glob_ats.update()
+        for key, val in self.glob_ats.__dict__.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
@@ -414,8 +414,8 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # write global attributes
-        self.GlobAts.update()
-        for key, val in self.GlobAts.__dict__.iteritems():
+        self.glob_ats.update()
+        for key, val in self.glob_ats.__dict__.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #

@@ -17,33 +17,33 @@ log = getLogger(LOG_NAME)
 
 # -------------------------------------------------------------------- #
 # Write the agg netcdf
-def write_agg_netcdf(FileName, aggData, GlobAts, format):
+def write_agg_netcdf(file_name, agg_data, glob_atts, format):
     """
     Write output to netCDF.  Writes out a netCDF4 data file containing
     the UH_S and fractions and a full set of history and description attributes.
     """
     # ---------------------------------------------------------------- #
     # Open file
-    f = Dataset(FileName, 'w', format=format)
+    f = Dataset(file_name, 'w', format=format)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # set dimensions
     timesteps = f.createDimension('timesteps', None)
-    lon = f.createDimension('lon', (len(aggData['lon'])))
-    lat = f.createDimension('lat', (len(aggData['lat'])))
+    lon = f.createDimension('lon', (len(agg_data['lon'])))
+    lat = f.createDimension('lat', (len(agg_data['lat'])))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # initialize variables
     unit_hydrogaph_dt = f.createVariable('unit_hydrogaph_dt', NC_INT, ())
-    unit_hydrogaph_dt[:] = aggData['unit_hydrogaph_dt']
+    unit_hydrogaph_dt[:] = agg_data['unit_hydrogaph_dt']
     for key, val in share.unit_hydrogaph_dt.__dict__.iteritems():
         if val:
             setattr(unit_hydrogaph_dt, key, val)
 
     timesteps = f.createVariable('timesteps', NC_INT, ('timesteps',))
-    timesteps[:] = aggData['timesteps']
+    timesteps[:] = agg_data['timesteps']
     for key, val in share.timesteps.__dict__.iteritems():
         if val:
             setattr(timesteps, key, val)
@@ -72,15 +72,15 @@ def write_agg_netcdf(FileName, aggData, GlobAts, format):
 
     # ---------------------------------------------------------------- #
     # write data to variables initialized above
-    lon[:] = aggData['lon']
-    lat[:] = aggData['lat']
-    unit_hydrographs[:, :, :] = aggData['UHgrid']
-    fractions[:, :] = aggData['fractions']
+    lon[:] = agg_data['lon']
+    lat[:] = agg_data['lat']
+    unit_hydrographs[:, :, :] = agg_data['UHgrid']
+    fractions[:, :] = agg_data['fractions']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # write globals
-    for key, val in GlobAts.__dict__.iteritems():
+    for key, val in glob_atts.__dict__.iteritems():
         if val:
             setattr(f, key, val)
     # ---------------------------------------------------------------- #
@@ -91,15 +91,15 @@ def write_agg_netcdf(FileName, aggData, GlobAts, format):
 
 # -------------------------------------------------------------------- #
 # Write the RVIC parameter file
-def write_param_file(FileName, out_format, sub_length, full_t_length,
+def write_param_file(file_name, out_format, sub_length, full_t_length,
                      uh_dt, uhs, lon_s, lat_s, s_decomp_id, x_ind_s, y_ind_s,
                      o_decomp_id, t_offset_s, s2outlet_index, lon_o, lat_o,
-                     x_ind_o, y_ind_o, o_num, GlobAts):
+                     x_ind_o, y_ind_o, o_num, glob_atts):
     """ Write a standard RVIC Parameter file """
 
     # ---------------------------------------------------------------- #
     # Open file
-    f = Dataset(FileName, 'w', format=out_format)
+    f = Dataset(file_name, 'w', format=out_format)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -241,14 +241,14 @@ def write_param_file(FileName, out_format, sub_length, full_t_length,
 
     # ---------------------------------------------------------------- #
     # write global attributes
-    GlobAts.update()
-    for key, val in GlobAts.__dict__.iteritems():
+    glob_atts.update()
+    for key, val in glob_atts.__dict__.iteritems():
         if val:
             setattr(f, key, val)
     # ---------------------------------------------------------------- #
 
     f.close()
 
-    log.info('Finished writing %s' % FileName)
+    log.info('Finished writing %s' % file_name)
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #

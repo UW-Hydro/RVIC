@@ -1,5 +1,5 @@
 """
-rviclog.py
+log.py
 """
 import os
 import sys
@@ -32,10 +32,10 @@ class StreamToFile(object):
 
 # -------------------------------------------------------------------- #
 # Function to start logging
-def init_logger(logDir='./', log_level='DEBUG', verbose=False):
+def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     """ Setup the logger """
 
-    log_file = os.path.join(logDir, 'RVIC-'+strftime("%Y%m%d-%H%M%S", gmtime())+'.log')
+    log_file = os.path.join(log_dir, 'RVIC-'+strftime("%Y%m%d-%H%M%S", gmtime())+'.log')
     print 'Log File:  %s' % log_file
     print 'Logging To Console: %s' % verbose
 

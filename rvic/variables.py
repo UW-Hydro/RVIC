@@ -33,17 +33,6 @@ class Point(object):
     def __repr__(self):
         return '__repr__'
 
-    def getX(self):
-        return self.x
-
-    def getY(self):
-        return self.y
-
-    def getLON(self):
-        return self.lon
-
-    def getLAT(self):
-        return self.lat
 # -------------------------------------------------------------------- #
 
 
