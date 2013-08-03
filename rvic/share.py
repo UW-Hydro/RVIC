@@ -4,6 +4,7 @@ share.py
 import sys
 from netCDF4 import default_fillvals
 import time as time_mod
+from getpass import getuser
 
 # ----------------------- CONSTANTS --------------------------------- #
 EARTHRADIUS = 6.37122e6  # meters
@@ -48,7 +49,7 @@ class NcGlobals:
     def __init__(self, title='',
                  casename='',
                  casestr='',
-                 history='Created: {}'.format(time_mod.ctime(time_mod.time())),
+                 history='Created: {} by {}'.format(time_mod.ctime(time_mod.time()), getuser()),
                  institution='Univeristy of Washington', source=sys.argv[0],
                  references='Based on the initial model of Lohmann, et al., 1996, Tellus, 48(A), 708-721',
                  comment='Output from the RVIC Streamflow Routing Model.',
@@ -122,8 +123,8 @@ full_time_length = NcVar(long_name='Length of original unit hydrograph',
 subset_length = NcVar(long_name='Shortened length of the unit hydrograph',
                       units='timesteps')
 
-unit_hydrogaph_dt = NcVar(long_name='Unit hydrograph timestep',
-                          units='seconds')
+unit_hydrograph_dt = NcVar(long_name='Unit hydrograph timestep',
+                           units='seconds')
 
 outlet_x_ind = NcVar(long_name='x grid coordinate of outlet grid cell',
                      units='unitless')

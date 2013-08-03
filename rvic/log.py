@@ -8,7 +8,7 @@ import logging
 
 # -------------------------------------------------------------------- #
 LOG_NAME = 'rvic'
-FORMATTER = logging.Formatter('%(levelname)s:%(funcName)s:%(message)s')
+FORMATTER = logging.Formatter('%(levelname)s:%(funcName)s>> %(message)s')
 # -------------------------------------------------------------------- #
 
 

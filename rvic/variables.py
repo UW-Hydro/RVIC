@@ -28,7 +28,7 @@ class Point(object):
         self.y = y
 
     def __str__(self):
-        return "Point(%s,%s)" % (self.lon, self.lat)
+        return "Point(%s,%s,%s,%s)" % (self.lat, self.lon, self.y, self.x)
 
     def __repr__(self):
         return '__repr__'

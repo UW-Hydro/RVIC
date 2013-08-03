@@ -36,11 +36,11 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format):
 
     # ---------------------------------------------------------------- #
     # initialize variables
-    unit_hydrogaph_dt = f.createVariable('unit_hydrogaph_dt', NC_INT, ())
-    unit_hydrogaph_dt[:] = agg_data['unit_hydrogaph_dt']
-    for key, val in share.unit_hydrogaph_dt.__dict__.iteritems():
+    unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt', NC_INT, ())
+    unit_hydrograph_dt[:] = agg_data['unit_hydrograph_dt']
+    for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
         if val:
-            setattr(unit_hydrogaph_dt, key, val)
+            setattr(unit_hydrograph_dt, key, val)
 
     timesteps = f.createVariable('timesteps', NC_INT, ('timesteps',))
     timesteps[:] = agg_data['timesteps']
@@ -74,8 +74,8 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format):
     # write data to variables initialized above
     lon[:] = agg_data['lon']
     lat[:] = agg_data['lat']
-    unit_hydrographs[:, :, :] = agg_data['uhgrid']
-    fraction[:, :] = agg_data['fractions']
+    unit_hydrographs[:, :, :] = agg_data['unit_hydrograph']
+    fraction[:, :] = agg_data['fraction']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -96,7 +96,7 @@ def write_param_file(file_name,
                      glob_atts = NcGlobals(),
                      full_time_length = None,
                      subset_length = None,
-                     unit_hydrogaph_dt = None,
+                     unit_hydrograph_dt = None,
                      outlet_lon = None,
                      outlet_lat = None,
                      outlet_x_ind = None,
@@ -129,7 +129,7 @@ def write_param_file(file_name,
     for key, val in share.timesteps.__dict__.iteritems():
         if val:
             setattr(timesteps, key, val)
-    timesteps.timestep_length = 'unit_hydrogaph_dt'
+    timesteps.timestep_length = 'unit_hydrograph_dt'
 
     # ---------------------------------------------------------------- #
 
@@ -159,9 +159,9 @@ def write_param_file(file_name,
             setattr(sl, key, val)
 
     # UH timestep
-    uh_dt = f.createVariable('unit_hydrogaph_dt', NC_DOUBLE, ())
-    uh_dt[:] = unit_hydrogaph_dt
-    for key, val in share.unit_hydrogaph_dt.__dict__.iteritems():
+    uh_dt = f.createVariable('unit_hydrograph_dt', NC_DOUBLE, ())
+    uh_dt[:] = unit_hydrograph_dt
+    for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
         if val:
             setattr(uh_dt, key, val)
     # ---------------------------------------------------------------- #
