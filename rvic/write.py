@@ -25,6 +25,7 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format):
     # ---------------------------------------------------------------- #
     # Open file
     f = Dataset(file_name, 'w', format=format)
+    log.info('writing aggregated netcdf: %s' % file_name)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

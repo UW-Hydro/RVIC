@@ -76,10 +76,8 @@ def gen_uh_init(config_file):
     # Setup Directory Structures
     directories = make_directories(config_dict['options']['case_dir'],
                                    ['plots', 'logs', 'params', 'inputs'])
-    directories['aggregated'] = make_directories(config_dict['options']['temp_dir'],
-                                                 ['aggregated'])
-    directories['remapped'] = make_directories(config_dict['options']['temp_dir'],
-                                                 ['remapped'])
+    directories.update(make_directories(config_dict['options']['temp_dir'],
+                                        ['aggregated', 'remapped']))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
