@@ -91,6 +91,9 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Start Logging
     log = init_logger(directories['logs'], options['log_level'], options['verbose'])
+
+    for direc in directories:
+        log.info('%s directory is %s' % (direc, directories[direc]))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
