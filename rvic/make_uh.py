@@ -254,20 +254,18 @@ def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
     uh = np.zeros((t_cell, xmask.shape[0], xmask.shape[1]))
     for (y, x) in zip(y_inds, x_inds):
         time = dt
-        flag = 0
         t = 0
-        green = np.zeros(t_cell)
-        while (t < t_cell and flag == 0):
+        while True:
             exponent = -1*np.power(velocity[y, x]*time-xmask[y, x], 2)/(4*diffusion[y, x]*time)
-            if exponent > np.log(PRECISION):
-                green[t] = xmask[y, x]/(2*time*np.sqrt(np.pi*time*diffusion[y, x]))*np.exp(exponent)
+            if exponent > np.log(PRECISION) and t < t_cell:
+                uh[t, y, x] = xmask[y, x]/(2*time*np.sqrt(np.pi*time*diffusion[y, x]))*np.exp(exponent)
                 t += 1
                 time = time+dt
             else:
-                flag = 1
-        tot = np.sum(green)
-        if tot > 0.:
-            uh[:, y, x] = green[:]/tot
+                break
+        uh[:, y, x] /= uh[:, y, x].sum()
+
+    log.debug('done making uh for each grid cell')
     return uh
 # -------------------------------------------------------------------- #
 
@@ -280,8 +278,6 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point, y_inds,
     downstream point incrementally moves upstream.
     """
     log.debug("Making uh_river grid.... It takes a while...")
-    y_ind = basin_point.y
-    x_ind = basin_point.x
 
     uh_river = np.zeros((t_uh, uh.shape[1], uh.shape[2]))
     for (y, x, d) in zip(y_inds, x_inds, count_ds):
@@ -291,10 +287,9 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point, y_inds,
             ats = np.nonzero(uh_river[:, yy, xx] > PRECISION)[0]
             uh_river[ats, y, x] += np.convolve(uh[:, y, x], uh_river[ats, yy, xx], mode='same')
         elif d == 0:
-            uh_river[:t_cell, y_ind, x_ind] = uh[:, y_ind, x_ind]
-
-    # normalize
-    uh_river[:, y, x] /= uh_river[:, y, x].sum(axis=0)
+            uh_river[:t_cell, y, x] = uh[:, y, x]
+        # normalize
+        uh_river[:, y, x] /= uh_river[:, y, x].sum()
 
     return uh_river
 # -------------------------------------------------------------------- #
@@ -321,8 +316,10 @@ def make_grid_uh(t_uh, t_cell, uh_river, uh_box, to_y, to_x, y_inds, x_inds,
         else:
             unit_hydrograph[:len(uh_box), y, x] = uh_box[:]
 
+
     # normalize
-    unit_hydrograph[:, y, x] /= unit_hydrograph[:, y, x].sum(axis=0)
+    for (y, x) in zip(y_inds, x_inds):
+        unit_hydrograph[:, y, x] /= unit_hydrograph[:, y, x].sum()
 
     return unit_hydrograph
 # -------------------------------------------------------------------- #

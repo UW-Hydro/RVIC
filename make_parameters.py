@@ -5,6 +5,7 @@ RVIC parameter file development driver
 import os
 import numpy as np
 import argparse
+import multiprocessing
 from datetime import date
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
@@ -15,7 +16,6 @@ from rvic.make_uh import rout
 from rvic.share import NcGlobals
 from rvic.write import write_agg_netcdf, write_param_file
 from rvic.variables import Point
-from multiprocessing import Pool
 
 
 # -------------------------------------------------------------------- #
@@ -34,7 +34,7 @@ def main():
 
     # ---------------------------------------------------------------- #
     # Setup the pool of processors
-    pool = Pool(processes=numofproc)
+    pool = multiprocessing.Pool(processes=numofproc)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -195,7 +195,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
     """
     Run Genuh_run
     """
-    log = getLogger(LOG_NAME)
+    log = multiprocessing.get_logger()
 
     log.info('Running outlet cell id  %i' % outlet.cell_id)
 
