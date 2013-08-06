@@ -13,11 +13,12 @@ import sys
 # -------------------------------------------------------------------- #
 # Main program
 def main():
-    input_file, output_file, verbose = process_command_line()
+    input_file, output_file, which_points, verbose = process_command_line()
 
+
+    # ---------------------------------------------------------------- #
     #Load input Rasters (Basin Mask and Accumulated Upstream Area)
     #Input rasters need to be the same size
-
     if verbose:
         print 'Reading input file: %s' % input_file
 
@@ -26,10 +27,75 @@ def main():
     source_area = f.variables['Source_Area'][:]
     lons = f.variables['lon'][:]
     lats = f.variables['lat'][:]
+    land_mask = f.variables['Land_Mask'][:]
     f.close()
+    # ---------------------------------------------------------------- #
 
     res = lons[1] - lons[0]
 
+    # ---------------------------------------------------------------- #
+    # Find the points
+    if which_points == 'all':
+        print 'Returning all land cells as pour pour points'
+        basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y = find_all(basin_id, source_area, land_mask, lons, lats, res, verbose)
+    else:
+        print 'Returning all basin outlet grid cells as pour points'
+        basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y = find_outlets(basin_id, source_area, lons, lats, res, verbose)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Write output file
+    if verbose:
+        print 'writing to outfile:', output_file
+
+    if os.path.splitext(output_file)[1] != '.nc':
+        write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
+                         max_x, max_y, output_file)
+    else:
+        write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
+                          max_x, max_y, output_file)
+    # ---------------------------------------------------------------- #
+
+def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
+    """Return the info for all land points """
+
+    lat, lon  = np.meshgrid(lats, lons)
+
+    # ---------------------------------------------------------------- #
+    # Find x/y inds of all land points
+    y, x = np.nonzero(land_mask)
+    basin = basin_id[y, x]
+    max_area = source_area[y, x]
+
+    num_basins = len(y)
+    x_outlet = np.zeros(num_basins)
+    y_outlet = np.zeros(num_basins)
+    min_x = np.zeros(num_basins)
+    max_x = np.zeros(num_basins)
+    min_y = np.zeros(num_basins)
+    max_y = np.zeros(num_basins)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    #Loop over every basin id, finding the maximum upstream area [and location]
+    #and record the basin#,longitude,latitude,area
+
+    for i, (yi, xi, bi) in enumerate(zip(y, x, basin)):
+        inds = np.nonzero(basin_id == bi)
+        x_basin = lon[inds]
+        y_basin = lat[inds]
+        x_outlet[i] = lon[y, x]
+        y_outlet[i] = lat[y, x]
+        min_x[i] = min(x_basin)
+        max_x[i] = max(x_basin)+res
+        min_y[i] = min(y_basin)
+        max_y[i] = max(y_basin)+res
+    # ---------------------------------------------------------------- #
+
+    return basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y
+
+def find_outlets(basin_id, source_area, lons, lats, res, verbose):
+    """ Find the outlet location of each basin """
     # ---------------------------------------------------------------- #
     #Make arrays of same dimensions as input arrays of lat/lon values
     x, y = np.meshgrid(lons, lats)
@@ -57,13 +123,13 @@ def main():
         sys.stdout.write('Done reading input file...\n ')
         sys.stdout.write('Searching in %i basins for pour points\n' % num_basins)
 
-    for i,j in enumerate(basin_ids):
+    for i, j in enumerate(basin_ids):
         if verbose:
             sys.stdout.write('On basin %i of %i' % (i,num_basins))
             sys.stdout.flush()
             sys.stdout.write('\r')
         basin[i]=np.int(j)
-        inds = np.nonzero(basin_id==j)
+        inds = np.nonzero(basin_id == j)
         x_basin = x[inds]
         y_basin = y[inds]
         max_area[i] = np.int(max(source_area[inds]))
@@ -75,20 +141,7 @@ def main():
         min_y[i] = min(y_basin)
         max_y[i] = max(y_basin)+res
     # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Write output file
-    if verbose:
-        print 'writing to outfile:', output_file
-
-    if os.path.splitext(output_file)[1] != '.nc':
-        write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
-                         max_x, max_y, output_file)
-    else:
-        write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
-                          max_x, max_y, output_file)
-    # ---------------------------------------------------------------- #
-    return
+    return basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y
 # -------------------------------------------------------------------- #
 
 
@@ -220,12 +273,15 @@ def process_command_line():
                         help="Output file (suffix dependent)")
     parser.add_argument("-v","--verbose",action='store_true',
                         help="Turn on Verbose Output")
+    parser.add_argument('--which_points', metavar='<all|outlets>',
+                        help='Determine which points to return', default='outlets')
     args = parser.parse_args()
     input_file = args.input_file
     output_file = args.output_file
+    which_points = args.which_points
     verbose = args.verbose
 
-    return input_file, output_file, verbose
+    return input_file, output_file, which_points, verbose
 # -------------------------------------------------------------------- #
 
 
