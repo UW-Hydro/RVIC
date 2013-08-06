@@ -198,40 +198,28 @@ class Rvar(object):
         # Setup Coordinate Variables
         coords = ('outlets',)
 
-        outlets = f.createDimension('outlets', self.num_outlets)
+        outlets = f.createDimension(coords[0], self.num_outlets)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Write Fields
-        outlet_lon = f.createVariable('outlet_lon', NC_DOUBLE, coords)
-        outlet_lon[:] = self.outlet_lon
-        for key, val in share.outlet_lon.__dict__.iteritems():
-            if val:
-                setattr(outlet_lon, key, val)
-
-        outlet_lat = f.createVariable('outlet_lat', NC_DOUBLE, coords)
-        outlet_lat[:] = self.outlet_lat
-        for key, val in share.outlet_lat.__dict__.iteritems():
-            if val:
-                setattr(outlet_lat, key, val)
-
-        outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
-        outlet_y_ind[:] = self.outlet_y_ind
+        oyi = f.createVariable('outlet_y_ind', NC_INT, coords)
+        oyi[:] = self.outlet_y_ind
         for key, val in share.outlet_y_ind.__dict__.iteritems():
             if val:
-                setattr(outlet_y_ind, key, val)
+                setattr(oyi, key, val)
 
-        outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
-        outlet_x_ind[:] = self.outlet_x_ind
+        oxi = f.createVariable('outlet_x_ind', NC_INT, coords)
+        oxi[:] = self.outlet_x_ind
         for key, val in share.outlet_x_ind.__dict__.iteritems():
             if val:
-                setattr(outlet_x_ind, key, val)
+                setattr(oxi, key, val)
 
-        s_outlet_decomp_id = f.createVariable('s_outlet_decomp_id', NC_INT, coords)
-        s_outlet_decomp_id[:] = self.outlet_decomp_id
+        odi = f.createVariable('outlet_decomp_id', NC_INT, coords)
+        odi[:] = self.outlet_decomp_id
         for key, val in share.outlet_decomp_id.__dict__.iteritems():
             if val:
-                setattr(s_outlet_decomp_id, key, val)
+                setattr(odi, key, val)
 
         tcoords = ('timesteps',) + coords
 

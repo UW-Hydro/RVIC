@@ -193,7 +193,7 @@ def gen_uh_init(config_file):
 #
 def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories):
     """
-    Run Genuh_run on a single processor (slow)
+    Run Genuh_run
     """
     log = getLogger(LOG_NAME)
 
@@ -448,8 +448,8 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # write a summary of what was done to the log file.
-    log.info('Parameter file includes %i outlets' % (len(outlets)))
-    log.info('Parameter file includes %i Source Points' % (len(outlets)))
+    log.info('Parameter file includes %i outlets' % (len(outlets)+1))
+    log.info('Parameter file includes %i Source Points' % (len(source_lon)+1))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

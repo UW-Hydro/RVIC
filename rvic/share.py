@@ -164,6 +164,9 @@ source_time_offset = NcVar(long_name='Number of leading timesteps ommited',
 source2outlet_ind = NcVar(long_name='source to outlet index mapping',
                           units='unitless')
 
+ring = NcVar(long_name='Convolution Ring',
+                   units='kg m-2 s-1')
+
 streamflow = NcVar(long_name='Streamflow at outlet grid cell',
                    units='kg m-2 s-1')
 
