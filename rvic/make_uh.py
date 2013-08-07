@@ -95,7 +95,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Find timestep (timestep is determined from uh_box input file)
+    # Find timestep (timestep is determined from uh_BOX input file)
     input_interval = find_ts(uh_t)
     rout_data['unit_hydrograph_dt'] = input_interval
     t_cell = int(rout_dict['cell_flowdays']*SECSPERDAY/input_interval)
@@ -202,41 +202,39 @@ def search_catchment(to_y, to_x, basin_point, basin_ids, basin_id):
     (len_y, len_x) = to_x.shape
     catchment = {}
 
-    ys, xs = np.nonzero(basin_ids == basin_id)  # these points are in the same basin
+    yinds, xinds = np.nonzero(basin_ids == basin_id)
 
     fractions = np.zeros((len_y, len_x))
-    count_ds = np.empty(len(ys))
-    y_inds = np.empty(len(ys))
-    x_inds = np.empty(len(ys))
-    count_ds = np.empty(len(ys))
+    fractions[yinds, xinds] = 1.0
+    catchment['count_ds'] = np.empty(len(yinds))
 
-    for i, (y, x) in enumerate(zip(ys, xs)):
+    for i, (y, x) in enumerate(zip(yinds, xinds)):
         yy, xx = y, x
         cells = 0
         while True:
             if (yy == basin_point.y and xx == basin_point.x):
-                count_ds[i] = cells
-                y_inds[i] = y  # these points are upstream of the pour point
-                x_inds[i] = x
-                fractions[y, x] = 1.0
+                catchment['count_ds'][i] = cells
                 count += 1
                 break
             else:
                 yy, xx = to_y[yy, xx], to_x[yy, xx]
                 cells += 1
                 if ((xx > (len_x - 1)) or (xx < 0) or (yy > (len_y - 1)) or (yy < 0)):
-                    break
+                    log.warning('Unexpected event while searching catchment: should not ' \
+                                'leave basin while searching cathment when using basin_ids ' \
+                                'as mask.  There must be a problem with the basin_id mas or ' \
+                                'the flow_direction file')
+                    raise
 
     log.debug("Found %i upstream grid cells from present station" % count)
-    log.debug("Expected a maximum of %i upstream cells it total basin" % count)
+    log.debug("Expected %i upstream grid cells from present station" % count)
 
     # ---------------------------------------------------------------- #
     # sort catchment
-    ii = np.argsort(count_ds[:count])
-    catchment['count_ds'] = count_ds[ii]
-    catchment['x_inds'] = x_inds[ii]
-    catchment['y_inds'] = y_inds[ii]
-    log.debug('finished sorting')
+    ii = np.argsort(catchment['count_ds'])
+    catchment['count_ds'] = catchment['count_ds'][ii]
+    catchment['x_inds'] = xinds[ii]
+    catchment['y_inds'] = yinds[ii]
     # ---------------------------------------------------------------- #
     return catchment, fractions
 # -------------------------------------------------------------------- #
@@ -254,18 +252,20 @@ def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
     uh = np.zeros((t_cell, xmask.shape[0], xmask.shape[1]))
     for (y, x) in zip(y_inds, x_inds):
         time = dt
+        flag = 0
         t = 0
-        while True:
+        green = np.zeros(t_cell)
+        while (t < t_cell and flag == 0):
             exponent = -1*np.power(velocity[y, x]*time-xmask[y, x], 2)/(4*diffusion[y, x]*time)
-            if exponent > np.log(PRECISION) and t < t_cell:
-                uh[t, y, x] = xmask[y, x]/(2*time*np.sqrt(np.pi*time*diffusion[y, x]))*np.exp(exponent)
+            if exponent > np.log(PRECISION):
+                green[t] = xmask[y, x]/(2*time*np.sqrt(np.pi*time*diffusion[y, x]))*np.exp(exponent)
                 t += 1
                 time = time+dt
             else:
-                break
-        uh[:, y, x] /= uh[:, y, x].sum()
-
-    log.debug('done making uh for each grid cell')
+                flag = 1
+        tot = np.sum(green)
+        if tot > 0.:
+            uh[:, y, x] = green[:]/tot
     return uh
 # -------------------------------------------------------------------- #
 
@@ -278,18 +278,24 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point, y_inds,
     downstream point incrementally moves upstream.
     """
     log.debug("Making uh_river grid.... It takes a while...")
+    y_ind = basin_point.y
+    x_ind = basin_point.x
 
     uh_river = np.zeros((t_uh, uh.shape[1], uh.shape[2]))
     for (y, x, d) in zip(y_inds, x_inds, count_ds):
         if d > 0:
             yy = to_y[y, x]
             xx = to_x[y, x]
-            ats = np.nonzero(uh_river[:, yy, xx] > PRECISION)[0]
-            uh_river[ats, y, x] += np.convolve(uh[:, y, x], uh_river[ats, yy, xx], mode='same')
+            irf_temp = np.zeros(t_uh+t_cell)
+            active_timesteps = np.nonzero(uh_river[:, yy, xx] > PRECISION)[0]
+            for t in active_timesteps:
+                for l in xrange(t_cell):
+                    irf_temp[t+l] = irf_temp[t + l] + uh[l, y, x] * uh_river[t, yy, xx]
+            tot = np.sum(irf_temp[:t_uh])
+            if tot > 0:
+                uh_river[:, y, x] = irf_temp[:t_uh] / tot
         elif d == 0:
-            uh_river[:t_cell, y, x] = uh[:, y, x]
-        # normalize
-        uh_river[:, y, x] /= uh_river[:, y, x].sum()
+            uh_river[:t_cell, y_ind, x_ind] = uh[:, y_ind, x_ind]
 
     return uh_river
 # -------------------------------------------------------------------- #
@@ -297,30 +303,30 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point, y_inds,
 
 # -------------------------------------------------------------------- #
 # Make grid uh
-def make_grid_uh(t_uh, t_cell, uh_river, uh_box, to_y, to_x, y_inds, x_inds,
+def make_grid_uh(t_uh, t_cell, uh_river, uh_BOX, to_y, to_x, y_inds, x_inds,
                  count_ds):
     """
-    Combines the uh_box with downstream cell uh_river.  Cell [0] is given the
+    Combines the uh_BOX with downstream cell uh_river.  Cell [0] is given the
     uh_box without river routing
     """
     log.debug("Making unit_hydrograph grid")
 
     unit_hydrograph = np.zeros((t_uh, uh_river.shape[1], uh_river.shape[2]))
     for (y, x, d) in zip(y_inds, x_inds, count_ds):
-        # irf_temp = np.zeros(t_uh+t_cell)
+        irf_temp = np.zeros(t_uh+t_cell)
         if d > 0:
             yy = to_y[y, x]
             xx = to_x[y, x]
-            ats = np.nonzero(uh_river[:, yy, xx] > PRECISION)[0]
-            unit_hydrograph[ats, y, x] += np.convolve(uh_box, uh_river[ats, yy, xx], mode='same')
+            active_timesteps = np.nonzero(uh_river[:, yy, xx] > PRECISION)[0]
+            for t in active_timesteps:
+                for l in xrange(len(uh_BOX)):
+                    irf_temp[t + l] = irf_temp[t + l] + uh_BOX[l] * uh_river[t, yy, xx]
+            tot = np.sum(irf_temp[:t_uh])
+            if tot > 0:
+                unit_hydrograph[:, y, x] = irf_temp[:t_uh] / tot
         else:
-            unit_hydrograph[:len(uh_box), y, x] = uh_box[:]
-
-
-    # normalize
-    for (y, x) in zip(y_inds, x_inds):
-        unit_hydrograph[:, y, x] /= unit_hydrograph[:, y, x].sum()
-
+            irf_temp[:len(uh_BOX)] = uh_BOX[:]
+            unit_hydrograph[:, y, x] = irf_temp[:t_uh]
     return unit_hydrograph
 # -------------------------------------------------------------------- #
 
