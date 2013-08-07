@@ -119,8 +119,8 @@ class Rvar(object):
             raise
 
         # First update the ring
-        self.ring[0, :] = 0                            # Zero out current ring
-        self.ring = self.__cshift(self.ring, 1)
+        self.ring[0, :] = 0                         # Zero out current ring
+        self.ring = np.roll(self.ring, 1, axis=0)  # Equivalent to Fortran 90 cshift function
 
         # this matches the fortran implementation, it may be faster to use np.convolve but testing
         # can be done later
@@ -187,7 +187,7 @@ class Rvar(object):
         timesteps.timestep_length = 'timestep'
 
         # UH timestep
-        timestep = f.createVariable('timestep', NC_DOUBLE, ())
+        timestep = f.createVariable('unit_hydrogaph_dt', NC_DOUBLE, ())
         timestep[:] = self.unit_hydrogaph_dt
         for key, val in share.timestep.__dict__.iteritems():
             if val:
