@@ -5,7 +5,6 @@ RVIC parameter file development driver
 import os
 import numpy as np
 import argparse
-import multiprocessing
 from datetime import date
 from collections import OrderedDict
 from logging import getLogger
