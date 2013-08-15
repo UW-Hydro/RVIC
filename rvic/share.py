@@ -167,9 +167,6 @@ source_time_offset = NcVar(long_name='Number of leading timesteps ommited',
 source2outlet_ind = NcVar(long_name='source to outlet index mapping',
                           units='unitless')
 
-source_tracer = NcVar(long_name='tracer index',
-                      units='0-all, 1-liq, 2-ice')
-
 ring = NcVar(long_name='Convolution Ring',
                    units='kg m-2 s-1')
 
