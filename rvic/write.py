@@ -287,12 +287,6 @@ def write_param_file(file_name,
         if val:
             setattr(s2o, key, val)
 
-    # Source tracer
-    st = f.createVariable('source_tracer', NC_INT, scoords)
-    st[:] = source_tracer
-    for key, val in share.source_tracer.__dict__.iteritems():
-        if val:
-            setattr(st, key, val)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

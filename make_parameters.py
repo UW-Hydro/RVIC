@@ -416,7 +416,6 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # fill in some misc arrays
     outlet_mask = np.zeros(len(outlet_lon))
-    source_tracer = np.zeros(len(source_lon))
     newshape = unit_hydrograph.shape + (1,)
     unit_hydrograph = unit_hydrograph.reshape(newshape)
 
@@ -454,7 +453,6 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
                          source_decomp_ind=source_decomp_ind,
                          source_time_offset=source_time_offset,
                          source2outlet_ind=source2outlet_ind,
-                         source_tracer=source_tracer,
                          unit_hydrograph=unit_hydrograph)
     # ---------------------------------------------------------------- #
 
