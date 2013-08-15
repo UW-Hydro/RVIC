@@ -93,25 +93,27 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format):
 # -------------------------------------------------------------------- #
 # Write the RVIC parameter file
 def write_param_file(file_name,
-                     nc_format = 'NETCDF3_CLASSIC',
-                     glob_atts = NcGlobals(),
-                     full_time_length = None,
-                     subset_length = None,
-                     unit_hydrograph_dt = None,
-                     outlet_lon = None,
-                     outlet_lat = None,
-                     outlet_x_ind = None,
-                     outlet_y_ind = None,
-                     outlet_decomp_ind = None,
-                     outlet_number = None,
-                     source_lon = None,
-                     source_lat = None,
-                     source_x_ind = None,
-                     source_y_ind = None,
-                     source_decomp_ind = None,
-                     source_time_offset = None,
-                     source2outlet_ind = None,
-                     unit_hydrograph = None):
+                     nc_format='NETCDF3_CLASSIC',
+                     glob_atts=NcGlobals(),
+                     full_time_length=None,
+                     subset_length=None,
+                     unit_hydrograph_dt=None,
+                     outlet_lon=None,
+                     outlet_lat=None,
+                     outlet_x_ind=None,
+                     outlet_y_ind=None,
+                     outlet_decomp_ind=None,
+                     outlet_number=None,
+                     outlet_mask=None,
+                     source_lon=None,
+                     source_lat=None,
+                     source_x_ind=None,
+                     source_y_ind=None,
+                     source_decomp_ind=None,
+                     source_time_offset=None,
+                     source2outlet_ind=None,
+                     source_tracer=None,
+                     unit_hydrograph=None):
 
     """ Write a standard RVIC Parameter file """
 
@@ -217,6 +219,14 @@ def write_param_file(file_name,
     for key, val in share.outlet_number.__dict__.iteritems():
         if val:
             setattr(on, key, val)
+
+    # Outlet Mask
+    om = f.createVariable('outlet_mask', NC_INT, ocoords)
+    om[:] = outlet_mask
+    for key, val in share.outlet_mask.__dict__.iteritems():
+        if val:
+            setattr(om, key, val)
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -276,14 +286,22 @@ def write_param_file(file_name,
     for key, val in share.source2outlet_ind.__dict__.iteritems():
         if val:
             setattr(s2o, key, val)
+
+    # Source tracer
+    st = f.createVariable('source_tracer', NC_INT, scoords)
+    st[:] = source_tracer
+    for key, val in share.source_tracer.__dict__.iteritems():
+        if val:
+            setattr(st, key, val)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # 2-D Source Variables
-    tscoords = ('timesteps',) + scoords
+    # 3-D Source Variables
+    uhcords = ('timesteps',) + scoords +('tracers',)
+    tracers = f.createDimension(uhcords[2], 1)
 
     # Unit Hydrographs
-    uhs = f.createVariable('unit_hydrograph', NC_DOUBLE, tscoords)
+    uhs = f.createVariable('unit_hydrograph', NC_DOUBLE, uhcords)
     uhs[:, :] = unit_hydrograph
     for key, val in share.unit_hydrograph.__dict__.iteritems():
         if val:

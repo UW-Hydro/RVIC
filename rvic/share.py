@@ -144,6 +144,9 @@ outlet_decomp_ind = NcVar(long_name='1d grid location of outlet grid cell',
 outlet_number = NcVar(long_name='outlet number',
                       units='unitless')
 
+outlet_mask = NcVar(long_name='type of outlet point',
+                    units='0-ocean, 1-land, 2-guage, 3-none')
+
 source_x_ind = NcVar(long_name='x grid coordinate of source grid cell',
                      units='unitless')
 
@@ -163,6 +166,9 @@ source_time_offset = NcVar(long_name='Number of leading timesteps ommited',
 
 source2outlet_ind = NcVar(long_name='source to outlet index mapping',
                           units='unitless')
+
+source_tracer = NcVar(long_name='tracer index',
+                      units='0-all, 1-liq, 2-ice')
 
 ring = NcVar(long_name='Convolution Ring',
                    units='kg m-2 s-1')

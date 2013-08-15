@@ -220,14 +220,13 @@ def search_catchment(to_y, to_x, basin_point, basin_ids, basin_id):
                 yy, xx = to_y[yy, xx], to_x[yy, xx]
                 cells += 1
                 if ((xx > (len_x - 1)) or (xx < 0) or (yy > (len_y - 1)) or (yy < 0)):
-                    log.warning('Unexpected event while searching catchment: should not ' \
-                                'leave basin while searching cathment when using basin_ids ' \
-                                'as mask.  There must be a problem with the basin_id mas or ' \
-                                'the flow_direction file')
-                    raise
+                    break
 
     log.debug("Found %i upstream grid cells from present station" % count)
-    log.debug("Expected %i upstream grid cells from present station" % count)
+    log.debug("Expected at most %i upstream grid cells from present station" % len(yinds))
+    if count>len(yinds):
+        log.exception('Error, too many points found.')
+        raise
 
     # ---------------------------------------------------------------- #
     # sort catchment
