@@ -1,17 +1,17 @@
 """
-vars.py
+variables.py
 """
+import os
 import numpy as np
 from netCDF4 import Dataset, date2num
-import logging
-import os
-from log import log_name
-from share import timeUnits, nc_int, nc_double, ncGlobals
+from logging import getLogger
+from log import LOG_NAME
+from share import TIMEUNITS, NC_INT, NC_DOUBLE, NcGlobals
 import share
 
 # -------------------------------------------------------------------- #
 # create logger
-log = logging.getLogger(log_name)
+log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
 
@@ -28,22 +28,11 @@ class Point(object):
         self.y = y
 
     def __str__(self):
-        return "Point(%s,%s)" % (self.lon, self.lat)
+        return "Point(%s,%s,%s,%s)" % (self.lat, self.lon, self.y, self.x)
 
     def __repr__(self):
         return '__repr__'
 
-    def getX(self):
-        return self.x
-
-    def getY(self):
-        return self.y
-
-    def getLON(self):
-        return self.lon
-
-    def getLAT(self):
-        return self.lat
 # -------------------------------------------------------------------- #
 
 
@@ -62,16 +51,18 @@ class Rvar(object):
         self.subset_length = f.variables['subset_length'][:]
         self.full_time_length = f.variables['full_time_length'][:]
         self.unit_hydrogaph_dt = f.variables['unit_hydrogaph_dt'][:]
-        self.x_ind_source = f.variables['x_ind_source'][:]
-        self.y_ind_source = f.variables['y_ind_source'][:]
-        self.t_offset_source = f.variables['t_offset_source'][:]
-        self.source2outlet_index = f.variables['source2outlet_index'][:]
+        self.source_lon = f.variables['source_lon'][:]
+        self.source_lat = f.variables['source_lat'][:]
+        self.source_x_ind = f.variables['source_x_ind'][:]
+        self.source_y_ind = f.variables['source_y_ind'][:]
+        self.source_time_offset = f.variables['source_time_offset'][:]
+        self.source2outlet_ind = f.variables['source2outlet_ind'][:]
+        self.outlet_x_ind = f.variables['outlet_x_ind '][:]
+        self.outlet_y_ind = f.variables['outlet_y_ind'][:]
+        self.outlet_lon = f.variables['outlet_lon '][:]
+        self.outlet_lat = f.variables['outlet_lat'][:]
         self.outlet_decomp_id = f.variables['outlet_decomp_id '][:]
-        self.lon_outlet = f.variables['lon_outlet '][:]
-        self.lat_outlet = f.variables['lat_outlet'][:]
-        self.x_ind_outlet = f.variables['x_ind_outlet '][:]
-        self.y_ind_outlet = f.variables['y_ind_outlet'][:]
-        self.unit_hydrographs = f.variables['unit_hydrographs'][:]
+        self.unit_hydrograph = f.variables['unit_hydrograph'][:]
         self.RvicPourPointsFile = f.RvicPourPointsFile
         self.RvicUHFile = f.RvicUHFile
         self.RvicFdrFile = f.RvicFdrFile
@@ -128,17 +119,17 @@ class Rvar(object):
             raise
 
         # First update the ring
-        self.ring[0, :] = 0                            # Zero out current ring
-        self.ring = self.__cshift(self.ring, 1)
+        self.ring[0, :] = 0                         # Zero out current ring
+        self.ring = np.roll(self.ring, 1, axis=0)  # Equivalent to Fortran 90 cshift function
 
         # this matches the fortran implementation, it may be faster to use np.convolve but testing
         # can be done later
-        for s, outlet in enumerate(self.source2outlet_index):   # loop over all source points
-            y = self.y_ind_source[s]
-            x = self.x_ind_source[s]
+        for s, outlet in enumerate(self.source2outlet_ind):   # loop over all source points
+            y = self.source_y_ind[s]
+            x = self.source_x_ind[s]
             for i in xrange(self.subset_length):
-                j = i + self.t_offset_source[s]
-                self.ring[j, outlet] = self.ring[j, outlet] + (self.unit_hydrogaphs[i, s] * aggrunin[y, x])
+                j = i + self.source_time_offset[s]
+                self.ring[j, outlet] = self.ring[j, outlet] + (self.unit_hydrogaph[i, s] * aggrunin[y, x])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -178,8 +169,8 @@ class Rvar(object):
 
         # Current time
         time = f.createDimension('time', 1)
-        time = f.createVariable('time', nc_double, ('time',))
-        time[:] = date2num(self.timestamp, timeUnits, calendar=self.calendar)
+        time = f.createVariable('time', NC_DOUBLE, ('time',))
+        time[:] = date2num(self.timestamp, TIMEUNITS, calendar=self.calendar)
 
         for key, val in share.time.__dict__.iteritems():
             if val:
@@ -187,7 +178,7 @@ class Rvar(object):
 
         # Timesteps
         timesteps = f.createDimension('timesteps', self.full_time_length)
-        timesteps = f.createVariable('timesteps', nc_double, ('timesteps',))
+        timesteps = f.createVariable('timesteps', NC_DOUBLE, ('timesteps',))
         timesteps[:] = np.arange(self.full_time_length)
 
         for key, val in share.timesteps.__dict__.iteritems():
@@ -196,7 +187,7 @@ class Rvar(object):
         timesteps.timestep_length = 'timestep'
 
         # UH timestep
-        timestep = f.createVariable('timestep', nc_double, ())
+        timestep = f.createVariable('unit_hydrogaph_dt', NC_DOUBLE, ())
         timestep[:] = self.unit_hydrogaph_dt
         for key, val in share.timestep.__dict__.iteritems():
             if val:
@@ -207,44 +198,32 @@ class Rvar(object):
         # Setup Coordinate Variables
         coords = ('outlets',)
 
-        outlets = f.createDimension('outlets', self.num_outlets)
+        outlets = f.createDimension(coords[0], self.num_outlets)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Write Fields
-        lon_outlet = f.createVariable('lon_outlet', nc_double, coords)
-        lon_outlet[:] = self.lon_outlet
-        for key, val in share.lon_outlet.__dict__.iteritems():
+        oyi = f.createVariable('outlet_y_ind', NC_INT, coords)
+        oyi[:] = self.outlet_y_ind
+        for key, val in share.outlet_y_ind.__dict__.iteritems():
             if val:
-                setattr(lon_outlet, key, val)
+                setattr(oyi, key, val)
 
-        lat_outlet = f.createVariable('lat_outlet', nc_double, coords)
-        lat_outlet[:] = self.lat_outlet
-        for key, val in share.lat_outlet.__dict__.iteritems():
+        oxi = f.createVariable('outlet_x_ind', NC_INT, coords)
+        oxi[:] = self.outlet_x_ind
+        for key, val in share.outlet_x_ind.__dict__.iteritems():
             if val:
-                setattr(lat_outlet, key, val)
+                setattr(oxi, key, val)
 
-        y_ind_outlet = f.createVariable('y_ind_outlet', nc_int, coords)
-        y_ind_outlet[:] = self.y_ind_outlet
-        for key, val in share.y_ind_outlet.__dict__.iteritems():
-            if val:
-                setattr(y_ind_outlet, key, val)
-
-        x_ind_outlet = f.createVariable('x_ind_outlet', nc_int, coords)
-        x_ind_outlet[:] = self.x_ind_outlet
-        for key, val in share.x_ind_outlet.__dict__.iteritems():
-            if val:
-                setattr(x_ind_outlet, key, val)
-
-        s_outlet_decomp_id = f.createVariable('s_outlet_decomp_id', nc_int, coords)
-        s_outlet_decomp_id[:] = self.outlet_decomp_id
+        odi = f.createVariable('outlet_decomp_id', NC_INT, coords)
+        odi[:] = self.outlet_decomp_id
         for key, val in share.outlet_decomp_id.__dict__.iteritems():
             if val:
-                setattr(s_outlet_decomp_id, key, val)
+                setattr(odi, key, val)
 
         tcoords = ('timesteps',) + coords
 
-        ring = f.createVariable('ring', nc_double, tcoords)
+        ring = f.createVariable('ring', NC_DOUBLE, tcoords)
         ring[:, :] = self.ring
 
         for key, val in share.ring.__dict__.iteritems():
@@ -257,7 +236,7 @@ class Rvar(object):
         if self.GlobAts:
             self.GlobAts.update()
         else:
-            self.GlobAts = ncGlobals(title='RVIC restart file',
+            self.GlobAts = NcGlobals(title='RVIC restart file',
                                      RvicPourPointsFile=self.RvicPourPointsFile,
                                      RvicUHFile=self.RvicUHFile,
                                      RvicFdrFile=self.RvicFdrFile,

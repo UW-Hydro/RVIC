@@ -13,17 +13,17 @@ Changed input file type to standard RVIC parameter file
 Made necessary changes to run routines to accept the new parameter file structure.
 Major updates to the...
 """
-import argparse
 import os
-import logging
-from rvic.log import init_logger, log_name
-from rvic.utilities import ReadConfig, MakeDirs, CopyInputs, Rvar, ReadDomain
-from rvic.utilities import write_rpointer, TarInputs
-from rvic.time_util import Dtime
+from argparse import ArgumentParser
+from logging import getLogger
+from rvic.log import init_logger, LOG_NAME
+from rvic.utilities import read_config, make_directories, copy_inputs, read_domain
+from rvic.utilities import write_rpointer, tar_inputs
+from rvic.variables import Rvar
+from rvic.time_utility import Dtime
 from rvic.read_forcing import DataModel
 from rvic.history import Tape
-from rvic.share import ncGlobals
-
+from rvic.share import NcGlobals
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
@@ -32,11 +32,11 @@ def main(config_file=None):
     Top level driver for RVIC model.
     """
 
-    HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict = rvic_init()
+    hist_tapes, data_model, rout_var, dom_data, time_handle, directories, config_dict = rvic_mod_init()
 
-    Time, HistTapes = rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict)
+    time_handle, hist_tapes = rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle, directories, config_dict)
 
-    rvic_final(Time, HistTapes)
+    rvic_mod_final(time_handle, hist_tapes)
 
     return
 # -------------------------------------------------------------------- #
@@ -44,7 +44,7 @@ def main(config_file=None):
 
 # -------------------------------------------------------------------- #
 # Initialize RVIC
-def rvic_init(configFile=None):
+def rvic_mod_init(config_file=None):
     """
     - Read Grid File
     - Load the unit hydrograph files (put into point_dict)
@@ -53,54 +53,54 @@ def rvic_init(configFile=None):
 
     # ---------------------------------------------------------------- #
     # Read command Line
-    if not configFile:
-        configFile = process_command_line()
+    if not config_file:
+        config_file = process_command_line()
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
-    ConfigDict = ReadConfig(configFile)
+    config_dict = read_config(config_file)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
-    dirPaths = MakeDirs(ConfigDict['options']['case_dir'],
-                        ['hist', 'logs', 'params', 'restarts'])
+    directories = make_directories(config_dict['options']['case_dir'],
+                                   ['hist', 'logs', 'params', 'restarts'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Copy Inputs to $case_dir/inputs and update configuration
-    ConfigDict = CopyInputs(configFile, dirPaths['inputs'])
-    options = ConfigDict['options']
+    config_dict = copy_inputs(config_file, directories['inputs'])
+    options = config_dict['options']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Settup Logging
-    log = init_logger(dirPaths['logs'], options['log_level'], options['verbose'])
+    log = init_logger(directories['logs'], options['log_level'], options['verbose'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read Domain File
-    Domain = ConfigDict['domain']
-    DomData, DomVats, DomGats = ReadDomain(Domain['file_name'])
+    Domain = config_dict['domain']
+    dom_data, dom_vatts, dom_gatts = read_domain(Domain['file_name'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read the Parameter File
     log.info('reading parameter and state file')
 
-    routVar = Rvar(ConfigDict['PARAM_FILE']['file_name'])
+    rout_var = Rvar(config_dict['PARAM_FILE']['file_name'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read the State File
     if options['RUN_TYPE'] == 'restart':
-        restart = ReadConfig(os.path.join(dirPaths['restarts'], 'rpointer'))
+        restart = read_config(os.path.join(directories['restarts'], 'rpointer'))
         timestr = restart['restart']['timestamp']
-        routVar.initial_state(restart['restart']['file_name'])
+        rout_var.initial_state(restart['restart']['file_name'])
     elif options['RUN_TYPE'] == 'startup':
         timestr = options['RUN_STARTDATE']
-        routVar.initial_state(ConfigDict['INITIAL_STATE']['file_name'])
+        rout_var.initial_state(config_dict['INITIAL_STATE']['file_name'])
     elif options['RUN_TYPE'] == 'drystart':
         timestr = options['RUN_STARTDATE']
     else:
@@ -109,62 +109,62 @@ def rvic_init(configFile=None):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Setup Time
-    Time = Dtime(timestr, options['STOP_OPTION'], options['STOP_N'],
-                 options['STOP_DATE'], options['REST_OPTION'],
-                 options['REST_N'], options['REST_DATE'],
-                 options['CALENDAR'], routVar.uh_timestep)
+    # Setup time_handle
+    time_handle = Dtime(timestr, options['STOP_OPTION'], options['STOP_N'],
+                        options['STOP_DATE'], options['REST_OPTION'],
+                        options['REST_N'], options['REST_DATE'],
+                        options['CALENDAR'], rout_var.uh_timestep)
 
     # ---------------------------------------------------------------- #
     # Initialize the data model
-    Forcings = ConfigDict['INPUT_FORCINGS']
-    dataMod = DataModel(Forcings['datl_path'],
-                        Forcings['datl_file'],
-                        Forcings['time_var'],
-                        Forcings['datl_liq_flds'],
-                        Forcings['start'],
-                        Forcings['end'],
-                        Time.timestamp)
+    forcings = config_dict['INPUT_FORCINGS']
+    data_model = DataModel(forcings['datl_path'],
+                           forcings['datl_file'],
+                           forcings['time_var'],
+                           forcings['datl_liq_flds'],
+                           forcings['start'],
+                           forcings['end'],
+                           time_handle.timestamp)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Setup History Tape(s) and Write Initial Outputs
-    History = ConfigDict['HISTORY']
-    HistTapes = {}
+    # Setup history Tape(s) and Write Initial Outputs
+    history = config_dict['HISTORY']
+    hist_tapes = {}
 
-    for j in xrange(ConfigDict['HISTORY']['rvichist_ntapes']):
+    for j in xrange(config_dict['HISTORY']['rvichist_ntapes']):
         tapename = 'Tape.%i' % j
-        HistTapes[tapename] = Tape(Time.timestamp,
-                                   Time.time_ord,
-                                   options['CASEID'],
-                                   routVar,
-                                   fincl=['streamflow'],
-                                   mfilt=History['rvichist_mfilt'][j],
-                                   ndens=History['rvichist_ndens'][j],
-                                   nhtfrq=History['rvichist_nhtfrq'][j],
-                                   avgflag=History['rvichist_avgflag'][j],
-                                   file_format=History['rvichist_ncform'][j],
-                                   outtype=History['rvichist_outtype'][j],
-                                   dom_lons=DomData[Domain['longitude_var']],
-                                   dom_lats=DomData[Domain['latitude_var']],
-                                   out_dir=dirPaths['hist'],
-                                   calendar=Time.calendar,
-                                   GlobAts=ncGlobals(title='RVIC history file',
-                                                     casename=options['CASEID'],
-                                                     casestr=options['CASESTR'],
-                                                     RvicPourPointsFile=routVar.RvicPourPointsFile,
-                                                     RvicUHFile=routVar.RvicUHFile,
-                                                     RvicFdrFile=routVar.RvicFdrFile,
-                                                     RvicDomainFile=Domain['file_name']))
-        HistTapes[tapename].write_initial()
+        hist_tapes[tapename] = Tape(time_handle.timestamp,
+                                    time_handle.time_ord,
+                                    options['CASEID'],
+                                    rout_var,
+                                    fincl=['streamflow'],
+                                    mfilt=history['rvichist_mfilt'][j],
+                                    ndens=history['rvichist_ndens'][j],
+                                    nhtfrq=history['rvichist_nhtfrq'][j],
+                                    avgflag=history['rvichist_avgflag'][j],
+                                    file_format=history['rvichist_ncform'][j],
+                                    outtype=history['rvichist_outtype'][j],
+                                    dom_lons=dom_data[Domain['longitude_var']],
+                                    dom_lats=dom_data[Domain['latitude_var']],
+                                    out_dir=directories['hist'],
+                                    calendar=time_handle.calendar,
+                                    GlobAts=NcGlobals(title='RVIC history file',
+                                                      casename=options['CASEID'],
+                                                      casestr=options['CASESTR'],
+                                                      RvicPourPointsFile=os.path.split(rout_var.RvicPourPointsFile)[1],
+                                                      RvicUHFile=os.path.split(rout_var.RvicUHFile)[1],
+                                                      RvicFdrFile=os.path.split(rout_var.RvicFdrFile)[1],
+                                                      RvicDomainFile=os.path.split(Domain['file_name'])[1]))
+        hist_tapes[tapename].write_initial()
     # ---------------------------------------------------------------- #
 
-    return HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict
+    return hist_tapes, data_model, rout_var, dom_data, time_handle, directories, config_dict
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
-def rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict):
+def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle, directories, config_dict):
     """
     - Loop over flux files
     - Combine the Baseflow and Runoff Variables
@@ -177,57 +177,57 @@ def rvic_run(HistTapes, dataMod, routVar, DomData, Time, dirPaths, ConfigDict):
 
     # ---------------------------------------------------------------- #
     # Start log
-    log = logging.getLogger(log_name)
-    log.info('Starting rvic_run')
+    log = getLogger(LOG_NAME)
+    log.info('Starting rvic_mod_run')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Iterate Through Timesteps
-    while not Time.stop_flag:
-        timestamp = Time.advance_timestep()
-        time_ord = Time.time_ord
+    # Iterate Through time_handlesteps
+    while not time_handle.stop_flag:
+        timestamp = time_handle.advance_timestep()
+        time_ord = time_handle.time_ord
 
         # ------------------------------------------------------------ #
-        # Get This Timesteps Forcing
-        aggrunin = dataMod(timestamp)
+        # Get This time_handlesteps Forcing
+        aggrunin = data_model(timestamp)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Do the Convolution
-        routVar.convolve(aggrunin, timestamp)
+        rout_var.convolve(aggrunin, timestamp)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # Extract the Current Variables from routVar
-        data2tape['streamflow'] = routVar.get_rof()
-        data2tape['storage'] = routVar.get_storage()
+        # Extract the Current Variables from rout_var
+        data2tape['streamflow'] = rout_var.get_rof()
+        data2tape['storage'] = rout_var.get_storage()
 
-        # Update the History Tape(s)
-        for tapename, tape in HistTapes.iteritems():
+        # Update the history Tape(s)
+        for tapename, tape in hist_tapes.iteritems():
             log.debug('Updating Tape:%s' % tapename)
             tape.update(time_ord, data2tape)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Write State
-        if Time.rest_flag or Time.stop_flag:
-            restart_file = routVar.write_restart()
+        if time_handle.rest_flag or time_handle.stop_flag:
+            restart_file = rout_var.write_restart()
 
-            write_rpointer(dirPaths['restarts'], restart_file, timestamp)
+            write_rpointer(directories['restarts'], restart_file, timestamp)
         # ------------------------------------------------------------ #
 
     # ---------------------------------------------------------------- #
-    return Time, HistTapes
+    return time_handle, hist_tapes
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Final
-def rvic_final(Time, HistTapes):
+def rvic_mod_final(time_handle, hist_tapes):
     """ Finalize RVIC """
     # ---------------------------------------------------------------- #
     # Start log
-    log = logging.getLogger(log_name)
+    log = getLogger(LOG_NAME)
     log.info('Finalizing RVIC')
     # ---------------------------------------------------------------- #
 
@@ -235,19 +235,19 @@ def rvic_final(Time, HistTapes):
     # Write final log info
     log.info("-----------------------------------------------------------")
     log.info('Done with streamflow convolution')
-    log.info('Processed %i timesteps' % Time.timesteps)
-    for name, tape in HistTapes.iteritems():
+    log.info('Processed %i timesteps' % time_handle.timesteps)
+    for name, tape in hist_tapes.iteritems():
         log.info('Wrote %i history files from %s' % (tape.files_count, name))
-    log.info('Routed to %i points' % Time.points)
+    log.info('Routed to %i points' % time_handle.points)
     log.info("-----------------------------------------------------------")
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # tar the inputs directory / log file
-    LogTar = TarInputs(log.filename)
+    log_tar = tar_inputs(log.filename)
 
     log.info('Done with RvicGenParam.')
-    log.info('Location of Log: %s' % LogTar)
+    log.info('Location of Log: %s' % log_tar)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
@@ -257,16 +257,16 @@ def rvic_final(Time, HistTapes):
 # Process Command Line
 def process_command_line():
     """
-    Get the path to the configFile
+    Get the path to the config_file
     """
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Do the RVIC Convoluition')
-    parser.add_argument("configFile", type=str, help="Input configuration file")
+    parser = ArgumentParser(description='RVIC is based on the original model of Lohmann, et al., 1996, Tellus, 48(A), 708-721')
+    parser.add_argument("config_file", type=str, help="Input configuration file")
 
     args = parser.parse_args()
-    configFile = args.configFile
+    config_file = args.config_file
 
-    return configFile
+    return config_file
 # -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #

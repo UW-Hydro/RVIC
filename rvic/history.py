@@ -5,14 +5,14 @@ import os
 import numpy as np
 from netCDF4 import Dataset, date2num, num2date
 from datetime import datetime
-import logging
-from log import log_name
-from share import hoursPerDay, timeUnits, nc_int, nc_float, nc_double
-import share as share
+from logging import getLogger
+from log import LOG_NAME
+from share import HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE
+import share
 
 # -------------------------------------------------------------------- #
 # create logger
-log = logging.getLogger(log_name)
+log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
 
@@ -26,16 +26,16 @@ class Tape(object):
     def __init__(self, timestamp, time_ord, caseid, Rvar, fincl=['streamflow'],
                  mfilt=1, ndens=2, nhtfrq=0, avgflag='A',
                  file_format='NETCDF4_CLASSIC', outtype='grid', grid_lons=False,
-                 grid_lats=False, out_dir='.', calendar=None, GlobAts=None):
+                 grid_lats=False, out_dir='.', calendar=None, glob_ats=None):
         self.timestamp = timestamp
         self.time_ord = time_ord        # Days since basetime
         self.caseid = caseid            # Case ID and prefix for outfiles
         self.fincl = fincl              # Fields to include in history file
         self.mfilt = mfilt              # Maximum number of time samples
         if ndens == 1:                  # Output file precision
-            self.ndens = nc_float
+            self.ndens = NC_FLOAT
         else:
-            self.ndens = nc_double
+            self.ndens = NC_DOUBLE
         self.nhtfrq = nhtfrq            # Write frequency
         self.avgflag = avgflag          # Average Flag (A,I,X,M)
         self.outtype = outtype          # Outfile type (grid, array)
@@ -44,7 +44,7 @@ class Tape(object):
         self.file_format = file_format
         self.calendar = calendar
 
-        self.__getRvar(Rvar)            # Gen the Rvar fields
+        self.__get_rvar(Rvar)           # Get the initial Rvar fields
 
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid
@@ -93,7 +93,7 @@ class Tape(object):
         # Check that date matches lastdate + timestep
         if time_ord == (self.time_ord + self.dt):
             self.time_ord = time_ord
-            self.timestamp = num2date(self.time_ord, timeUnits, calendar=self.calendar)
+            self.timestamp = num2date(self.time_ord, TIMEUNITS, calendar=self.calendar)
         else:
             log.error('Current date does not mach the last date + the dt')
             raise
@@ -144,15 +144,15 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # Get import rvar fields
-    def __getRvar(self, Rvar):
-        """ Get the Rvar Fields that are useful in writing output """
-        self.dt = Rvar.uh_timestep
-        self.num_outlets = Rvar.n_outlets
-        self.cell_id_outlet = Rvar.cell_id_outlet
-        self.x_ind_outlet = Rvar.x_ind_outlet
-        self.y_ind_outlet = Rvar.y_ind_outlet
-        self.lon_outlet = Rvar.lon_outlet
-        self.lat_outlet = Rvar.lat_outlet
+    def __get_rvar(self, rvar):
+        """ Get the rvar Fields that are useful in writing output """
+        self.dt = rvar.uh_timestep
+        self.num_outlets = rvar.n_outlets
+        self.cell_id_outlet = rvar.cell_id_outlet
+        self.x_ind_outlet = rvar.x_ind_outlet
+        self.y_ind_outlet = rvar.y_ind_outlet
+        self.lon_outlet = rvar.lon_outlet
+        self.lat_outlet = rvar.lat_outlet
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -164,14 +164,14 @@ class Tape(object):
         if self.nhtfrq == 0:
             if self.time_ord.month == 12:
                 self.next_ord = date2num(datetime(self.time_ord.year + 1, 1, 1),
-                                         timeUnits, calendar=self.calendar)
+                                         TIMEUNITS, calendar=self.calendar)
             else:
                 self.next_ord = date2num(datetime(self.time_ord.year, self.time_ord.month + 1, 1),
-                                         timeUnits, calendar=self.calendar)
+                                         TIMEUNITS, calendar=self.calendar)
 
         # If some hours in the future
         elif self.nhtfrq < 0:
-            self.next_ord = self.time_ord + (self.nhtfrq / hoursPerDay)
+            self.next_ord = self.time_ord + (self.nhtfrq / HOURSPERDAY)
 
         # If some dts in the future
         else:
@@ -181,7 +181,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Get the number of timesteps and datestamp for the next write
         self.write_count = (self.time_ord - self.next_ord) / self.dt
-        self.next_date = num2date(self.next_ord, timeUnits, calendar=self.calendar)
+        self.next_date = num2date(self.next_ord, TIMEUNITS, calendar=self.calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -197,7 +197,7 @@ class Tape(object):
         else:
             self.write_ord = (self.timebound0 + self.timebound1) / 2
 
-        self.filename = num2date(self.write_ord, timeUnits,
+        self.filename = num2date(self.write_ord, TIMEUNITS,
                                  calendar=self.calendar).strftime(self.fname_format)
 
         # ------------------------------------------------------------ #
@@ -322,13 +322,13 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # write global attributes
-        self.GlobAts.update()
-        for key, val in self.GlobAts.__dict__.iteritems():
+        self.glob_ats.update()
+        for key, val in self.glob_ats.__dict__.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % filename)
+        log.info('Finished writing %s' % self.filename)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -369,9 +369,9 @@ class Tape(object):
 
         lon = f.createVariable('lon', self.ndens, coords)
         lat = f.createVariable('lat', self.ndens, coords)
-        x_ind = f.createVariable('x_ind', nc_int, coords)
-        y_ind = f.createVariable('y_ind', nc_int, coords)
-        cell_id = f.createVariable('cell_id', nc_int, coords)
+        x_ind = f.createVariable('x_ind', NC_INT, coords)
+        y_ind = f.createVariable('y_ind', NC_INT, coords)
+        cell_id = f.createVariable('cell_id', NC_INT, coords)
         lon[:] = self.lon_outlet
         lat[:] = self.lat_outlet
         x_ind[:] = self.x_ind_outlet
@@ -414,12 +414,12 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # write global attributes
-        self.GlobAts.update()
-        for key, val in self.GlobAts.__dict__.iteritems():
+        self.glob_ats.update()
+        for key, val in self.glob_ats.__dict__.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % filename)
+        log.info('Finished writing %s' % self.filename)
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #

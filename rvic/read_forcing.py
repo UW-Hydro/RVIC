@@ -2,15 +2,15 @@
 read_forcings.py
 """
 
+from calendar import monthrange
+from bisect import bisect_right
 from netCDF4 import Dataset, num2date, date2num, date2index
-from log import log_name
-import calendar
-import bisect
-import logging
+from logging import getLogger
+from log import LOG_NAME
 
 # -------------------------------------------------------------------- #
 # create logger
-log = logging.getLogger(log_name)
+log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
 
@@ -71,7 +71,7 @@ class DataModel(object):
                 if year == end[0] and month == end[1] and day == end[2]:
                     break
                 else:
-                    if day == calendar.monthrange(year, month)[1]:
+                    if day == monthrange(year, month)[1]:
                         day = 1
                         if month == 12:
                             year += 1
@@ -107,7 +107,7 @@ class DataModel(object):
         # find and open first file
         self.ordtime = date2num(timestamp, self.units, calendar=self.calendar)
 
-        self.current_filenum = bisect.bisect_right(self.start_dates, self.ordtime)
+        self.current_filenum = bisect_right(self.start_dates, self.ordtime)
         self.current_file = self.files[self.current_filenum]
         self.current_fhdl = Dataset(self.current_file, 'r+')
 
@@ -134,7 +134,7 @@ class DataModel(object):
                 log.error('Timestamp is exceeds date range in input files')
                 raise
 
-            new_filenum = bisect.bisect_right(self.start_dates, self.ordtime)
+            new_filenum = bisect_right(self.start_dates, self.ordtime)
             if new_filenum != self.current_filenum:
                 # close the current file and open a new one
                 self.current_fhdl.close()
