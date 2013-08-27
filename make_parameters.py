@@ -159,7 +159,7 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Read domain file (if applicable)
-    if options['remap']:
+    if options['REMAP']:
         dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
         log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
     else:
@@ -168,7 +168,7 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Group pour points (if aggregate)
-    if options['aggregate']:
+    if options['AGGREGATE']:
         outlets = make_agg_pairs(pour_points['lons'], pour_points['lats'],
                                  dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']],
                                  dom_data[config_dict['DOMAIN']['LATITUDE_VAR']],
