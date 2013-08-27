@@ -74,16 +74,16 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Setup Directory Structures
-    directories = make_directories(config_dict['OPTIONS']['CASE_DIR'],
+    directories = make_directories(config_dict['options']['CASE_DIR'],
                                    ['plots', 'logs', 'params', 'inputs'])
-    directories.update(make_directories(config_dict['OPTIONS']['TEMP_DIR'],
+    directories.update(make_directories(config_dict['options']['TEMP_DIR'],
                                         ['aggregated', 'remapped']))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # copy inputs to $case_dir/inputs and update configuration
     config_dict = copy_inputs(config_file, directories['inputs'])
-    options = config_dict['OPTIONS']
+    options = config_dict['options']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -218,15 +218,15 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
         # -------------------------------------------------------- #
         # aggregate
-        if config_dict['OPTIONS']['AGGREGATE']:
+        if config_dict['options']['AGGREGATE']:
             if j != len(outlet.pour_points)-1:
                 agg_data = aggregate(rout_data, agg_data, res=fdr_data['resolution'])
             else:
                 agg_data = aggregate(rout_data, agg_data, res=fdr_data['resolution'],
-                                     pad=config_dict['OPTIONS']['AGG_PAD'], maskandnorm=True)
+                                     pad=config_dict['options']['AGG_PAD'], maskandnorm=True)
 
                 log.debug('agg_data: %f, %f' % (agg_data['unit_hydrograph'].min(), agg_data['unit_hydrograph'].max()))
-        elif config_dict['OPTIONS']['REMAP']:
+        elif config_dict['options']['REMAP']:
             agg_data = rout_data
         else:
             remap_data = rout_data
@@ -234,7 +234,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
     # ------------------------------------------------------------ #
     # write temporary file #1
-    if config_dict['OPTIONS']['REMAP']:
+    if config_dict['options']['REMAP']:
         glob_atts = NcGlobals(title='RVIC Unit Hydrograph Grid File',
                               RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
                               RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
@@ -244,8 +244,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
         temp_file_1 = os.path.join(directories['aggregated'], 'aggUH_%i.nc' % outlet.cell_id)
 
         write_agg_netcdf(temp_file_1, agg_data, glob_atts,
-                         config_dict['OPTIONS']['NETCDF_FORMAT'])
-    elif config_dict['OPTIONS']['AGGREGATE']:
+                         config_dict['options']['NETCDF_FORMAT'])
+    elif config_dict['options']['AGGREGATE']:
         remap_data = agg_data
     else:
         pass
@@ -253,7 +253,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
     # ------------------------------------------------------------ #
     # Remap temporary file #1 to temporary file #2
-    if config_dict['OPTIONS']['REMAP']:
+    if config_dict['options']['REMAP']:
 
         temp_file_2 = os.path.join(directories['remapped'], 'remapUH_%i.nc' % outlet.cell_id)
 
@@ -261,7 +261,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
         # -------------------------------------------------------- #
         # Clean temporary file #1 (if applicable)
-        if config_dict['OPTIONS']['CLEAN']:
+        if config_dict['options']['CLEAN']:
             clean_file(temp_file_1)
         # -------------------------------------------------------- #
 
@@ -273,7 +273,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
         # -------------------------------------------------------- #
         # Clean temporary file #2 (if applicable)
-        if config_dict['OPTIONS']['CLEAN']:
+        if config_dict['options']['CLEAN']:
             clean_file(temp_file_2)
         # -------------------------------------------------------- #
 
@@ -283,7 +283,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
     # ------------------------------------------------------------ #
     # Add to adjust fractions Structure
-    if config_dict['OPTIONS']['REMAP']:
+    if config_dict['options']['REMAP']:
         y, x = np.nonzero((remap_data['fraction'] > 0.0) * (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
 
         outlet.fractions = remap_data['fraction'][y, x]
@@ -308,7 +308,7 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
     log = getLogger(LOG_NAME)
     log.info('Starting gen_uh_final now.')
 
-    options = config_dict['OPTIONS']
+    options = config_dict['options']
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
