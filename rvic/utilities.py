@@ -29,9 +29,9 @@ def write_rpointer(restart_dir, restart_file, timestamp):
 
     time_str = timestamp.strftime(TIMESTAMPFORM)
 
-    config.add_section('restart')
-    config.set('restart', 'file_name', os.path.join(restart_dir, restart_file))
-    config.set('restart', 'timestamp', time_str)
+    config.add_section('RESTART')
+    config.set('RESTART', 'FILE_NAME', os.path.join(restart_dir, restart_file))
+    config.set('RESTART', 'TIMESTAMP', time_str)
 
     with open(rpointer_file, 'a') as configfile:
         config.write(configfile)
@@ -80,7 +80,7 @@ def check_ncvars(config_section, nckeys):
     for key, value in config_section.iteritems():
         if key.endswith('var'):
             if value not in nckeys:
-                log.error('%s (%s) not in %s' % (value, key, config_section['file_name']))
+                log.error('%s (%s) not in %s' % (value, key, config_section['FILE_NAME']))
                 raise NameError('Check netcdf that netcdf variable names match those in the configuration file')
     return
 # -------------------------------------------------------------------- #
@@ -221,19 +221,19 @@ def copy_inputs(config_file, InputsDir):
     # ---------------------------------------------------------------- #
     # copy the inputs
     for key, section in config_dict.iteritems():
-        if 'file_name' in section.keys():
+        if 'FILE_NAME' in section.keys():
             new_file_name = os.path.join(InputsDir,
-                                         os.path.split(section['file_name'])[1])
+                                         os.path.split(section['FILE_NAME'])[1])
 
-            copyfile(section['file_name'], new_file_name)
+            copyfile(section['FILE_NAME'], new_file_name)
 
             # update the config file for an easy restart
-            config.set(key, 'file_name',
+            config.set(key, 'FILE_NAME',
                        os.path.join(InputsDir,
-                                    os.path.split(section['file_name'])[1]))
+                                    os.path.split(section['FILE_NAME'])[1]))
 
             # update the config_dict with the new value
-            config_dict[key]['file_name'] = new_file_name
+            config_dict[key]['FILE_NAME'] = new_file_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -280,9 +280,11 @@ def subset(uh, subset, threshold):
     out_uh = np.zeros((subset, uh.shape[1]))
 
     for i in xrange(uh.shape[1]):
-        offset[i] = np.nonzero(uh[:, i] > threshold)[0][0]       # find position of first index > threshold
-        end = np.minimum(uh.shape[0], offset[i]+subset)          # find end point
-        out_uh[:end-offset[i], i] = uh[offset[i]:end, i] / uh[offset[i]:end, i].sum()  # clip and normalize
+        start = np.nonzero(uh[:, i] > threshold)[0][0]       # find position of first index > threshold
+        end = np.minimum(full_length, start+subset)          # find end point
+        start = np.minimum(start, full_length-subset)
+        offset[i] = start
+        out_uh[:, i] = uh[start:end, i] / uh[start:end, i].sum()  # clip and normalize
 
     return offset, out_uh, full_length
 # -------------------------------------------------------------------- #
@@ -295,36 +297,37 @@ def read_domain(domain_dict):
     Read the domain file and return all the variables and attributes.
     Area is returned in m2
     """
-    dom_data, dom_vatts, dom_gatts = read_netcdf(domain_dict['file_name'])
+    print domain_dict
+    dom_data, dom_vatts, dom_gatts = read_netcdf(domain_dict['FILE_NAME'])
 
     check_ncvars(domain_dict, dom_data.keys())
 
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
-    dom_data['cell_ids'] = np.arange(dom_data[domain_dict['land_mask_var']].size).reshape(dom_data[domain_dict['land_mask_var']].shape)
+    dom_data['cell_ids'] = np.arange(dom_data[domain_dict['LAND_MASK_VAR']].size).reshape(dom_data[domain_dict['LAND_MASK_VAR']].shape)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Make sure the area is in m2
-    if dom_vatts[domain_dict['area_var']]['units'] in ["rad2", "radians2", "radian2", "rad^2",
+    if dom_vatts[domain_dict['AREA_VAR']]['units'] in ["rad2", "radians2", "radian2", "rad^2",
                                                     "radians^2", "rads^2", "radians squared",
                                                     "square-radians"]:
-        dom_data[domain_dict['area_var']] = dom_data[domain_dict['area_var']] * EARTHRADIUS * EARTHRADIUS
-    elif dom_vatts[domain_dict['area_var']]['units'] in ["m2", "m^2", "meters^2", "meters2",
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * EARTHRADIUS * EARTHRADIUS
+    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["m2", "m^2", "meters^2", "meters2",
                                                       "square-meters", "meters squared"]:
-        dom_data[domain_dict['area_var']] = dom_data[domain_dict['area_var']]
-    elif dom_vatts[domain_dict['area_var']]['units'] in ["km2", "km^2", "kilometers^2",
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]
+    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["km2", "km^2", "kilometers^2",
                                                       "kilometers2", "square-kilometers",
                                                       "kilometers squared"]:
-        dom_data[domain_dict['area_var']] = dom_data[domain_dict['area_var']] * METERSPERKM * METERSPERKM
-    elif dom_vatts[domain_dict['area_var']]['units'] in ["mi2", "mi^2", "miles^2", "miles",
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * METERSPERKM * METERSPERKM
+    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["mi2", "mi^2", "miles^2", "miles",
                                                       "square-miles", "miles squared"]:
-        dom_data[domain_dict['area_var']] = dom_data[domain_dict['area_var']] * METERSPERMILE * METERSPERMILE
-    elif dom_vatts[domain_dict['area_var']]['units'] in ["acres", "ac", "ac."]:
-        dom_data[domain_dict['area_var']] = dom_data[domain_dict['area_var']] * METERS2PERACRE
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * METERSPERMILE * METERSPERMILE
+    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["acres", "ac", "ac."]:
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * METERS2PERACRE
     else:
-        log.warning("WARNING: UNKNOWN AREA UNITS (%s), ASSUMING THEY ARE IN "
-                    "SQUARE METERS" % dom_data[domain_dict['area_var']]['units'])
+        log.warning("WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN "
+                    "SQUARE METERS" % dom_data[domain_dict['AREA_VAR']]['units'])
     # ---------------------------------------------------------------- #
     return dom_data, dom_vatts, dom_gatts
 # -------------------------------------------------------------------- #
