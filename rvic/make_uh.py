@@ -39,17 +39,17 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Find Basin Dims and ID
-    pour_point.x = find_nearest(fdr_data[rout_dict['longitude_var']], pour_point.lon)
-    pour_point.y = find_nearest(fdr_data[rout_dict['latitude_var']], pour_point.lat)
-    basin_id = fdr_data[rout_dict['basin_id_var']][pour_point.y, pour_point.x]
+    pour_point.x = find_nearest(fdr_data[rout_dict['LONGITUDE_VAR']], pour_point.lon)
+    pour_point.y = find_nearest(fdr_data[rout_dict['LATITUDE_VAR']], pour_point.lat)
+    basin_id = fdr_data[rout_dict['BASIN_ID_VAR']][pour_point.y, pour_point.x]
 
     log.info('Input Latitude: %f' % pour_point.lat)
     log.info('Input Longitude: %f' % pour_point.lon)
     log.info('Global Basid ID: %i' % basin_id)
 
-    y_inds, x_inds = np.nonzero(fdr_data[rout_dict['basin_id_var']] == basin_id)
-    y = np.arange(len(fdr_data[rout_dict['latitude_var']]))
-    x = np.arange(len(fdr_data[rout_dict['longitude_var']]))
+    y_inds, x_inds = np.nonzero(fdr_data[rout_dict['BASIN_ID_VAR']] == basin_id)
+    y = np.arange(len(fdr_data[rout_dict['LATITUDE_VAR']]))
+    x = np.arange(len(fdr_data[rout_dict['LONGITUDE_VAR']]))
 
     x_min = min(x[x_inds])
     x_max = max(x[x_inds])+1
@@ -60,11 +60,11 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # ---------------------------------------------------------------- #
     # Create the Basin Dictionary, a subset of the fdr_data
     basin = {}
-    basin['lat'] = fdr_data[rout_dict['latitude_var']][y_min:y_max]
-    basin['lon'] = fdr_data[rout_dict['longitude_var']][x_min:x_max]
-    basin['basin_id'] = fdr_data[rout_dict['basin_id_var']][y_min:y_max, x_min:x_max]
-    basin['flow_direction'] = fdr_data[rout_dict['flow_direction_var']][y_min:y_max, x_min:x_max]
-    basin['flow_distance'] = fdr_data[rout_dict['flow_distance_var']][y_min:y_max, x_min:x_max]
+    basin['lat'] = fdr_data[rout_dict['LATITUDE_VAR']][y_min:y_max]
+    basin['lon'] = fdr_data[rout_dict['LONGITUDE_VAR']][x_min:x_max]
+    basin['basin_id'] = fdr_data[rout_dict['BASIN_ID_VAR']][y_min:y_max, x_min:x_max]
+    basin['flow_direction'] = fdr_data[rout_dict['FLOW_DIRECTION_VAR']][y_min:y_max, x_min:x_max]
+    basin['flow_distance'] = fdr_data[rout_dict['FLOW_DISTANCE_VAR']][y_min:y_max, x_min:x_max]
     basin['velocity'] = fdr_data['velocity'][y_min:y_max, x_min:x_max]
     basin['diffusion'] = fdr_data['diffusion'][y_min:y_max, x_min:x_max]
 
@@ -82,7 +82,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Determine low direction syntax
-    if 'VIC' in fdr_atts[rout_dict['flow_direction_var']]:
+    if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']]:
         # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/VIC/Documentation/Routing/FlowDirection.shtml
         dy = {1: -1, 2: -1, 3: 0, 4: 1, 5: 1, 6: 1, 7: 0, 8: -1}
         dx = {1: 0, 2: 1, 3: 1, 4: 1, 5: 0, 6: -1, 7: -1, 8: - 1}
@@ -98,8 +98,8 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # Find timestep (timestep is determined from uh_BOX input file)
     input_interval = find_ts(uh_t)
     rout_data['unit_hydrograph_dt'] = input_interval
-    t_cell = int(rout_dict['cell_flowdays']*SECSPERDAY/input_interval)
-    t_uh = int(rout_dict['basin_flowdays']*SECSPERDAY/input_interval)
+    t_cell = int(rout_dict['CELL_FLOWDAYS']*SECSPERDAY/input_interval)
+    t_uh = int(rout_dict['BASIN_FLOWDAYS']*SECSPERDAY/input_interval)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -140,7 +140,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # Agregate to output timestep
     rout_data['unit_hydrograph'], rout_data['timesteps'] = adjust_uh_timestep(uh_s, t_uh,
                                                                      input_interval,
-                                                                     rout_dict['output_interval'],
+                                                                     rout_dict['OUTPUT_INTERVAL'],
                                                                      catchment['x_inds'],
                                                                      catchment['y_inds'])
     # ---------------------------------------------------------------- #

@@ -16,7 +16,7 @@ METERSPERMILE = 1609.34
 METERS2PERACRE = 4046.856
 
 # time
-BASETIME = '0000-1-1 0:0:0'
+BASETIME = '0001-1-1 0:0:0'
 TIMEUNITS = 'days since ' + BASETIME
 TIMESTAMPFORM = '%Y-%m-%d-%H'
 CALENDAR = 'noleap'
@@ -43,6 +43,8 @@ FILLVALUE_I = default_fillvals[NC_INT]
 # filenames
 RPOINTER = 'rpointer'
 
+# tracers
+RVIC_TRACERS = ('LIQ',)
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #
 class NcGlobals:

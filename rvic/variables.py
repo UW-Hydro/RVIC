@@ -3,10 +3,10 @@ variables.py
 """
 import os
 import numpy as np
-from netCDF4 import Dataset, date2num
+from netCDF4 import Dataset, date2num, num2date
 from logging import getLogger
 from log import LOG_NAME
-from share import TIMEUNITS, NC_INT, NC_DOUBLE, NcGlobals
+from share import TIMEUNITS, NC_INT, NC_DOUBLE, RVIC_TRACERS, NcGlobals
 import share
 
 # -------------------------------------------------------------------- #
@@ -43,63 +43,100 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     # Initialize
-    def __init__(self, ParamFile, CaseName, timestamp, calendar, GlobAts, out_dir):
-        self.ParamFile = ParamFile
-        f = Dataset(ParamFile, 'r+')
+    def __init__(self, param_file, case_name, calendar, out_dir, file_format):
+        self.param_file = param_file
+        f = Dataset(param_file, 'r+')
         self.n_sources = len(f.dimensions['sources'])
         self.n_outlets = len(f.dimensions['outlets'])
-        self.subset_length = f.variables['subset_length'][:]
-        self.full_time_length = f.variables['full_time_length'][:]
-        self.unit_hydrogaph_dt = f.variables['unit_hydrogaph_dt'][:]
+        self.subset_length = f.variables['subset_length'][0]
+        self.full_time_length = f.variables['full_time_length'][0]
+        self.unit_hydrograph_dt = f.variables['unit_hydrograph_dt'][0]
         self.source_lon = f.variables['source_lon'][:]
         self.source_lat = f.variables['source_lat'][:]
         self.source_x_ind = f.variables['source_x_ind'][:]
         self.source_y_ind = f.variables['source_y_ind'][:]
         self.source_time_offset = f.variables['source_time_offset'][:]
         self.source2outlet_ind = f.variables['source2outlet_ind'][:]
-        self.outlet_x_ind = f.variables['outlet_x_ind '][:]
+        self.outlet_x_ind = f.variables['outlet_x_ind'][:]
         self.outlet_y_ind = f.variables['outlet_y_ind'][:]
-        self.outlet_lon = f.variables['outlet_lon '][:]
+        self.outlet_lon = f.variables['outlet_lon'][:]
         self.outlet_lat = f.variables['outlet_lat'][:]
-        self.outlet_decomp_id = f.variables['outlet_decomp_id '][:]
+        self.outlet_mask = f.variables['outlet_mask'][:]
+        self.outlet_decomp_ind = f.variables['outlet_decomp_ind'][:]
         self.unit_hydrograph = f.variables['unit_hydrograph'][:]
+        self.RvicDomainFile = f.RvicDomainFile
         self.RvicPourPointsFile = f.RvicPourPointsFile
         self.RvicUHFile = f.RvicUHFile
         self.RvicFdrFile = f.RvicFdrFile
-        self.RvicDomainFile = f.RvicDomainFile
+        self.file_format = file_format
+        self.glob_atts = NcGlobals(title='RVIC restart file',
+                                   RvicPourPointsFile=f.RvicPourPointsFile,
+                                   RvicUHFile=f.RvicUHFile,
+                                   RvicFdrFile=f.RvicFdrFile,
+                                   RvicDomainFile=f.RvicDomainFile,
+                                   casename=case_name)
         f.close()
 
         # ------------------------------------------------------------ #
         # Initialize state variables
-        self.ring = np.zeros((self.full_time_length, self.n_outlets))
-        self.ring_time = np.zeros(self.n_outlets)
+        self.ring = np.zeros((self.full_time_length, self.n_outlets, len(RVIC_TRACERS)))
+        #self.ring_time = np.zeros(self.n_outlets)
         # ------------------------------------------------------------ #
 
-        self.caseName = CaseName
+
         self.calendar = calendar
-        self.fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (self.caseName))
-        self.timestamp = timestamp
+        self.fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
+ # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Check that grid file matches
+    def check_grid_file(self, domain_file):
+        """Confirm that the grid files match in the parameter and domain files"""
+        input_file = os.path.split(domain_file)[1]
+        log.info('domain_file: %s' % input_file)
+        log.info('Parameter RvicDomainFile: %s' % self.RvicDomainFile)
+
+        if input_file == self.RvicDomainFile:
+            log.info('Grid files match in parameter and domain file')
+        else:
+            raise  ValueError('Grid files do not match in parameter and domain file')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initilize State
-    def init_state(self, StateFile):
-        f = Dataset(StateFile, 'r+')
-        self.ring = f.variables['ring'][:]
-        self.ring_time = f.variables['time'][:]
-        self.StateFile = StateFile
+    def init_state(self, state_file, run_type, timestamp):
+        if state_file:
+            log.info('reading state_file: %s' %state_file)
+            f = Dataset(state_file, 'r+')
+            self.ring = f.variables['ring'][:]
 
-        # Check that timestep and outlet_decomp_ids match ParamFile
-        if f.variables['timestep'][:] != self.unit_hydrogaph_dt:
-            log.error('Timestep in Statefile does not match timestep in ParamFile')
-            raise
-        if f.variables['s_outlet_decomp_id'][:] != self.outlet_decomp_id:
-            log.error('outlet_decomp_id in Statefile does not match ParamFile')
-            raise
-        if f.variables['RvicDomainFile'][:] != self.RvicDomainFile:
-            log.error('RvicDomainFile in Statefile does not match ParamFile')
-            raise
-        f.close()
+            if run_type == 'restart':
+                self.timestamp = num2date(f.variables['time'][:],
+                                          f.variables['time'].units,
+                                          calendar=f.variables['time'].calendar)[0]
+
+            elif run_type == 'startup':
+                self.timestamp = timestamp
+                if timestamp != num2date(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar):
+                    log.warning('restart timestamps do not match')
+                    log.warning('Runtype is startup so model will continue')
+            else:
+                raise ValueError('unknown run_type: %s' %run_type)
+
+            # Check that timestep and outlet_decomp_ids match ParamFile
+            if f.variables['unit_hydrograph_dt'][:] != self.unit_hydrograph_dt:
+                raise ValueError('Timestep in Statefile does not match timestep in ParamFile')
+            if not np.array_equal(f.variables['outlet_decomp_ind'][:], self.outlet_decomp_ind):
+                raise ValueError('outlet_decomp_ind in Statefile does not match ParamFile')
+            if f.RvicDomainFile != self.RvicDomainFile:
+                raise ValueError('RvicDomainFile in Statefile does not match ParamFile')
+            f.close()
+        elif (not state_file and run_type != 'drystart'):
+            log.error('run_type=%s' % run_type)
+            raise ValueError('No statefile provided and run_type=!drystart')
+        else:
+            log.info('no state file provided (run is drystart)')
+            self.timestamp = timestamp
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -112,40 +149,35 @@ class Rvar(object):
         convolution ring.  The convolution ring is saved as the state.  The first
         column of values in the ring are the current runoff.
         """
+        log.info('doing convolution for %s' %timestamp)
         if timestamp > self.timestamp:
             self.timestamp = timestamp
         else:
-            log.error('Timestep did not advance between convolution calls')
-            raise
+            raise ValueError('Timestep did not advance between convolution calls')
 
+        log.debug('rolling the ring')
         # First update the ring
-        self.ring[0, :] = 0                         # Zero out current ring
-        self.ring = np.roll(self.ring, 1, axis=0)  # Equivalent to Fortran 90 cshift function
+        self.ring[0, :, 0] = 0                         # Zero out current ring
+        self.ring = np.roll(self.ring, 1, axis=0)   # Equivalent to Fortran 90 cshift function
 
+        log.debug('convolving')
         # this matches the fortran implementation, it may be faster to use np.convolve but testing
         # can be done later
-        for s, outlet in enumerate(self.source2outlet_ind):   # loop over all source points
-            y = self.source_y_ind[s]
-            x = self.source_x_ind[s]
-            for i in xrange(self.subset_length):
-                j = i + self.source_time_offset[s]
-                self.ring[j, outlet] = self.ring[j, outlet] + (self.unit_hydrogaph[i, s] * aggrunin[y, x])
-    # ---------------------------------------------------------------- #
+        # also this is where the parallelization will happen
+        for nt, tracer in enumerate(RVIC_TRACERS):
+            for s, outlet in enumerate(self.source2outlet_ind):   # loop over all source points
+                y = self.source_y_ind[s]
+                x = self.source_x_ind[s]
+                for i in xrange(self.subset_length):
+                    j = i + self.source_time_offset[s]
+                    self.ring[j, outlet, nt] = self.ring[j, outlet, nt] + (self.unit_hydrograph[i, s, nt] * aggrunin[tracer][y, x])
 
-    # ---------------------------------------------------------------- #
-    # Fortran 90 cshift function
-    def __cshift(l, offset):
-        """
-        see F90  cshift with offset=-offset
-        """
-        offset %= len(l)
-        return np.concatenate((l[offset:], l[:offset]))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Extract the current rof
     def get_rof(self):
-        return self.ring[0, :]     # Current timestep flux (units=kg m-2 s-1)
+        return self.ring[0, :, 0]     # Current timestep flux (units=kg m-2 s-1)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -156,7 +188,7 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     # Write the current state
-    def write_state(self):
+    def write_restart(self):
 
         # ------------------------------------------------------------ #
         # Open file
@@ -175,6 +207,7 @@ class Rvar(object):
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
+        time.calendar = self.calendar
 
         # Timesteps
         timesteps = f.createDimension('timesteps', self.full_time_length)
@@ -184,47 +217,48 @@ class Rvar(object):
         for key, val in share.timesteps.__dict__.iteritems():
             if val:
                 setattr(timesteps, key, val)
-        timesteps.timestep_length = 'timestep'
+        timesteps.timestep_length = 'unit_hydrograph_dt'
 
         # UH timestep
-        timestep = f.createVariable('unit_hydrogaph_dt', NC_DOUBLE, ())
-        timestep[:] = self.unit_hydrogaph_dt
-        for key, val in share.timestep.__dict__.iteritems():
+        unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt', NC_DOUBLE, ())
+        unit_hydrograph_dt[:] = self.unit_hydrograph_dt
+        for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
             if val:
-                setattr(timestep, key, val)
+                setattr(unit_hydrograph_dt, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Setup Coordinate Variables
-        coords = ('outlets',)
+        coords = ('outlets', 'tracers')
 
-        outlets = f.createDimension(coords[0], self.num_outlets)
+        outlets = f.createDimension(coords[0], self.n_outlets)
+        tracers = f.createDimension(coords[1], len(RVIC_TRACERS))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Write Fields
-        oyi = f.createVariable('outlet_y_ind', NC_INT, coords)
+        oyi = f.createVariable('outlet_y_ind', NC_INT, coords[0])
         oyi[:] = self.outlet_y_ind
         for key, val in share.outlet_y_ind.__dict__.iteritems():
             if val:
                 setattr(oyi, key, val)
 
-        oxi = f.createVariable('outlet_x_ind', NC_INT, coords)
+        oxi = f.createVariable('outlet_x_ind', NC_INT, coords[0])
         oxi[:] = self.outlet_x_ind
         for key, val in share.outlet_x_ind.__dict__.iteritems():
             if val:
                 setattr(oxi, key, val)
 
-        odi = f.createVariable('outlet_decomp_id', NC_INT, coords)
-        odi[:] = self.outlet_decomp_id
-        for key, val in share.outlet_decomp_id.__dict__.iteritems():
+        odi = f.createVariable('outlet_decomp_ind', NC_INT, coords[0])
+        odi[:] = self.outlet_decomp_ind
+        for key, val in share.outlet_decomp_ind.__dict__.iteritems():
             if val:
                 setattr(odi, key, val)
 
         tcoords = ('timesteps',) + coords
 
         ring = f.createVariable('ring', NC_DOUBLE, tcoords)
-        ring[:, :] = self.ring
+        ring[:, :, :] = self.ring
 
         for key, val in share.ring.__dict__.iteritems():
             if val:
@@ -233,15 +267,9 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # write global attributes
-        if self.GlobAts:
-            self.GlobAts.update()
-        else:
-            self.GlobAts = NcGlobals(title='RVIC restart file',
-                                     RvicPourPointsFile=self.RvicPourPointsFile,
-                                     RvicUHFile=self.RvicUHFile,
-                                     RvicFdrFile=self.RvicFdrFile,
-                                     RvicDomainFile=self.RvicDomainFile)
-        for key, val in self.GlobAts.__dict__.iteritems():
+        self.glob_atts.update()
+
+        for key, val in self.glob_atts.__dict__.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #

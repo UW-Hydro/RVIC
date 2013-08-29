@@ -62,7 +62,7 @@ class Dtime(object):
 
     def advance_timestep(self):
         self.time_ord += self.dt
-        self.timestamp = num2date(self.time_ord, self.time_units, calendar=self.calendar)
+        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
         self.timesteps += 1
         self.stop_flag = self.stop()
         self.rest_flag = self.rest()
@@ -72,67 +72,85 @@ class Dtime(object):
     # ---------------------------------------------------------------- #
     # Time to stop run
     def stop(self):
+        flag = False
         if self.stop_option == 'nsteps':
             if self.timesteps >= self.stop_n:
-                return True
+                flag = True
         elif self.stop_option == 'nseconds':
             if (self.timesteps * self.dt / SECSPERDAY) >= self.stop_n:
-                return True
+                flag = True
         elif self.stop_option == 'nminutes':
             if (self.timesteps * self.dt / MINSPERDAY) >= self.stop_n:
-                return True
+                flag = True
         elif self.stop_option == 'nhours':
             if (self.timesteps * self.dt / HOURSPERDAY) >= self.stop_n:
-                return True
+                flag = True
         elif self.stop_option == 'ndays':
             if (self.timesteps * self.dt) >= self.stop_n:
-                return True
+                flag = True
         elif self.stop_option == 'nmonths':
-            if relativedelta(self.timestamp, self.run_startdate).months >= self.stop_n:
-                return True
+            if relativedelta(self.timestamp, self.start_date).months >= self.stop_n:
+                flag = True
         elif self.stop_option == 'nyears':
-            if relativedelta(self.timestamp, self.run_startdate).years >= self.stop_n:
-                return True
+            if relativedelta(self.timestamp, self.start_date).years >= self.stop_n:
+                flag = True
         elif self.stop_option == 'date':
             if self.timestamp >= self.stop_date:
-                return True
+                flag = True
         elif self.end:
-            return True
+            flag = True
         else:
-            return False
+            pass
+        return flag
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Time to write restart?
     def rest(self):
+        flag = False
         if self.rest_option == 'nsteps':
             if self.timesteps >= self.rest_n:
-                return True
+                flag = True
         elif self.rest_option == 'nseconds':
             if (self.timesteps * self.dt / SECSPERDAY) >= self.rest_n:
-                return True
+                flag = True
         elif self.rest_option == 'nminutes':
             if (self.timesteps * self.dt / MINSPERDAY) >= self.rest_n:
-                return True
+                flag = True
         elif self.rest_option == 'nhours':
             if (self.timesteps * self.dt / HOURSPERDAY) >= self.rest_n:
-                return True
+                flag = True
         elif self.rest_option == 'ndays':
             if (self.timesteps * self.dt) >= self.rest_n:
-                return True
+                flag = True
         elif self.rest_option == 'nmonths':
-            if relativedelta(self.timestamp, self.run_startdate).months >= self.rest_n:
-                return True
+            if relativedelta(self.timestamp, self.start_date).months >= self.rest_n:
+                flag = True
         elif self.rest_option == 'nyears':
-            if relativedelta(self.timestamp, self.run_startdate).years >= self.rest_n:
-                return True
+            if relativedelta(self.timestamp, self.start_date).years >= self.rest_n:
+                flag = True
         elif self.rest_option == 'date':
             if self.timestamp >= self.rest_date:
-                return True
+                flag = True
         elif self.end:
-            return True
+            flag = True
         else:
-            return False
+            pass
+        return flag
     # ---------------------------------------------------------------- #
+# -------------------------------------------------------------------- #
 
+# -------------------------------------------------------------------- #
+def ord_to_datetime(time, units, calendar='standard'):
+    """
+    netCDF4.num2date yields a fake datetime object, this function converts
+    converts that back to a real datetime object
+    """
+    # this is the netCDF4.datetime object
+    # if the calendar is standard, t is already a real datetime object
+    t = num2date(time, units, calendar=calendar)
+    if calendar in ['proleptic_gregorian', 'standard', 'gregorian']:
+        return t
+    else:
+        return datetime(t.year, t.month, t.day, t.hour, t.minute, t.second)
 # -------------------------------------------------------------------- #

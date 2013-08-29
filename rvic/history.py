@@ -7,7 +7,7 @@ from netCDF4 import Dataset, date2num, num2date
 from datetime import datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE
 import share
 
 # -------------------------------------------------------------------- #
@@ -43,8 +43,9 @@ class Tape(object):
         self.files_count = 0
         self.file_format = file_format
         self.calendar = calendar
-
+        self.out_dir = out_dir
         self.__get_rvar(Rvar)           # Get the initial Rvar fields
+        self.glob_ats = glob_ats
 
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid
@@ -54,10 +55,13 @@ class Tape(object):
                 self.grid_lats = grid_lats
                 self._gdata = {}
                 for field in self.fincl:
-                    self._gdata[field] = np.zeros(self.grid_lons.shape)
+                    if grid_lons.ndim == 1:
+                        shape = (self.mfilt,) + self.grid_lats.shape + self.grid_lons.shape
+                    else:
+                        shape = (self.mfilt,) + self.grid_lons.shape
+                    self._gdata[field] = np.zeros(shape)
             else:
-                log.error('Must include grid lons / lats if outtype == grid')
-                raise
+                raise ValueError('Must include grid lons / lats if outtype == grid')
 
         # ------------------------------------------------------------ #
 
@@ -65,38 +69,64 @@ class Tape(object):
         # Initialize the history fields
         self._data = {}
         for field in self.fincl:
-            self._data[field] = np.zeros((self.mfilt,)+self.num_outlets)
+            self._data[field] = np.zeros((self.mfilt, self.num_outlets))
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Determine the format of the output filename
+        if nhtfrq == 0:
+            self.fname_format = os.path.join(out_dir,
+                                             "%s.rvic.h%s.%%Y-%%m.nc" % (self.caseid, self.avgflag.lower()))
+        elif nhtfrq == -24:
+            self.fname_format = os.path.join(out_dir,
+                                             "%s.rvic.h%s.%%Y-%%m-%%d.nc" % (self.caseid, self.avgflag.lower()))
+        else:
+            self.fname_format = os.path.join(out_dir,
+                                             "%s.rvic.h%s.%%Y-%%m-%%d-%%H.nc" % (self.caseid, self.avgflag.lower()))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Determine when the next write should be
         self.__next_write()
         # ------------------------------------------------------------ #
+    # ---------------------------------------------------------------- #
 
-        # ------------------------------------------------------------ #
-        # Determine the format of the output filename
-        if nhtfrq == 0:
-            self.fname_format = os.path.join(out_dir, "%s.rvic.oh%s.%%Y-%%m.nc" % (self.caseid, self.avgflag.lower()))
-        if nhtfrq == -24:
-            self.fname_format = os.path.join(out_dir, "%s.rvic.oh%s.%%Y-%%m-%%d.nc" % (self.caseid, self.avgflag.lower()))
-        else:
-            self.fname_format = os.path.join(out_dir, "%s.rvic.oh%s.%%Y-%%m-%%d-%%H.nc" % (self.caseid, self.avgflag.lower()))
-        # ------------------------------------------------------------ #
+    # ---------------------------------------------------------------- #
+    # Write a summary
+    def __str__(self):
+        parts = ['------- Summary of History Tape Settings -------',
+        '\t# caseid:      %s' %self.caseid,
+        '\t# fincl:       %s' %','.join(self.fincl),
+        '\t# nhtfrq:      %s' %self.nhtfrq,
+        '\t# mfilt:       %s' %self.mfilt,
+        '\t# ndens:       %s' %self.ndens,
+        '\t# avgflag:     %s' %self.avgflag,
+        '\t# fname_format: %s' %self.fname_format,
+        '\t# file_format: %s' %self.file_format,
+        '\t# outtype:     %s' %self.outtype,
+        '\t# out_dir:     %s' %self.out_dir,
+        '\t# calendar:    %s' %self.calendar,
+        '  ------- End of History Tape Settings -------']
+        return '\n'.join(parts)
+
+    def __repr__(self):
+        return '__repr__'
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Update the history tapes with new fluxes
-    def update(self, time_ord, data):
+    def update(self, time_ord, data2tape):
         """ Update the tape with new data"""
 
         # ------------------------------------------------------------ #
         # Check that date matches lastdate + timestep
-        if time_ord == (self.time_ord + self.dt):
+        if time_ord == (self.time_ord + self.dt/SECSPERDAY):
             self.time_ord = time_ord
-            self.timestamp = num2date(self.time_ord, TIMEUNITS, calendar=self.calendar)
+            self.timestamp = num2date(self.time_ord, TIMEUNITS,
+                                      calendar=self.calendar)
         else:
-            log.error('Current date does not mach the last date + the dt')
-            raise
+            log.error('%s %s' %(time_ord, self.time_ord + self.dt/SECSPERDAY))
+            raise ValueError('Current date does not mach the last date + the dt')
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -107,21 +137,22 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Update the fields
         for field in self.fincl:
+            log.debug('updating %s' %field)
+            fdata = data2tape[field]
             if self.avgflag == 'A':
-                self._data[field] += data[field]
-            elif (self.avgflag == 'I' and self.count == self.write_count):
-                self._data[field] = data[field]
+                self._data[field][:, :] += fdata
+            elif self.avgflag == 'I':
+                if self.count == self.write_count:
+                    self._data[field][:, :] = fdata
             elif self.avgflag == 'X':
-                self._data[field] = np.maximum(self._data[field], data[field])
+                self._data[field][:, :] = np.maximum(self._data[field][:, :], fdata)
             elif self.avgflag == 'M':
-                self._data[field] = np.minimum(self._data[field], data[field])
+                self._data[field][:, :] = np.minimum(self._data[field][:, :], fdata)
             else:
-                log.error('Average flag does not match any of (A,I,X,M)')
-                raise
+                raise ValueError('Average flag (%s) does not match any of (A,I,X,M)' %self.avgflag)
 
         # ------------------------------------------------------------ #
         # If count == write_count, write
-
         # Average first, if necessary
         if (self.avgflag == 'A' and self.count == self.write_count):
             self.__average()
@@ -138,7 +169,7 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # write initial flux
-    def __write_initial(self):
+    def write_initial(self):
         pass
     # ---------------------------------------------------------------- #
 
@@ -146,13 +177,13 @@ class Tape(object):
     # Get import rvar fields
     def __get_rvar(self, rvar):
         """ Get the rvar Fields that are useful in writing output """
-        self.dt = rvar.uh_timestep
+        self.dt = rvar.unit_hydrograph_dt
         self.num_outlets = rvar.n_outlets
-        self.cell_id_outlet = rvar.cell_id_outlet
-        self.x_ind_outlet = rvar.x_ind_outlet
-        self.y_ind_outlet = rvar.y_ind_outlet
-        self.lon_outlet = rvar.lon_outlet
-        self.lat_outlet = rvar.lat_outlet
+        self.outlet_decomp_ind = rvar.outlet_decomp_ind
+        self.outlet_x_ind = rvar.outlet_x_ind
+        self.outlet_y_ind = rvar.outlet_y_ind
+        self.outlet_lon = rvar.outlet_lon
+        self.outlet_lat = rvar.outlet_lat
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -162,11 +193,11 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # If monthly, write at (YYYY,MM,1,0,0)
         if self.nhtfrq == 0:
-            if self.time_ord.month == 12:
-                self.next_ord = date2num(datetime(self.time_ord.year + 1, 1, 1),
+            if self.timestamp.month == 12:
+                self.next_ord = date2num(datetime(self.timestamp.year + 1, 1, 1),
                                          TIMEUNITS, calendar=self.calendar)
             else:
-                self.next_ord = date2num(datetime(self.time_ord.year, self.time_ord.month + 1, 1),
+                self.next_ord = date2num(datetime(self.timestamp.year, self.timestamp.month + 1, 1),
                                          TIMEUNITS, calendar=self.calendar)
 
         # If some hours in the future
@@ -175,12 +206,12 @@ class Tape(object):
 
         # If some dts in the future
         else:
-            self.next_ord = self.time_ord + (self.nhtfrq * self.dt)
+            self.next_ord = self.time_ord + (self.nhtfrq * self.dt/SECSPERDAY)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Get the number of timesteps and datestamp for the next write
-        self.write_count = (self.time_ord - self.next_ord) / self.dt
+        self.write_count = (self.next_ord - self.time_ord) / (self.dt / SECSPERDAY)
         self.next_date = num2date(self.next_ord, TIMEUNITS, calendar=self.calendar)
         # ------------------------------------------------------------ #
 
@@ -205,7 +236,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Zero out field(s)
         for field in self.fincl:
-            self.data[field][:] = 0.0
+            self._data[field][:] = 0.0
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -230,8 +261,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Grid the fields
         for field in self.fincl:
-            for i, (y, x) in enumerate(zip(self.y_ind_outlet, self.x_ind_outlet)):
-                self._gdata[field][y, x] = self._data[field][i]
+            self._gdata[field][:, self.outlet_y_ind, self.outlet_x_ind] = self._data[field][:, :]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -256,7 +286,7 @@ class Tape(object):
             time.bounds = 'time_bnds'
 
             time_bnds = f.createVariable('time_bnds', self.ndens, ('time', 'nv',))
-            time_bnds[:] = np.array([self.timebound0, self.timebound1])
+            time_bnds[:, :] = np.array([[self.timebound0, self.timebound1]])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -268,10 +298,10 @@ class Tape(object):
             xc = f.createDimension('xc', self.grid_lons.shape[1])
             yc = f.createDimension('yc', self.grid_lons.shape[0])
 
-            xc = f.createVariable('xc', self.ndens, ('xc',))
-            yc = f.createVariable('yc', self.ndens, ('xc',))
-            xc[:] = np.arange(self.grid_lons.shape[1])
-            yc[:] = np.arange(self.grid_lats.shape[0])
+            xc = f.createVariable('xc', self.ndens, coords)
+            yc = f.createVariable('yc', self.ndens, coords)
+            xc[:, :] = self.grid_lons
+            yc[:, :] = self.grid_lats
 
             for key, val in share.xc.__dict__.iteritems():
                 if val:
@@ -281,28 +311,24 @@ class Tape(object):
                 if val:
                     setattr(yc, key, val)
 
-            lon = f.createVariable('lon', self.ndens, coords)
-            lat = f.createVariable('lat', self.ndens, coords)
-            lon[:, :] = self.grid_lons
-            lat[:, :] = self.grid_lats
         else:
             coords = ('lat', 'lon',)
 
             lon = f.createDimension('lon', len(self.grid_lons))
-            lat = f.createDimension('lat', len(self.grid_lons))
+            lat = f.createDimension('lat', len(self.grid_lats))
 
             lon = f.createVariable('lon', self.ndens, ('lon',))
             lat = f.createVariable('lat', self.ndens, ('lat',))
             lon[:] = self.grid_lons
             lat[:] = self.grid_lats
 
-        for key, val in share.lon.__dict__.iteritems():
-            if val:
-                setattr(lon, key, val)
+            for key, val in share.lon.__dict__.iteritems():
+                if val:
+                    setattr(lon, key, val)
 
-        for key, val in share.lat.__dict__.iteritems():
-            if val:
-                setattr(lat, key, val)
+            for key, val in share.lat.__dict__.iteritems():
+                if val:
+                    setattr(lat, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -358,7 +384,7 @@ class Tape(object):
             time.bounds = 'time_bnds'
 
             time_bnds = f.createVariable('time_bnds', self.ndens, ('time', 'nv',))
-            time_bnds[:] = np.array([self.timebound0, self.timebound1])
+            time_bnds[:, :] = np.array([[self.timebound0, self.timebound1]])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -367,36 +393,36 @@ class Tape(object):
 
         outlets = f.createDimension('outlets', self.num_outlets)
 
-        lon = f.createVariable('lon', self.ndens, coords)
-        lat = f.createVariable('lat', self.ndens, coords)
-        x_ind = f.createVariable('x_ind', NC_INT, coords)
-        y_ind = f.createVariable('y_ind', NC_INT, coords)
-        cell_id = f.createVariable('cell_id', NC_INT, coords)
-        lon[:] = self.lon_outlet
-        lat[:] = self.lat_outlet
-        x_ind[:] = self.x_ind_outlet
-        y_ind[:] = self.y_ind_outlet
-        cell_id[:] = self.cell_id_outlet
+        outlet_lon = f.createVariable('lon', self.ndens, coords)
+        outlet_lat = f.createVariable('lat', self.ndens, coords)
+        outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
+        outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
+        outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT, coords)
+        outlet_lon[:] = self.outlet_lon
+        outlet_lat[:] = self.outlet_lat
+        outlet_x_ind[:] = self.outlet_x_ind
+        outlet_y_ind[:] = self.outlet_y_ind
+        outlet_decomp_ind[:] = self.outlet_decomp_ind
 
-        for key, val in share.lon.__dict__.iteritems():
+        for key, val in share.outlet_lon.__dict__.iteritems():
             if val:
-                setattr(lon, key, val)
+                setattr(outlet_lon, key, val)
 
-        for key, val in share.lat.__dict__.iteritems():
+        for key, val in share.outlet_lat.__dict__.iteritems():
             if val:
-                setattr(lat, key, val)
+                setattr(outlet_lat, key, val)
 
-        for key, val in share.y_ind_outlet.__dict__.iteritems():
+        for key, val in share.outlet_y_ind.__dict__.iteritems():
             if val:
-                setattr(y_ind, key, val)
+                setattr(outlet_y_ind, key, val)
 
-        for key, val in share.x_ind.__dict__.iteritems():
+        for key, val in share.outlet_x_ind.__dict__.iteritems():
             if val:
-                setattr(x_ind, key, val)
+                setattr(outlet_x_ind, key, val)
 
-        for key, val in share.cell_id_outlet.__dict__.iteritems():
+        for key, val in share.outlet_decomp_ind.__dict__.iteritems():
             if val:
-                setattr(cell_id, key, val)
+                setattr(outlet_decomp_ind, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #

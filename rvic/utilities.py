@@ -26,6 +26,7 @@ def write_rpointer(restart_dir, restart_file, timestamp):
     rpointer_file = os.path.join(restart_dir, RPOINTER)
 
     config = SafeConfigParser()
+    config.optionxform=str
 
     time_str = timestamp.strftime(TIMESTAMPFORM)
 
@@ -33,7 +34,7 @@ def write_rpointer(restart_dir, restart_file, timestamp):
     config.set('RESTART', 'FILE_NAME', os.path.join(restart_dir, restart_file))
     config.set('RESTART', 'TIMESTAMP', time_str)
 
-    with open(rpointer_file, 'a') as configfile:
+    with open(rpointer_file, 'w') as configfile:
         config.write(configfile)
 # -------------------------------------------------------------------- #
 
@@ -272,32 +273,12 @@ def tar_inputs(inputs, suffix=''):
 
 
 # -------------------------------------------------------------------- #
-# Shorten the unit hydrograph
-def subset(uh, subset, threshold):
-    """ Shorten the Unit Hydrograph"""
-    full_length = uh.shape[0]
-    offset = np.empty(uh.shape[1], dtype=int)
-    out_uh = np.zeros((subset, uh.shape[1]))
-
-    for i in xrange(uh.shape[1]):
-        start = np.nonzero(uh[:, i] > threshold)[0][0]       # find position of first index > threshold
-        end = np.minimum(full_length, start+subset)          # find end point
-        start = np.minimum(start, full_length-subset)
-        offset[i] = start
-        out_uh[:, i] = uh[start:end, i] / uh[start:end, i].sum()  # clip and normalize
-
-    return offset, out_uh, full_length
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
 # Read the domain
 def read_domain(domain_dict):
     """
     Read the domain file and return all the variables and attributes.
     Area is returned in m2
     """
-    print domain_dict
     dom_data, dom_vatts, dom_gatts = read_netcdf(domain_dict['FILE_NAME'])
 
     check_ncvars(domain_dict, dom_data.keys())
@@ -305,6 +286,17 @@ def read_domain(domain_dict):
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
     dom_data['cell_ids'] = np.arange(dom_data[domain_dict['LAND_MASK_VAR']].size).reshape(dom_data[domain_dict['LAND_MASK_VAR']].shape)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Make sure the longitude / latitude vars are 2d
+    dom_data['cord_lons'] = dom_data[domain_dict['LONGITUDE_VAR']]
+    dom_data['cord_lats'] = dom_data[domain_dict['LATITUDE_VAR']]
+    if dom_data[domain_dict['LONGITUDE_VAR']].ndim == 1:
+        dom_data[domain_dict['LONGITUDE_VAR']], \
+        dom_data[domain_dict['LATITUDE_VAR']] = np.meshgrid(dom_data[domain_dict['LONGITUDE_VAR']],
+                                                            dom_data[domain_dict['LATITUDE_VAR']])
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

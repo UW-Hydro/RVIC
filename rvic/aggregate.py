@@ -43,7 +43,6 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids, agg_type='agg'):
 
     mytree = cKDTree(combined)
     dist, indexes = mytree.query(points, k=1)
-    indexes = np.array(indexes)
     yinds, xinds = np.unravel_index(np.array(indexes), dom_lat.shape)
     # ---------------------------------------------------------------- #
 
@@ -54,12 +53,13 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids, agg_type='agg'):
     for i, ind in enumerate(indexes):
         cell_id = dom_ids[yinds[i], xinds[i]]
         if cell_id in outlets:
-            outlets[cell_id].cell_id = cell_id
             outlets[cell_id].pour_points.append(Point(lat=points[i][0], lon=points[i][1]))
         else:
             outlets[cell_id] = Point(y=yinds[i], x=xinds[i],
                                      lat=combined[ind][0], lon=combined[ind][1])
             outlets[cell_id].pour_points = [Point(lat=points[i][0], lon=points[i][1])]
+            outlets[cell_id].cell_id = cell_id
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
