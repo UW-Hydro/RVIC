@@ -5,18 +5,18 @@ RVIC parameter file development driver
 import os
 import numpy as np
 import argparse
-from datetime import date
 from collections import OrderedDict
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
 from rvic.utilities import read_config, make_directories, copy_inputs, read_netcdf, tar_inputs
-from rvic.utilities import check_ncvars, remap, clean_file, subset, read_domain
+from rvic.utilities import check_ncvars, remap, clean_file, read_domain
 from rvic.aggregate import make_agg_pairs, aggregate
 from rvic.make_uh import rout
 from rvic.share import NcGlobals
-from rvic.write import write_agg_netcdf, write_param_file
+from rvic.write import write_agg_netcdf
 from rvic.variables import Point
+from rvic.param_file import finish_params
 
 
 # -------------------------------------------------------------------- #
@@ -34,26 +34,30 @@ def main():
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Setup the pool of processors
-    pool = LoggingPool(processes=numofproc)
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
     # Get main logger
     log = getLogger(LOG_NAME)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Run
-    for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
-        log.info('On Outlet #%i of %i' %(i+1, len(outlets)))
-        pool.apply_async(gen_uh_run,
-                         args = (uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories),
-                         callback = store_result)
-    pool.close()
-    pool.join()
+    if numofproc >1:
+        pool = LoggingPool(processes=numofproc)
 
-    outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
+        for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
+            log.info('On Outlet #%i of %i' %(i+1, len(outlets)))
+            pool.apply_async(gen_uh_run,
+                             args = (uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories),
+                             callback = store_result)
+        pool.close()
+        pool.join()
+
+        outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
+        print 'main...', len(outlets)
+        print 'main results...', len(results)
+    else:
+        for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
+            outlets[cell_id] = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories)
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -289,8 +293,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
         outlet.fractions = remap_data['fraction'][y, x]
         outlet.unit_hydrograph = remap_data['unit_hydrograph'][:, y, x]
         outlet.time = np.arange(remap_data['unit_hydrograph'].shape[0])
-        outlet.lon_source = dom_data[config_dict['domain']['longitude_var']][y, x]
-        outlet.lat_source = dom_data[config_dict['domain']['latitude_var']][y, x]
+        outlet.lon_source = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
+        outlet.lat_source = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
         outlet.cell_id_source = dom_data['cell_ids'][y, x]
         outlet.x_source = x
         outlet.y_source = y
@@ -304,184 +308,28 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
     """
     Make the RVIC Parameter File
     """
-
     log = getLogger(LOG_NAME)
-    log.info('Starting gen_uh_final now.')
 
-    options = config_dict['OPTIONS']
-
-    # ---------------------------------------------------------------- #
-    # Aggregate the fractions
-    fractions = np.zeros(dom_data[config_dict['DOMAIN']['FRACTION_VAR']].shape)
-    for cell_id, outlet in outlets.iteritems():
-        y = outlet.y_source
-        x = outlet.x_source
-
-        fractions[y, x] += outlet.fractions
-        # unit_hydrograph[:, y, x] += outlets[cell_id].unit_hydrograph
-    # ---------------------------------------------------------------- #
+    log.info('In gen_uh_final')
 
     # ---------------------------------------------------------------- #
-    # Determin how to adjust the fractions
-    grid_fractions = dom_data[config_dict['DOMAIN']['FRACTION_VAR']]
-    diff_fractions = fractions - grid_fractions
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Only adjust fractions where the fractions are gt the domain fractions
-    yi, xi = np.nonzero(fractions > grid_fractions)
-    ratio_fraction = np.ones(diff_fractions.shape)
-    adjust_fractions = np.zeros(diff_fractions.shape)
-    ratio_fraction[yi, xi] = grid_fractions[yi, xi]/fractions[yi, xi]
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Subset
-    for i, cell_id in enumerate(outlets):
-
-        y = outlets[cell_id].y_source
-        x = outlets[cell_id].x_source
-
-        offset, out_uh, full_length = subset(outlets[cell_id].unit_hydrograph,
-                                             options['SUBSET_LENGTH'],
-                                             options['SUBSET_THRESHOLD'])
-        outlets[cell_id].fractions *= ratio_fraction[y, x]  # Adjust fracs based on ratio_fraction
-        adjust_fractions[y, x] += outlets[cell_id].fractions
-
-        if i == 0:
-            # -------------------------------------------------------- #
-            # Source specific values
-            unit_hydrograph = out_uh
-            frac_sources = outlets[cell_id].fractions
-            source_lon = outlets[cell_id].lon_source
-            source_lat = outlets[cell_id].lat_source
-            source_x_ind = x
-            source_y_ind = y
-            source_decomp_ind = outlets[cell_id].cell_id_source
-            source_time_offset = offset
-            source2outlet_ind = np.zeros(len(outlets[cell_id].fractions))
-            # -------------------------------------------------------- #
-
-            # -------------------------------------------------------- #
-            # outlet specific inputs
-            outlet_decomp_ind = np.array(cell_id)
-            outlet_lon = np.array(outlets[cell_id].lon)
-            outlet_lat = np.array(outlets[cell_id].lat)
-            outlet_x_ind = np.array(outlets[cell_id].x)
-            outlet_y_ind = np.array(outlets[cell_id].y)
-            outlet_number = np.array(i)
-
-            # -------------------------------------------------------- #
-            # get a few global values
-            subset_length = options['SUBSET_LENGTH']
-            full_time_length = full_length
-            unit_hydrograph_dt = config_dict['ROUTING']['OUTPUT_INTERVAL']
-            # -------------------------------------------------------- #
-
-        else:
-            # -------------------------------------------------------- #
-            # Point specific values
-            unit_hydrograph = np.append(unit_hydrograph, out_uh, axis=1)
-            frac_sources = np.append(frac_sources, outlets[cell_id].fractions)
-            source_lon = np.append(source_lon, outlets[cell_id].lon_source)
-            source_lat = np.append(source_lat, outlets[cell_id].lat_source)
-            source_x_ind = np.append(source_x_ind, x)
-            source_y_ind = np.append(source_y_ind, y)
-            source_decomp_ind = np.append(source_decomp_ind, outlets[cell_id].cell_id_source)
-            source_time_offset = np.append(source_time_offset, offset)
-            source2outlet_ind = np.append(source2outlet_ind, np.zeros_like(offset) + i)
-            # -------------------------------------------------------- #
-
-            # -------------------------------------------------------- #
-            # outlet specific inputs
-            outlet_decomp_ind = np.append(outlet_decomp_ind, cell_id)
-            outlet_lon = np.append(outlet_lon, outlets[cell_id].lon)
-            outlet_lat = np.append(outlet_lat, outlets[cell_id].lat)
-            outlet_x_ind = np.append(outlet_x_ind, outlets[cell_id].x)
-            outlet_y_ind = np.append(outlet_y_ind, outlets[cell_id].y)
-            outlet_number = np.append(outlet_number, i)
-            # -------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Adjust Unit Hydrographs for differences in source/outlet areas
-    unit_hydrograph *= frac_sources
-    unit_hydrograph *= dom_data[config_dict['DOMAIN']['AREA_VAR']][source_y_ind, source_x_ind]
-
-    for p, ind in enumerate(source2outlet_ind):
-        unit_hydrograph[:, p] /= dom_data[config_dict['DOMAIN']['AREA_VAR']][outlet_y_ind[ind], outlet_x_ind[ind]]
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # fill in some misc arrays
-    outlet_mask = np.zeros(len(outlet_lon))
-    newshape = unit_hydrograph.shape + (1,)
-    unit_hydrograph = unit_hydrograph.reshape(newshape)
-
-    # ---------------------------------------------------------------- #
-
-
-    # ---------------------------------------------------------------- #
-    # Write parameter file
-    today = date.today().strftime('%Y%m%d')
-    param_file = os.path.join(directories['params'],
-                             '%s.rvic.prm.%s.%s.nc' % (options['CASEID'],
-                                                       options['GRIDID'], today))
-
-    write_param_file(param_file,
-                         nc_format=options['NETCDF_FORMAT'],
-                         glob_atts=NcGlobals(title='RVIC parameter file',
-                                             RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
-                                             RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
-                                             RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
-                                             RvicDomainFile=os.path.split(config_dict['DOMAIN']['FILE_NAME'])[1]),
-                         full_time_length=full_time_length,
-                         subset_length=subset_length,
-                         unit_hydrograph_dt=unit_hydrograph_dt,
-                         outlet_lon=outlet_lon,
-                         outlet_lat=outlet_lat,
-                         outlet_x_ind=outlet_x_ind,
-                         outlet_y_ind=outlet_y_ind,
-                         outlet_decomp_ind=outlet_decomp_ind,
-                         outlet_number=outlet_number,
-                         outlet_mask=outlet_mask,
-                         source_lon=source_lon,
-                         source_lat=source_lat,
-                         source_x_ind=source_x_ind,
-                         source_y_ind=source_y_ind,
-                         source_decomp_ind=source_decomp_ind,
-                         source_time_offset=source_time_offset,
-                         source2outlet_ind=source2outlet_ind,
-                         unit_hydrograph=unit_hydrograph)
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # write a summary of what was done to the log file.
-    log.info('Parameter file includes %i outlets' % (len(outlets)+1))
-    log.info('Parameter file includes %i Source Points' % (len(source_lon)+1))
+    # Write the parameter file
+    param_file, today = finish_params(outlets, dom_data, config_dict, directories)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # tar the inputs directory / log file
-    InputsTar = tar_inputs(directories['inputs'], suffix=today)
-    LogTar = tar_inputs(log.filename)
+    inputs_tar = tar_inputs(directories['inputs'], suffix=today)
+    log_tar = tar_inputs(log.filename)
 
     log.info('Done with RvicGenParam.')
-    log.info('Location of Inputs: %s' % InputsTar)
-    log.info('Location of Log: %s' % LogTar)
+    log.info('Location of Inputs: %s' % inputs_tar)
+    log.info('Location of Log: %s' % log_tar)
     log.info('Location of Parmeter File %s' % param_file)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
 
-
-# -------------------------------------------------------------------- #
-# store_result helper function
-results = {}
-def store_result(result):
-    # This is called whenever foo_pool(i) returns a result.
-    # result_list is modified only by the main process, not the pool workers.
-    results[result.cell_id] = result
-# -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
 def process_command_line():
@@ -498,7 +346,16 @@ def process_command_line():
     args = parser.parse_args()
 
     return args.config_file, args.numofproc
+# -------------------------------------------------------------------- #
 
+# -------------------------------------------------------------------- #
+# store_result helper function
+results = {}
+def store_result(result):
+    # This is called whenever foo_pool(i) returns a result.
+    # result_list is modified only by the main process, not the pool workers.
+    results[result.cell_id] = result
+# -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
 if __name__ == "__main__":
