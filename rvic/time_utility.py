@@ -27,7 +27,6 @@ class Dtime(object):
 
         self.start_date = datetime.strptime(start_date, TIMESTAMPFORM)
         self.calendar = calendar
-        self.end = False
         self.dt = float(dt) / float(SECSPERDAY)  # In days
 
         # Setup Current Time
@@ -97,10 +96,11 @@ class Dtime(object):
         elif self.stop_option == 'date':
             if self.timestamp >= self.stop_date:
                 flag = True
-        elif self.end:
-            flag = True
+        elif self.stop_option == 'end':
+            if self.timestamp >= self.end:
+                flag = True
         else:
-            pass
+            raise ValueError('unknown stop_option %s' %self.stop_option)
         return flag
     # ---------------------------------------------------------------- #
 
@@ -132,10 +132,11 @@ class Dtime(object):
         elif self.rest_option == 'date':
             if self.timestamp >= self.rest_date:
                 flag = True
-        elif self.end:
-            flag = True
+        elif self.rest_option == 'end':
+            if self.timestamp >= self.end:
+                flag = True
         else:
-            pass
+            raise ValueError('unknown rest_option %s' %self.rest_option)
         return flag
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #

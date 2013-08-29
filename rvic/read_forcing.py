@@ -115,13 +115,19 @@ class DataModel(object):
                     raise ValueError('Calendars do not match in input files')
 
             f.close()
+
+        self.end = ord_to_datetime(self.end_dates[-1], self.time_units, calendar=self.calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # find and open first file
         self.ordtime = date2num(timestamp, self.time_units, calendar=self.calendar)
 
-        self.current_filenum = bisect_left(self.start_dates, self.ordtime)
+        if len(self.files) == 1:
+            self.current_filenum = 0
+        else:
+            self.current_filenum = bisect_left(self.start_dates, self.ordtime)
+        print self.current_filenum
         self.current_file = self.files[self.current_filenum]
         self.current_fhdl = Dataset(self.current_file, 'r+')
 

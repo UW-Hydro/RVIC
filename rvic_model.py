@@ -46,12 +46,8 @@ def main(config_file=None):
 
     # ---------------------------------------------------------------- #
     # Setup the pool of processors
-    pool = LoggingPool(processes=numofproc)
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Get main logger
-    log = getLogger(LOG_NAME)
+    if numofproc > 1:
+        pool = LoggingPool(processes=numofproc)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -85,7 +81,7 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
     directories = make_directories(config_dict['OPTIONS']['CASE_DIR'],
-                                   ['hist', 'logs', 'params', 'restarts'])
+                                   ['hist', 'logs', 'restarts']) #'params',
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -155,6 +151,8 @@ def rvic_mod_init(config_file):
                            forcings['START'],
                            forcings['END'],
                            time_handle.timestamp)
+
+    time_handle.end = data_model.end
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
