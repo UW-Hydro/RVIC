@@ -131,8 +131,7 @@ class DataModel(object):
         self.current_file = self.files[self.current_filenum]
         self.current_fhdl = Dataset(self.current_file, 'r+')
 
-        self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld],
-                                       calendar=self.calendar, select='nearest')
+        self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld])
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
 
@@ -177,8 +176,7 @@ class DataModel(object):
                 self.current_file = self.files[new_filenum]
                 self.current_fhdl = Dataset(self.current_file, 'r+')
 
-            self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld],
-                                           calendar=self.calendar, select='nearest')
+            self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
