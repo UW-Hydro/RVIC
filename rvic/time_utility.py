@@ -92,10 +92,12 @@ class Dtime(object):
             if (self.timesteps * self.dt) >= self.stop_n:
                 flag = True
         elif self.stop_option == 'nmonths':
-            if relativedelta(self.timestamp, self.start_date).months >= self.stop_n:
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            if relativedelta(temp, self.start_date).months >= self.stop_n:
                 flag = True
         elif self.stop_option == 'nyears':
-            if relativedelta(self.timestamp, self.start_date).years >= self.stop_n:
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            if relativedelta(temp, self.start_date).years >= self.stop_n:
                 flag = True
         elif self.stop_option == 'date':
             if self.timestamp >= self.stop_date:
@@ -128,10 +130,12 @@ class Dtime(object):
             if (self.timesteps * self.dt) >= self.rest_n:
                 flag = True
         elif self.rest_option == 'nmonths':
-            if relativedelta(self.timestamp, self.start_date).months >= self.rest_n:
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            if relativedelta(temp, self.start_date).months >= self.rest_n:
                 flag = True
         elif self.rest_option == 'nyears':
-            if relativedelta(self.timestamp, self.start_date).years >= self.rest_n:
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            if relativedelta(temp, self.start_date).years >= self.rest_n:
                 flag = True
         elif self.rest_option == 'date':
             if self.timestamp >= self.rest_date:
