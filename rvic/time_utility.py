@@ -1,5 +1,9 @@
 """
 time_utility.py
+
+time units conventions:
+    - Timesteps are in seconds (unit_hydrograph_dt)
+    - Time ordinal is in days (time_ord)
 """
 
 from netCDF4 import num2date, date2num
@@ -63,14 +67,14 @@ class Dtime(object):
         self.time_ord += self.dt
         self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
         self.timesteps += 1
-        self.stop_flag = self.stop()
-        self.rest_flag = self.rest()
-        return self.timestamp
+        self.stop_flag = self.__stop()
+        self.rest_flag = self.__rest()
+        return self.timestamp, self.time_ord, self.stop_flag, self.rest_flag
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Time to stop run
-    def stop(self):
+    def __stop(self):
         flag = False
         if self.stop_option == 'nsteps':
             if self.timesteps >= self.stop_n:
@@ -106,7 +110,7 @@ class Dtime(object):
 
     # ---------------------------------------------------------------- #
     # Time to write restart?
-    def rest(self):
+    def __rest(self):
         flag = False
         if self.rest_option == 'nsteps':
             if self.timesteps >= self.rest_n:

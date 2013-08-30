@@ -5,6 +5,7 @@ import os
 import numpy as np
 from netCDF4 import Dataset, date2num, num2date
 from datetime import datetime
+from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
 from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE
@@ -23,11 +24,10 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # Init
-    def __init__(self, timestamp, time_ord, caseid, Rvar, fincl=['streamflow'],
+    def __init__(self, time_ord, caseid, Rvar, fincl=['streamflow'],
                  mfilt=1, ndens=2, nhtfrq=0, avgflag='A',
                  file_format='NETCDF4_CLASSIC', outtype='grid', grid_lons=False,
                  grid_lats=False, out_dir='.', calendar=None, glob_ats=None):
-        self.timestamp = timestamp
         self.time_ord = time_ord        # Days since basetime
         self.caseid = caseid            # Case ID and prefix for outfiles
         self.fincl = fincl              # Fields to include in history file
@@ -66,6 +66,11 @@ class Tape(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
+        # get current timestamp
+        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, self.calendar)
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
         # Initialize the history fields
         self._data = {}
         for field in self.fincl:
@@ -74,15 +79,19 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # Determine the format of the output filename
-        if nhtfrq == 0:
+        if self.avgflag == 'I':
             self.fname_format = os.path.join(out_dir,
-                                             "%s.rvic.h%s.%%Y-%%m.nc" % (self.caseid, self.avgflag.lower()))
-        elif nhtfrq == -24:
-            self.fname_format = os.path.join(out_dir,
-                                             "%s.rvic.h%s.%%Y-%%m-%%d.nc" % (self.caseid, self.avgflag.lower()))
+                                             "%s.rvic.h%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (self.caseid, self.avgflag.lower()))
         else:
-            self.fname_format = os.path.join(out_dir,
-                                             "%s.rvic.h%s.%%Y-%%m-%%d-%%H.nc" % (self.caseid, self.avgflag.lower()))
+            if nhtfrq == 0:
+                self.fname_format = os.path.join(out_dir,
+                                                 "%s.rvic.h%s.%%Y-%%m.nc" % (self.caseid, self.avgflag.lower()))
+            elif nhtfrq == -24:
+                self.fname_format = os.path.join(out_dir,
+                                                 "%s.rvic.h%s.%%Y-%%m-%%d.nc" % (self.caseid, self.avgflag.lower()))
+            else:
+                self.fname_format = os.path.join(out_dir,
+                                                 "%s.rvic.h%s.%%Y-%%m-%%d-%%H.nc" % (self.caseid, self.avgflag.lower()))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -95,17 +104,17 @@ class Tape(object):
     # Write a summary
     def __str__(self):
         parts = ['------- Summary of History Tape Settings -------',
-        '\t# caseid:      %s' %self.caseid,
-        '\t# fincl:       %s' %','.join(self.fincl),
-        '\t# nhtfrq:      %s' %self.nhtfrq,
-        '\t# mfilt:       %s' %self.mfilt,
-        '\t# ndens:       %s' %self.ndens,
-        '\t# avgflag:     %s' %self.avgflag,
+        '\t# caseid:       %s' %self.caseid,
+        '\t# fincl:        %s' %','.join(self.fincl),
+        '\t# nhtfrq:       %s' %self.nhtfrq,
+        '\t# mfilt:        %s' %self.mfilt,
+        '\t# ndens:        %s' %self.ndens,
+        '\t# avgflag:      %s' %self.avgflag,
         '\t# fname_format: %s' %self.fname_format,
-        '\t# file_format: %s' %self.file_format,
-        '\t# outtype:     %s' %self.outtype,
-        '\t# out_dir:     %s' %self.out_dir,
-        '\t# calendar:    %s' %self.calendar,
+        '\t# file_format:  %s' %self.file_format,
+        '\t# outtype:      %s' %self.outtype,
+        '\t# out_dir:      %s' %self.out_dir,
+        '\t# calendar:     %s' %self.calendar,
         '  ------- End of History Tape Settings -------']
         return '\n'.join(parts)
 
@@ -119,14 +128,14 @@ class Tape(object):
         """ Update the tape with new data"""
 
         # ------------------------------------------------------------ #
-        # Check that date matches lastdate + timestep
-        if time_ord == (self.time_ord + self.dt/SECSPERDAY):
-            self.time_ord = time_ord
-            self.timestamp = num2date(self.time_ord, TIMEUNITS,
-                                      calendar=self.calendar)
-        else:
-            log.error('%s %s' %(time_ord, self.time_ord + self.dt/SECSPERDAY))
-            raise ValueError('Current date does not mach the last date + the dt')
+        # Check that the time_ord is in sync
+        if self.time_ord != time_ord:
+            raise ValueError('rout_var.time_ord does not match the time_ord passed in by the convolution call')
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Get the current timestamp
+        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -150,6 +159,11 @@ class Tape(object):
                 self._data[field][:, :] = np.minimum(self._data[field][:, :], fdata)
             else:
                 raise ValueError('Average flag (%s) does not match any of (A,I,X,M)' %self.avgflag)
+
+        # ------------------------------------------------------------ #
+        # move the time_ord forward
+        self.time_ord += self.dt / SECSPERDAY
+        # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # If count == write_count, write
@@ -192,45 +206,51 @@ class Tape(object):
         """ Determine the count for when the next write should occur """
         # ------------------------------------------------------------ #
         # If monthly, write at (YYYY,MM,1,0,0)
+        # b0 is first timestep of next period
+        # b1 is end of last timestep of next period
+
+        b0 = self.time_ord
+
         if self.nhtfrq == 0:
             if self.timestamp.month == 12:
-                self.next_ord = date2num(datetime(self.timestamp.year + 1, 1, 1),
-                                         TIMEUNITS, calendar=self.calendar)
+                b1 = date2num(datetime(self.timestamp.year + 1, 2, 1),
+                              TIMEUNITS, calendar=self.calendar)
             else:
-                self.next_ord = date2num(datetime(self.timestamp.year, self.timestamp.month + 1, 1),
-                                         TIMEUNITS, calendar=self.calendar)
+                b1 = date2num(datetime(self.timestamp.year, self.timestamp.month + 1, 1),
+                                       TIMEUNITS, calendar=self.calendar)
 
         # If some hours in the future
         elif self.nhtfrq < 0:
-            self.next_ord = self.time_ord + (self.nhtfrq / HOURSPERDAY)
+            b1 = b0 - (self.nhtfrq / HOURSPERDAY)
 
         # If some dts in the future
         else:
-            self.next_ord = self.time_ord + (self.nhtfrq * self.dt/SECSPERDAY)
+            b1 = b0 + (self.nhtfrq * self.dt / SECSPERDAY)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Get the number of timesteps and datestamp for the next write
-        self.write_count = (self.next_ord - self.time_ord) / (self.dt / SECSPERDAY)
-        self.next_date = num2date(self.next_ord, TIMEUNITS, calendar=self.calendar)
+        # next_ord is the ord_time when the write will happen
+        c = (b1 - b0) / (self.dt / SECSPERDAY)
+        if c.is_integer():
+            self.write_count = int(c)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Find Ordinal Bounds of Next File
-        self.timebound0 = self.time_ord
-        self.timebound1 = self.next_ord
+        self.time_bnds = np.array([[b0, b1]])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Get next file name and timeord
         if self.avgflag == 'I':
-            self.write_ord = self.next_ord
+            self.write_ord = b1
+            self.filename = num2date(b1, TIMEUNITS,
+                                     calendar=self.calendar).strftime(self.fname_format)
         else:
-            self.write_ord = (self.timebound0 + self.timebound1) / 2
-
-        self.filename = num2date(self.write_ord, TIMEUNITS,
-                                 calendar=self.calendar).strftime(self.fname_format)
-
+            self.write_ord = np.average(self.time_bnds)
+            self.filename = num2date(b0, TIMEUNITS,
+                                     calendar=self.calendar).strftime(self.fname_format)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -274,7 +294,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self.ndens, ('time',))
-        time[:] = self.write_ord
+        time[:] = [self.write_ord]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -286,7 +306,7 @@ class Tape(object):
             time.bounds = 'time_bnds'
 
             time_bnds = f.createVariable('time_bnds', self.ndens, ('time', 'nv',))
-            time_bnds[:, :] = np.array([[self.timebound0, self.timebound1]])
+            time_bnds[:, :] = self.time_bnds
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -372,7 +392,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self.ndens, ('time',))
-        time[:] = self.write_ord
+        time[:] = [self.write_ord]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -384,7 +404,7 @@ class Tape(object):
             time.bounds = 'time_bnds'
 
             time_bnds = f.createVariable('time_bnds', self.ndens, ('time', 'nv',))
-            time_bnds[:, :] = np.array([[self.timebound0, self.timebound1]])
+            time_bnds[:, :] = self.time_bnds
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #

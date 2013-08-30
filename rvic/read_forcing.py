@@ -36,7 +36,7 @@ class DataModel(object):
         self.timestamp = timestamp
         self.files = []
         self.start_dates = []
-        self.end_dates = []
+        self.end_ords = []
         self.current_file = 'Null'
         self.current_tint = 0
 
@@ -102,7 +102,7 @@ class DataModel(object):
             log.info('reading forcing file: %s' % fname)
             f = Dataset(fname, 'r+')
             self.start_dates.append(f.variables[self.time_fld][0])
-            self.end_dates.append(f.variables[self.time_fld][-1])
+            self.end_ords.append(f.variables[self.time_fld][-1])
             if i == 0:
                 # get the calendar and units information
                 self.calendar = f.variables[self.time_fld].calendar
@@ -115,8 +115,7 @@ class DataModel(object):
                     raise ValueError('Calendars do not match in input files')
 
             f.close()
-
-        self.end = ord_to_datetime(self.end_dates[-1], self.time_units, calendar=self.calendar)
+        self.end = ord_to_datetime(self.end_ords[-1], self.time_units, calendar=self.calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -141,16 +140,13 @@ class DataModel(object):
 
         # ------------------------------------------------------------ #
         # Get the current data index location
-        if self.current_tind == len(self.current_fhdl.variables[self.time_fld])-1:
+        if self.current_tind == len(self.current_fhdl.variables[self.time_fld]):
             # close file and open next
             self.current_fhdl.close()
             self.current_filenum += 1
             self.current_file = self.files[self.current_filenum]
             self.current_fhdl = Dataset(self.current_file, 'r+')
             self.current_tind = 0
-        else:
-            # move forward one step
-            self.current_tind += 1
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -166,7 +162,7 @@ class DataModel(object):
             self.ordtime = date2num(timestamp, self.current_fhdl.variables[self.time_fld].units, calendar=self.calendar)
 
             # check to make sure the timestamp exists in input dataset
-            if self.ordtime > max(self.end_dates):
+            if self.ordtime > max(self.end_ords):
                 raise ValueError('Timestamp is exceeds date range in input files')
 
             new_filenum = bisect_left(self.start_dates, self.ordtime)
@@ -194,6 +190,9 @@ class DataModel(object):
                 forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :]
             else:
                 forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :]
+
+        # move forward one step
+        self.current_tind += 1
 
         return forcing
         # ------------------------------------------------------------ #

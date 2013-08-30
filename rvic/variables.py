@@ -6,7 +6,8 @@ import numpy as np
 from netCDF4 import Dataset, date2num, num2date
 from logging import getLogger
 from log import LOG_NAME
-from share import TIMEUNITS, NC_INT, NC_DOUBLE, RVIC_TRACERS, NcGlobals
+from time_utility import ord_to_datetime
+from share import TIMEUNITS, NC_INT, NC_DOUBLE, RVIC_TRACERS, NcGlobals, SECSPERDAY
 import share
 
 # -------------------------------------------------------------------- #
@@ -80,13 +81,13 @@ class Rvar(object):
         # ------------------------------------------------------------ #
         # Initialize state variables
         self.ring = np.zeros((self.full_time_length, self.n_outlets, len(RVIC_TRACERS)))
-        #self.ring_time = np.zeros(self.n_outlets)
         # ------------------------------------------------------------ #
 
 
         self.calendar = calendar
         self.fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
- # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Check that grid file matches
@@ -105,20 +106,19 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
     # Initilize State
     def init_state(self, state_file, run_type, timestamp):
-        if state_file:
+        if run_type in ['startup', 'restart']:
             log.info('reading state_file: %s' %state_file)
             f = Dataset(state_file, 'r+')
             self.ring = f.variables['ring'][:]
+            file_timestamp = ord_to_datetime(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar)
 
             if run_type == 'restart':
-                self.timestamp = num2date(f.variables['time'][:],
-                                          f.variables['time'].units,
-                                          calendar=f.variables['time'].calendar)[0]
+                self.timestamp = file_timestamp
 
             elif run_type == 'startup':
                 self.timestamp = timestamp
-                if timestamp != num2date(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar):
-                    log.warning('restart timestamps do not match')
+                if timestamp != file_timestamp:
+                    log.warning('restart timestamps do not match (%s, %s', file_timestamp, self.timestamp)
                     log.warning('Runtype is startup so model will continue')
             else:
                 raise ValueError('unknown run_type: %s' %run_type)
@@ -126,22 +126,26 @@ class Rvar(object):
             # Check that timestep and outlet_decomp_ids match ParamFile
             if f.variables['unit_hydrograph_dt'][:] != self.unit_hydrograph_dt:
                 raise ValueError('Timestep in Statefile does not match timestep in ParamFile')
+
             if not np.array_equal(f.variables['outlet_decomp_ind'][:], self.outlet_decomp_ind):
                 raise ValueError('outlet_decomp_ind in Statefile does not match ParamFile')
+
             if f.RvicDomainFile != self.RvicDomainFile:
                 raise ValueError('RvicDomainFile in Statefile does not match ParamFile')
+
             f.close()
-        elif (not state_file and run_type != 'drystart'):
-            log.error('run_type=%s' % run_type)
-            raise ValueError('No statefile provided and run_type=!drystart')
-        else:
-            log.info('no state file provided (run is drystart)')
+
+        elif run_type == 'drystart':
+            log.info('run_type is drystart so no state_file will be read')
             self.timestamp = timestamp
+
+        self.time_ord = date2num(self.timestamp, TIMEUNITS, calendar=self.calendar)
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Convolve
-    def convolve(self, aggrunin, timestamp):
+    def convolve(self, aggrunin, time_ord):
         """
         This convoluition funciton works by looping over all points and doing the
         convolution one timestep at a time.  This is accomplished by creating an
@@ -149,17 +153,21 @@ class Rvar(object):
         convolution ring.  The convolution ring is saved as the state.  The first
         column of values in the ring are the current runoff.
         """
-        log.info('doing convolution for %s' %timestamp)
-        if timestamp > self.timestamp:
-            self.timestamp = timestamp
-        else:
-            raise ValueError('Timestep did not advance between convolution calls')
+        # ------------------------------------------------------------ #
+        # Check that the time_ord is in sync
+        if self.time_ord != time_ord:
+            raise ValueError('rout_var.time_ord does not match the time_ord passed in by the convolution call')
+        # ------------------------------------------------------------ #
 
-        log.debug('rolling the ring')
+        # ------------------------------------------------------------ #
         # First update the ring
+        log.debug('rolling the ring')
         self.ring[0, :, 0] = 0                         # Zero out current ring
         self.ring = np.roll(self.ring, 1, axis=0)   # Equivalent to Fortran 90 cshift function
+        # ------------------------------------------------------------ #
 
+        # ------------------------------------------------------------ #
+        # Do the convolution
         log.debug('convolving')
         # this matches the fortran implementation, it may be faster to use np.convolve but testing
         # can be done later
@@ -171,6 +179,13 @@ class Rvar(object):
                 for i in xrange(self.subset_length):
                     j = i + self.source_time_offset[s]
                     self.ring[j, outlet, nt] = self.ring[j, outlet, nt] + (self.unit_hydrograph[i, s, nt] * aggrunin[tracer][y, x])
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # move the time_ord forward
+        self.time_ord += self.unit_hydrograph_dt / SECSPERDAY
+        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
+        # ------------------------------------------------------------ #
 
     # ---------------------------------------------------------------- #
 

@@ -46,8 +46,8 @@ def main(config_file=None):
 
     # ---------------------------------------------------------------- #
     # Setup the pool of processors
-    if numofproc > 1:
-        pool = LoggingPool(processes=numofproc)
+    # if numofproc > 1:
+    #     pool = LoggingPool(processes=numofproc)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -137,7 +137,7 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Determine the restart options
+    # Read initial state
     rout_var.init_state(restart_file, options['RUN_TYPE'], time_handle.timestamp)
     # ---------------------------------------------------------------- #
 
@@ -162,8 +162,7 @@ def rvic_mod_init(config_file):
     for j in xrange(int(config_dict['HISTORY']['RVICHIST_NTAPES'])):
         tapename = 'Tape.%i' % j
         log.info('setting up History %s' %tapename)
-        hist_tapes[tapename] = Tape(time_handle.timestamp,
-                                    time_handle.time_ord,
+        hist_tapes[tapename] = Tape(time_handle.time_ord,
                                     options['CASEID'],
                                     rout_var,
                                     fincl=['streamflow'],
@@ -192,7 +191,6 @@ def rvic_mod_init(config_file):
         tape.write_initial()
     # ---------------------------------------------------------------- #
 
-
     return hist_tapes, data_model, rout_var, dom_data, time_handle, directories, config_dict
 # -------------------------------------------------------------------- #
 
@@ -215,15 +213,17 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
     log.info('Starting rvic_mod_run')
     # ---------------------------------------------------------------- #
 
+    # ------------------------------------------------------------ #
+    # Get initial time info
+    time_ord = time_handle.time_ord
+    timestamp = time_handle.timestamp
+    stop_flag = False
+    rest_flag = False
+    # ------------------------------------------------------------ #
+
     # ---------------------------------------------------------------- #
     # Iterate Through time_handlesteps
-    while not time_handle.stop_flag:
-
-        # ------------------------------------------------------------ #
-        # advance a single timestep
-        timestamp = time_handle.advance_timestep()
-        time_ord = time_handle.time_ord
-        # ------------------------------------------------------------ #
+    while True:
 
         # ------------------------------------------------------------ #
         # Get This time_handlesteps Forcing
@@ -232,7 +232,7 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
         # ------------------------------------------------------------ #
         # Do the Convolution
-        rout_var.convolve(aggrunin, timestamp)
+        rout_var.convolve(aggrunin, time_ord)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -248,10 +248,17 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
         # ------------------------------------------------------------ #
         # Write State
-        if time_handle.rest_flag or time_handle.stop_flag:
+        if rest_flag:
             restart_file = rout_var.write_restart()
-
             write_rpointer(directories['restarts'], restart_file, timestamp)
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # advance a single timestep
+        if not stop_flag:
+            timestamp, time_ord, stop_flag, rest_flag = time_handle.advance_timestep()
+        else:
+            break
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
     return time_handle, hist_tapes
@@ -282,7 +289,7 @@ def rvic_mod_final(time_handle, hist_tapes):
     # tar the inputs directory / log file
     log_tar = tar_inputs(log.filename)
 
-    log.info('Done with RvicGenParam.')
+    log.info('Done with rvic_model.')
     log.info('Location of Log: %s' % log_tar)
     # ---------------------------------------------------------------- #
     return
