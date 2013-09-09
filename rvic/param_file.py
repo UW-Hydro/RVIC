@@ -136,6 +136,8 @@ def adjust_fractions(outlets, dom_fractions):
     # ---------------------------------------------------------------- #
     # Adjust fracs based on ratio_fraction
     for cell_id, outlet in outlets.iteritems():
+        y = outlet.y_source
+        x = outlet.x_source
         outlets[cell_id].fractions *= ratio_fraction[y, x]
     # ---------------------------------------------------------------- #
 

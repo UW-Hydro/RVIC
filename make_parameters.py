@@ -52,8 +52,6 @@ def main():
         pool.join()
 
         outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
-        print 'main...', len(outlets)
-        print 'main results...', len(results)
     else:
         for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
             outlets[cell_id] = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories)
