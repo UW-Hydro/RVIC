@@ -85,7 +85,7 @@ class Rvar(object):
 
 
         self.calendar = calendar
-        self.fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
+        self.__fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
 
     # ---------------------------------------------------------------- #
 
@@ -131,7 +131,7 @@ class Rvar(object):
                 raise ValueError('outlet_decomp_ind in Statefile does not match ParamFile')
 
             if f.RvicDomainFile != self.RvicDomainFile:
-                raise ValueError('RvicDomainFile in Statefile does not match ParamFile')
+                raise ValueError('RvicDomainFile in StateFile does not match ParamFile')
 
             f.close()
 
@@ -155,14 +155,17 @@ class Rvar(object):
         """
         # ------------------------------------------------------------ #
         # Check that the time_ord is in sync
+        # This is the time at the start of the current step (end of last step)
         if self.time_ord != time_ord:
+            log.error('rout_var.time_ord = %s, time_ord = %s' %(self.time_ord, time_ord))
             raise ValueError('rout_var.time_ord does not match the time_ord passed in by the convolution call')
+
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # First update the ring
         log.debug('rolling the ring')
-        self.ring[0, :, 0] = 0                         # Zero out current ring
+        self.ring[0, :, 0] = 0                      # Zero out current ring
         self.ring = np.roll(self.ring, 1, axis=0)   # Equivalent to Fortran 90 cshift function
         # ------------------------------------------------------------ #
 
@@ -185,6 +188,8 @@ class Rvar(object):
         # move the time_ord forward
         self.time_ord += self.unit_hydrograph_dt / SECSPERDAY
         self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
+
+        return self.timestamp
         # ------------------------------------------------------------ #
 
     # ---------------------------------------------------------------- #
@@ -207,7 +212,7 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Open file
-        filename = self.timestamp.strftime(self.fname_format)
+        filename = self.timestamp.strftime(self.__fname_format)
         f = Dataset(filename, 'w', self.file_format)
         # ------------------------------------------------------------ #
 

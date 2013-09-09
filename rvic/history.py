@@ -86,7 +86,7 @@ class Tape(object):
             if nhtfrq == 0:
                 self.fname_format = os.path.join(out_dir,
                                                  "%s.rvic.h%s.%%Y-%%m.nc" % (self.caseid, self.avgflag.lower()))
-            elif nhtfrq == -24:
+            elif (nhtfrq == -24) or (nhtfrq*self.dt == SECSPERDAY):
                 self.fname_format = os.path.join(out_dir,
                                                  "%s.rvic.h%s.%%Y-%%m-%%d.nc" % (self.caseid, self.avgflag.lower()))
             else:
@@ -124,7 +124,7 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # Update the history tapes with new fluxes
-    def update(self, time_ord, data2tape):
+    def update(self, data2tape, time_ord):
         """ Update the tape with new data"""
 
         # ------------------------------------------------------------ #
@@ -134,7 +134,8 @@ class Tape(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # Get the current timestamp
+        # Get the next timestamp
+        self.time_ord += self.dt / SECSPERDAY
         self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
         # ------------------------------------------------------------ #
 
@@ -159,11 +160,6 @@ class Tape(object):
                 self._data[field][:, :] = np.minimum(self._data[field][:, :], fdata)
             else:
                 raise ValueError('Average flag (%s) does not match any of (A,I,X,M)' %self.avgflag)
-
-        # ------------------------------------------------------------ #
-        # move the time_ord forward
-        self.time_ord += self.dt / SECSPERDAY
-        # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # If count == write_count, write
@@ -233,12 +229,11 @@ class Tape(object):
         # next_ord is the ord_time when the write will happen
         c = (b1 - b0) / (self.dt / SECSPERDAY)
         if c.is_integer():
+            if c < 1:
+                raise ValueError('write_count is less than 1')
             self.write_count = int(c)
-        # ------------------------------------------------------------ #
-
-        # ------------------------------------------------------------ #
-        # Find Ordinal Bounds of Next File
-        self.time_bnds = np.array([[b0, b1]])
+        else:
+            raise ValueError('write_count is not an integer %s' %c)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -248,6 +243,7 @@ class Tape(object):
             self.filename = num2date(b1, TIMEUNITS,
                                      calendar=self.calendar).strftime(self.fname_format)
         else:
+            self.time_bnds = np.array([[b0, b1]])
             self.write_ord = np.average(self.time_bnds)
             self.filename = num2date(b0, TIMEUNITS,
                                      calendar=self.calendar).strftime(self.fname_format)

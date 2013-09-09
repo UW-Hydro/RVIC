@@ -4,8 +4,8 @@ read_forcings.py
 
 import os
 from calendar import monthrange
-from bisect import bisect_left
-from netCDF4 import Dataset, date2num, date2index
+from bisect import bisect_right
+from netCDF4 import Dataset, date2num, date2index, num2date
 from logging import getLogger
 from log import LOG_NAME
 from time_utility import ord_to_datetime
@@ -125,12 +125,21 @@ class DataModel(object):
         if len(self.files) == 1:
             self.current_filenum = 0
         else:
-            self.current_filenum = bisect_left(self.start_dates, self.ordtime)
-        print self.current_filenum
+            self.current_filenum = bisect_right(self.start_dates, self.ordtime) - 1
+
+        log.debug('Filenum %s' %self.current_filenum)
+
         self.current_file = self.files[self.current_filenum]
         self.current_fhdl = Dataset(self.current_file, 'r+')
 
-        self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld])
+        try:
+            self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld])
+        except Exception, e:
+            log.error(num2date(self.start_dates, self.time_units, calendar=self.calendar))
+            log.error('timestamp: %s' %timestamp)
+            log.exception(e)
+            raise
+
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
 
@@ -165,7 +174,7 @@ class DataModel(object):
             if self.ordtime > max(self.end_ords):
                 raise ValueError('Timestamp is exceeds date range in input files')
 
-            new_filenum = bisect_left(self.start_dates, self.ordtime)
+            new_filenum = bisect_right(self.start_dates, self.ordtime) - 1
             if new_filenum != self.current_filenum:
                 # close the current file and open a new one
                 self.current_fhdl.close()

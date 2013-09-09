@@ -5,7 +5,7 @@ time units conventions:
     - Timesteps are in seconds (unit_hydrograph_dt)
     - Time ordinal is in days (time_ord)
 """
-
+import numpy as np
 from netCDF4 import num2date, date2num
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
@@ -56,7 +56,7 @@ class Dtime(object):
             self.rest_date = False
 
         # Counters
-        self.timesteps = 0
+        self.timesteps = 1
         self.statefiles = 0
 
         # Flags
@@ -69,6 +69,13 @@ class Dtime(object):
         self.timesteps += 1
         self.stop_flag = self.__stop()
         self.rest_flag = self.__rest()
+        log.debug('-------advancing timestep-------')
+        log.debug('time_ord = %s' %self.time_ord)
+        log.debug('timestamp = %s' %self.timestamp)
+        log.debug('timesteps = %s' %self.timesteps)
+        log.debug('stop_flag = %s' %self.stop_flag)
+        log.debug('rest_flag = %s' %self.rest_flag)
+        log.debug('-------advanced timestep-------')
         return self.timestamp, self.time_ord, self.stop_flag, self.rest_flag
     # ---------------------------------------------------------------- #
 
@@ -157,6 +164,11 @@ def ord_to_datetime(time, units, calendar='standard'):
     """
     # this is the netCDF4.datetime object
     # if the calendar is standard, t is already a real datetime object
+    if type(time) == np.ndarray:
+        if len(time) == 1:
+            time = time[0]
+        else:
+            raise ValueError('time variable is a numpy array with length > 1')
     t = num2date(time, units, calendar=calendar)
     if calendar in ['proleptic_gregorian', 'standard', 'gregorian']:
         return t

@@ -124,8 +124,7 @@ def rvic_mod_init(config_file):
     elif options['RUN_TYPE'] == 'drystart':
         timestr = options['RUN_STARTDATE']
     else:
-        log.error('RUN_TYPE option is none of these: (restart, startup, drystart)')
-        raise
+        raise ValueError('RUN_TYPE option is none of these: (restart, startup, drystart)')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -224,7 +223,6 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
     # ---------------------------------------------------------------- #
     # Iterate Through time_handlesteps
     while True:
-
         # ------------------------------------------------------------ #
         # Get This time_handlesteps Forcing
         aggrunin = data_model.read(timestamp)
@@ -232,7 +230,8 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
         # ------------------------------------------------------------ #
         # Do the Convolution
-        rout_var.convolve(aggrunin, time_ord)
+        # (end_timestamp is the timestamp at the end of the convolution period)
+        end_timestamp = rout_var.convolve(aggrunin, time_ord)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -243,20 +242,23 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         # Update the history Tape(s)
         for tapename, tape in hist_tapes.iteritems():
             log.debug('Updating Tape:%s' % tapename)
-            tape.update(time_ord, data2tape)
+            tape.update(data2tape, time_ord)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Write State
         if rest_flag:
             restart_file = rout_var.write_restart()
-            write_rpointer(directories['restarts'], restart_file, timestamp)
+            write_rpointer(directories['restarts'], restart_file, end_timestamp)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # advance a single timestep
         if not stop_flag:
             timestamp, time_ord, stop_flag, rest_flag = time_handle.advance_timestep()
+            #check that we're still inline with convolution
+            if end_timestamp != timestamp:
+                raise ValueError('timestamps do not match after convolution')
         else:
             break
         # ------------------------------------------------------------ #
