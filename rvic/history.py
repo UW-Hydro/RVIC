@@ -238,13 +238,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Get the number of timesteps and datestamp for the next write
         # next_ord is the ord_time when the write will happen
-        c = (b1 - b0) / (self.dt / SECSPERDAY)
-        if c.is_integer():
-            if c < 1:
-                raise ValueError('write_count is less than 1')
-            self.write_count = int(c)
-        else:
-            raise ValueError('write_count is not an integer %s' %c)
+        self.write_count = int(round((b1 - b0) / (self.dt / SECSPERDAY)))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
