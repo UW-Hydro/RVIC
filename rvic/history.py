@@ -8,7 +8,7 @@ from datetime import datetime
 from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE, WATERDENSITY
 import share
 
 # -------------------------------------------------------------------- #
@@ -25,9 +25,9 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Init
     def __init__(self, time_ord, caseid, Rvar, fincl=['streamflow'],
-                 mfilt=1, ndens=2, nhtfrq=0, avgflag='A',
+                 mfilt=1, ndens=2, nhtfrq=0, avgflag='A', units='kg m-2 s-1',
                  file_format='NETCDF4_CLASSIC', outtype='grid', grid_lons=False,
-                 grid_lats=False, out_dir='.', calendar=None, glob_ats=None):
+                 grid_lats=False, grid_area=None, out_dir='.', calendar=None, glob_ats=None):
         self.time_ord = time_ord        # Days since basetime
         self.caseid = caseid            # Case ID and prefix for outfiles
         self.fincl = fincl              # Fields to include in history file
@@ -64,6 +64,16 @@ class Tape(object):
                 raise ValueError('Must include grid lons / lats if outtype == grid')
 
         # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Get units multiplier
+        self.units = units
+        if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1', 'kg*m-2*s-1', 'kg s-1 m-2']:
+            self.units_mult = 1.0
+        elif units in ['m3/s', 'm^3/s', 'm-3 s-1']:
+            self.units_mult = grid_area / WATERDENSITY
+        else:
+            raise ValueError('%s is not a valid units string' %units)
 
         # ------------------------------------------------------------ #
         # get current timestamp
@@ -115,6 +125,7 @@ class Tape(object):
         '\t# outtype:      %s' %self.outtype,
         '\t# out_dir:      %s' %self.out_dir,
         '\t# calendar:     %s' %self.calendar,
+        '\t# units:        %s' %self.units,
         '  ------- End of History Tape Settings -------']
         return '\n'.join(parts)
 
@@ -353,11 +364,12 @@ class Tape(object):
 
         for field in self.fincl:
             var = f.createVariable(field, self.ndens, tcoords)
-            var[:, :] = self._gdata[field]
+            var[:, :] = self._gdata[field] * self.units_mult
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
                     setattr(var, key, val)
+            var.units = self.units
             if self.grid_lons.ndim > 1:
                 var.coordinates = " ".join(coords)
         # ------------------------------------------------------------ #
@@ -447,11 +459,12 @@ class Tape(object):
 
         for field in self.fincl:
             var = f.createVariable(field, self.ndens, tcoords)
-            var[:, :] = self._data[field]
+            var[:, :] = self._data[field] * self.units_mult[self.outlet_y_ind, self.outlet_x_ind]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
                     setattr(var, key, val)
+            var.units = self.units
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #

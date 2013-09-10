@@ -3,12 +3,14 @@ read_forcings.py
 """
 
 import os
+import numpy as np
 from calendar import monthrange
 from bisect import bisect_right
 from netCDF4 import Dataset, date2num, date2index, num2date
 from logging import getLogger
 from log import LOG_NAME
 from time_utility import ord_to_datetime
+from share import MMPERMETER, CMPERMETER, WATERDENSITY, TIMEUNITS, SECSPERDAY
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -39,6 +41,7 @@ class DataModel(object):
         self.end_ords = []
         self.current_file = 'Null'
         self.current_tint = 0
+        self.fld_mult = {}
 
         if start:
             if type(start) == float:
@@ -97,16 +100,18 @@ class DataModel(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # find time bounds for input files
+        # find time bounds and timestep for input files
         for i, fname in enumerate(self.files):
             log.info('reading forcing file: %s' % fname)
             f = Dataset(fname, 'r+')
             self.start_dates.append(f.variables[self.time_fld][0])
             self.end_ords.append(f.variables[self.time_fld][-1])
+
             if i == 0:
                 # get the calendar and units information
                 self.calendar = f.variables[self.time_fld].calendar
                 self.time_units = f.variables[self.time_fld].units
+                time_series = f.variables[self.time_fld][:]
             else:
                 # check that the units match the first file
                 if f.variables[self.time_fld].units != self.time_units:
@@ -114,8 +119,22 @@ class DataModel(object):
                 if f.variables[self.time_fld].calendar != self.calendar:
                     raise ValueError('Calendars do not match in input files')
 
+                time_series = np.append(time_series, f.variables[self.time_fld][:])
+
             f.close()
+
         self.end = ord_to_datetime(self.end_ords[-1], self.time_units, calendar=self.calendar)
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # find timestep information
+        if len(time_series) > 1:
+            t0 = date2num(num2date(time_series[0], self.time_units, calendar=self.calendar), TIMEUNITS, calendar=self.calendar)
+            t1 = date2num(num2date(time_series[1], self.time_units, calendar=self.calendar), TIMEUNITS, calendar=self.calendar)
+            secs_per_step = (t1-t0) * SECSPERDAY
+        else:
+            raise ValueError('Need more than 1 forcing timestep in order to calculate timestep')
+
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -139,7 +158,23 @@ class DataModel(object):
             log.error('timestamp: %s' %timestamp)
             log.exception(e)
             raise
+        # ------------------------------------------------------------ #
 
+        # ------------------------------------------------------------ #
+        # find multiplier for units all fields will be in liquid flux (kg m-2 s-1)
+        for fld in self.liq_flds:
+            units = self.current_fhdl.variables[fld].units
+
+            if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1', 'kg*m-2*s-1', 'kg s-1 m-2']:
+                self.fld_mult[fld] = 1.0
+            elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
+                self.fld_mult[fld] = secs_per_step * WATERDENSITY / MMPERMETER
+            elif units in ['m', 'M', 'meters', 'Meters']:
+                self.fld_mult[fld] = secs_per_step * WATERDENSITY
+            elif units in ['cm', 'CM', 'centimeters', 'Centimeters']:
+                self.fld_mult[fld] = secs_per_step * WATERDENSITY / CMPERMETER
+            else:
+                raise ValueError('unknown forcing units')
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
 
@@ -190,15 +225,15 @@ class DataModel(object):
         forcing = {}
         for i, fld in enumerate(self.liq_flds):
             if i == 0:
-                forcing['LIQ'] = self.current_fhdl.variables[fld][self.current_tind, :, :]
+                forcing['LIQ'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
-                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :]
+                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
 
         for i, fld in enumerate(self.ice_flds):
             if i == 0:
-                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :]
+                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
-                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :]
+                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
 
         # move forward one step
         self.current_tind += 1
