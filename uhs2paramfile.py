@@ -7,7 +7,7 @@ import argparse
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.utilities import read_config, make_directories, copy_inputs, read_domain, tar_inputs
-from rvic.convert import read_station_file, read_uhs_files
+from rvic.convert import read_station_file, read_uhs_files, move_domain
 from rvic.param_file import finish_params
 
 
@@ -21,7 +21,7 @@ def main():
 
     # ---------------------------------------------------------------- #
     # Initilize
-    dom_data, outlets, config_dict, directories = uhs2param_init(config_file)
+    dom_data, new_dom_data, outlets, config_dict, directories = uhs2param_init(config_file)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -37,7 +37,7 @@ def main():
 
     # ---------------------------------------------------------------- #
     # Finally, make the parameter file
-    uhs2param_final(outlets, dom_data, config_dict, directories)
+    uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories)
     # ---------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
@@ -78,6 +78,13 @@ def uhs2param_init(config_file):
     # Read domain file (if applicable)
     dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
     log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
+
+    if config_dict['NEW_DOMAIN']:
+        new_dom_data, new_DomVats, new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
+        log.info('Opened New Domain File: %s' % config_dict['NEW_DOMAIN']['FILE_NAME'])
+    else:
+         new_dom_data = None
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -86,7 +93,7 @@ def uhs2param_init(config_file):
                                 dom_data, config_dict)
     # ---------------------------------------------------------------- #
 
-    return dom_data, outlets, config_dict, directories
+    return dom_data, new_dom_data, outlets, config_dict, directories
 # -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
@@ -103,7 +110,7 @@ def uhs2param_run(dom_data, outlets, config_dict, directories):
 
 # -------------------------------------------------------------------- #
 #
-def uhs2param_final(outlets, dom_data, config_dict, directories):
+def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
     """
     Make the RVIC Parameter File
     """
@@ -111,6 +118,13 @@ def uhs2param_final(outlets, dom_data, config_dict, directories):
     log = getLogger(LOG_NAME)
 
     log.info('In gen_uh_final')
+
+    # ---------------------------------------------------------------- #
+    # Move to smaller domain
+    if new_dom_data:
+        outlets = move_domain(dom_data, new_dom_data, outlets)
+        dom_data = new_dom_data
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Write the parameter file

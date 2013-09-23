@@ -7,7 +7,7 @@ import numpy as np
 import logging
 from log import LOG_NAME
 from variables import Point
-#from scipy.spatial import cKDTree
+from share import FILLVALUE_I
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -34,7 +34,7 @@ def read_station_file(file_name, dom_data, config_dict):
         uhs_file = f.readline().strip()
 
         # make sure files exist
-        print (name, active)
+        log.info('On station: %s, active: %s' %(name, active))
         if active == '1':
             if os.path.isfile(uhs_file):
                 active = True
@@ -145,4 +145,47 @@ def read_uhs_files(outlets, dom_data, config_dict):
         raise ValueError('UHS_FILES[ROUT_PROGRAM] must be either C or Fortran')
 
     return outlets
+# -------------------------------------------------------------------- #
+
+# -------------------------------------------------------------------- #
+# Adjust Domain Bounds
+def move_domain(dom_data, new_dom_data, outlets):
+
+    # ---------------------------------------------------------------- #
+    # Create lookup arrays (size of dom_data but contains mapping to new_dom)
+    if dom_data['cord_lons'].ndim == 1:
+        new_y = np.zeros(len(dom_data['cord_lats']), dtype=np.int) - FILLVALUE_I
+        new_x = np.zeros(len(dom_data['cord_lons']), dtype=np.int) - FILLVALUE_I
+    else:
+        raise ValueError('Grids must be regular and coordinate variables must have only 1 dimension to move domain to smaller size')
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Check that lons/lats in new_domain match those in original_domain
+    xi = np.searchsorted(dom_data['cord_lons'], new_dom_data['cord_lons'])
+    yi = np.searchsorted(dom_data['cord_lats'], new_dom_data['cord_lats'])
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Fill in the lookup arrays with the correct value
+    new_y[yi] = np.arange(len(yi), dtype=np.int)
+    new_x[xi] = np.arange(len(xi), dtype=np.int)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Adjust locations
+    for cell_id, outlet in outlets.iteritems():
+
+        outlets[cell_id].y = new_y[outlet.y]
+        outlets[cell_id].x = new_x[outlet.x]
+
+        outlets[cell_id].y_source = new_y[outlet.y_source]
+        outlets[cell_id].x_source = new_x[outlet.x_source]
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Return outles
+    log.info('Finished moving indicies to new domain')
+    return outlets
+    # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #

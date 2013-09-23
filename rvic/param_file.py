@@ -20,6 +20,11 @@ log = logging.getLogger(LOG_NAME)
 def finish_params(outlets, dom_data, config_dict, directories):
     options = config_dict['OPTIONS']
 
+    if config_dict['NEW_DOMAIN']:
+        dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
+    else:
+        dom_file_name = config_dict['DOMAIN']['FILE_NAME']
+
     # ---------------------------------------------------------------- #
     # adjust fractions
     if options['CONSTRAIN_FRACTIONS']:
@@ -70,7 +75,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
                                          RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
                                          RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
                                          RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
-                                         RvicDomainFile=os.path.split(config_dict['DOMAIN']['FILE_NAME'])[1]),
+                                         RvicDomainFile=os.path.split(dom_file_name)[1]),
                      full_time_length=full_time_length,
                      subset_length=options['SUBSET_LENGTH'],
                      unit_hydrograph_dt=config_dict['ROUTING']['OUTPUT_INTERVAL'],
