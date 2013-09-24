@@ -224,12 +224,14 @@ class DataModel(object):
         log.info('getting fluxes for %s (%s)' %(timestamp, self.current_tind))
         forcing = {}
         for i, fld in enumerate(self.liq_flds):
+            self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
                 forcing['LIQ'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
                 forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
 
         for i, fld in enumerate(self.ice_flds):
+            self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
                 forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
