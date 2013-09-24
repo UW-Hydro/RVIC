@@ -33,6 +33,10 @@ def read_station_file(file_name, dom_data, config_dict):
         active, name, x, y, area = line1.split(' ')
         uhs_file = f.readline().strip()
 
+        # move to zero based index
+        y = int(y)-1
+        x = int(x)-1
+
         # make sure files exist
         log.info('On station: %s, active: %s' %(name, active))
         if active == '1':
@@ -46,7 +50,7 @@ def read_station_file(file_name, dom_data, config_dict):
             active = False
 
         if active:
-            outlets[i] = Point(x=int(x), y=int(y))
+            outlets[i] = Point(x=x, y=y)
             outlets[i].name = name
             outlets[i].area = float(area)
             outlets[i].uhs_file = uhs_file
@@ -92,6 +96,9 @@ def read_uhs_files(outlets, dom_data, config_dict):
             for j in xrange(num_sources):
                 line = re.sub(' +',' ',f.readline())
                 lon, lat, fracs, x, y = line.split()
+                # move to zero based index
+                y = int(y)-1
+                x = int(x)-1
                 outlets[cell_id].lon_source[j] = float(lon)
                 outlets[cell_id].lat_source[j] = float(lat)
                 outlets[cell_id].fractions[j] = float(fracs)
