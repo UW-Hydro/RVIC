@@ -252,8 +252,15 @@ def tar_inputs(inputs, suffix=''):
     # ---------------------------------------------------------------- #
     # Make the TarFile
     tar_file = inputs + suffix + '.tar.gz'
+    print 'tarfile: %s' %tar_file
+
+    if os.path.isdir(inputs):
+        arcname = os.path.basename(os.path.normpath(inputs))
+    else:
+        arcname = os.path.split(inputs)[1]
+
     with tarfile.open(tar_file, "w:gz") as tar:
-        tar.add(inputs)
+        tar.add(inputs, arcname=arcname)
 
     # ---------------------------------------------------------------- #
     # Check to make sure the TarFile exists before deleting the sources
