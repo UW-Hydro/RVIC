@@ -18,7 +18,7 @@ from argparse import ArgumentParser
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
-from rvic.utilities import read_config, make_directories, copy_inputs, read_domain
+from rvic.utilities import read_config, make_directories, read_domain
 from rvic.utilities import write_rpointer, tar_inputs
 from rvic.variables import Rvar
 from rvic.time_utility import Dtime
