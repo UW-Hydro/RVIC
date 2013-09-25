@@ -188,6 +188,9 @@ def move_domain(dom_data, new_dom_data, outlets):
 
         outlets[cell_id].y_source = new_y[outlet.y_source]
         outlets[cell_id].x_source = new_x[outlet.x_source]
+
+        outlets[cell_id].outlet_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].y, outlets[cell_id].x]
+        outlets[cell_id].source_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
