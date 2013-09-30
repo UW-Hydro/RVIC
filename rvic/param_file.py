@@ -118,7 +118,7 @@ def adjust_fractions(outlets, dom_fractions):
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
-    fractions = np.ones(dom_fractions.shape)
+    fractions = np.zeros(dom_fractions.shape)
     for cell_id, outlet in outlets.iteritems():
         y = outlet.y_source
         x = outlet.x_source
