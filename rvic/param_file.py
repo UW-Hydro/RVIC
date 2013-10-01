@@ -20,7 +20,7 @@ log = logging.getLogger(LOG_NAME)
 def finish_params(outlets, dom_data, config_dict, directories):
     options = config_dict['OPTIONS']
 
-    if config_dict['NEW_DOMAIN']:
+    if 'NEW_DOMAIN' in config_dict.keys():
         dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
     else:
         dom_file_name = config_dict['DOMAIN']['FILE_NAME']
