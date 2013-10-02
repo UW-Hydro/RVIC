@@ -104,8 +104,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Read direction grid and find to_col (to_x) and to_row (to_y)
-    to_y, to_x = read_direction(basin['flow_direction'], basin['basin_id'],
-                                dy, dx, basin_id)
+    to_y, to_x = read_direction(basin['flow_direction'], dy, dx)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -162,7 +161,7 @@ def find_ts(uh_t):
 
 # -------------------------------------------------------------------- #
 # Read the flow direction file
-def read_direction(fdr, basin_ids, dy, dx, basin_id):
+def read_direction(fdr, dy, dx):
     """
     Reads the direction file and makes two grids (to_x) and (to_y).
     The input grids follow the 1-8 or 1-128 grid directions as shown below.

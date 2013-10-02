@@ -17,7 +17,7 @@ import os
 from argparse import ArgumentParser
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
-from rvic.mpi import LoggingPool
+# from rvic.mpi import LoggingPool
 from rvic.utilities import read_config, make_directories, read_domain
 from rvic.utilities import write_rpointer, tar_inputs
 from rvic.variables import Rvar
@@ -28,14 +28,17 @@ from rvic.share import NcGlobals
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
-def main(config_file=None):
+def main(config_file=None, numofproc=1):
     """
     Top level driver for RVIC model.
     """
 
     # ---------------------------------------------------------------- #
     # Read command Line
-    config_file, numofproc = process_command_line()
+    if not config_file:
+        config_file, numofproc = process_command_line()
+    if not os.path.isfile(config_file):
+        raise IOError('%s does not exist or is not a file' %config_file)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -164,6 +167,7 @@ def rvic_mod_init(config_file):
         hist_tapes[tapename] = Tape(time_handle.time_ord,
                                     options['CASEID'],
                                     rout_var,
+                                    tape_num=j,
                                     fincl=['streamflow'],
                                     mfilt=int(history['RVICHIST_MFILT'][j]),
                                     ndens=int(history['RVICHIST_NDENS'][j]),
@@ -250,8 +254,18 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         # ------------------------------------------------------------ #
         # Write State
         if rest_flag:
-            restart_file = rout_var.write_restart()
+            # History files
+            history_files = []
+            history_restart_files = []
+            for tapename, tape in hist_tapes.iteritems():
+                log.debug('Writing Restart File for Tape:%s' % tapename)
+                hist_fname, rest_fname = tape.write_restart()
+                history_files.append(hist_fname)
+                history_restart_files.append(rest_fname)
+
+            restart_file = rout_var.write_restart(history_files, history_restart_files)
             write_rpointer(directories['restarts'], restart_file, end_timestamp)
+
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -312,6 +326,9 @@ def process_command_line():
                         help="Number of processors used to run job", default=1)
 
     args = parser.parse_args()
+
+    if args.numofproc > 1:
+        print 'RVIC is currently only able to run on 1 processor....proceeding...'
 
     return args.config_file, args.numofproc
 # -------------------------------------------------------------------- #

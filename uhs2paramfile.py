@@ -144,7 +144,7 @@ def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
 # -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
-#
+# Read Command Line Arguments
 def process_command_line():
     """
     Get the path to the config_file
@@ -159,6 +159,7 @@ def process_command_line():
     args = parser.parse_args()
 
     return args.config_file, args.numofproc
+# -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #

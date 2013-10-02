@@ -16,8 +16,11 @@ METERSPERMILE = 1609.34
 METERS2PERACRE = 4046.856
 
 # time
-BASETIME = '0001-1-1 0:0:0'
-TIMEUNITS = 'days since ' + BASETIME
+# reference time
+REFERENCE_STRING = '0001-1-1 0:0:0'
+REFERENCE_DATE = 10101                           # i.e. REFERENCE_STRING
+REFERENCE_TIME = 0                               # i.e. REFERENCE_STRING
+TIMEUNITS = 'days since ' + REFERENCE_STRING     # do not change (MUST BE DAYS)!
 TIMESTAMPFORM = '%Y-%m-%d-%H'
 CALENDAR = 'noleap'
 HOURSPERDAY = 24.
@@ -35,6 +38,7 @@ PRECISION = 1.0e-30
 NC_DOUBLE = 'f8'
 NC_FLOAT = 'f4'
 NC_INT = 'i4'
+NC_CHAR = 'S1'
 
 # fill values
 FILLVALUE_F = default_fillvals[NC_DOUBLE]
@@ -45,6 +49,15 @@ RPOINTER = 'rpointer'
 
 # tracers
 RVIC_TRACERS = ('LIQ',)
+
+# Calendar key number for linking with CESM
+CALENDAR_KEYS = {0:['None'],
+                 1:['noleap', '365_day'],
+                 2:['gregorian', 'standard'],
+                 3:['proleptic_gregorian'],
+                 4:['all_leap', '366_day'],
+                 5:['360_day'],
+                 6:['julian']}
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #
 class NcGlobals:
@@ -177,3 +190,35 @@ streamflow = NcVar(long_name='Streamflow at outlet grid cell',
 
 storage = NcVar(long_name='Mass storage in stream upstream of outlet grid cell',
                 units='kg m-2 s-1')
+
+# valid values http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#calendar
+timemgr_rst_type = NcVar(long_name='calendar type',
+                         units='unitless')
+timemgr_rst_type.flag_values = '0, 1, 2, 3, 4, 5, 6'
+timemgr_rst_type.flag_meanings = 'NONE, NO_LEAP_C, GREGORIAN, PROLEPTIC_GREGORIAN, ALL_LEAP, 360_DAY, JULIAN'
+
+timemgr_rst_step_sec = NcVar(long_name='seconds component of timestep size',
+                             units='sec')
+timemgr_rst_step_sec.valid_range = [0, 86400]
+
+timemgr_rst_start_ymd = NcVar(long_name='start date',
+                              units='YYYYMMDD')
+
+timemgr_rst_start_tod = NcVar(long_name='start time of day',
+                              units='sec')
+timemgr_rst_step_sec.valid_range = [0, 86400]
+
+timemgr_rst_ref_ymd = NcVar(long_name='reference date',
+                            units='YYYYMMDD')
+
+timemgr_rst_ref_tod = NcVar(long_name='reference time of day',
+                            units='sec')
+timemgr_rst_ref_tod.valid_range = [0, 86400]
+
+
+timemgr_rst_curr_ymd = NcVar(long_name='current date',
+                            units='YYYYMMDD')
+
+timemgr_rst_curr_tod = NcVar(long_name='current time of day',
+                            units='sec')
+timemgr_rst_ref_tod.valid_range = [0, 86400]

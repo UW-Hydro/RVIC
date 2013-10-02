@@ -118,7 +118,7 @@ def config_type(value):
     val_list = [x.strip() for x in value.split(',')]
     if len(val_list) == 1:
         value = val_list[0]
-        if value in ['true', 'True', 'TRUE']:
+        if value in ['true', 'True', 'TRUE', 'T']:
             return True
         elif value in ['false', 'False', 'FALSE', 'F']:
             return False

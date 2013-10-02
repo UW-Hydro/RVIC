@@ -32,10 +32,11 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # Init
-    def __init__(self, time_ord, caseid, Rvar, fincl=['streamflow'],
+    def __init__(self, time_ord, caseid, Rvar, tape_num=0, fincl=['streamflow'],
                  mfilt=1, ndens=2, nhtfrq=0, avgflag='A', units='kg m-2 s-1',
                  file_format='NETCDF4_CLASSIC', outtype='grid', grid_lons=False,
                  grid_lats=False, grid_area=None, out_dir='.', calendar=None, glob_ats=None):
+        self._tape_num = tape_num
         self._time_ord = time_ord        # Days since basetime
         self._caseid = caseid            # Case ID and prefix for outfiles
         self._fincl = fincl              # Fields to include in history file
@@ -107,17 +108,17 @@ class Tape(object):
         # Determine the format of the output filename
         if self._avgflag == 'I':
             self._fname_format = os.path.join(out_dir,
-                                             "%s.rvic.h%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (self._caseid, self._avgflag.lower()))
+                                             "%s.rvic.h%s%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
         else:
             if nhtfrq == 0:
                 self._fname_format = os.path.join(out_dir,
-                                                 "%s.rvic.h%s.%%Y-%%m.nc" % (self._caseid, self._avgflag.lower()))
+                                                 "%s.rvic.h%s%s.%%Y-%%m.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
             elif (nhtfrq == -24) or (nhtfrq*self._dt == SECSPERDAY):
                 self._fname_format = os.path.join(out_dir,
-                                                 "%s.rvic.h%s.%%Y-%%m-%%d.nc" % (self._caseid, self._avgflag.lower()))
+                                                 "%s.rvic.h%s%s.%%Y-%%m-%%d.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
             else:
                 self._fname_format = os.path.join(out_dir,
-                                                 "%s.rvic.h%s.%%Y-%%m-%%d-%%H.nc" % (self._caseid, self._avgflag.lower()))
+                                                 "%s.rvic.h%s%s.%%Y-%%m-%%d-%%H.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -245,6 +246,14 @@ class Tape(object):
     # write initial flux
     def write_initial(self):
         pass
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # write initial flux
+    def write_restart(self):
+        self._hist_rest_file = 'temp_file_name'
+
+        return self._filename, self._hist_rest_file
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
