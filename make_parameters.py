@@ -168,13 +168,19 @@ def gen_uh_init(config_file):
         dom_data = {}
     # ---------------------------------------------------------------- #
 
+
+
     # ---------------------------------------------------------------- #
     # Group pour points (if aggregate)
     if options['AGGREGATE']:
         outlets = make_agg_pairs(pour_points['lons'], pour_points['lats'],
                                  dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']],
                                  dom_data[config_dict['DOMAIN']['LATITUDE_VAR']],
-                                 dom_data['cell_ids'], agg_type='agg')
+                                 dom_data['cell_ids'],
+                                 fdr_data[config_dict['ROUTING']['LONGITUDE_VAR']],
+                                 fdr_data[config_dict['ROUTING']['LATITUDE_VAR']],
+                                 fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']],
+                                 agg_type='agg')
 
         log.info('Finished making agg pairs of pour points and outlet grid cells')
 
@@ -199,7 +205,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
     """
     log = getLogger(LOG_NAME)
 
-    log.info('Running outlet cell id  %i' % outlet.cell_id)
+    log.info('Running outlet cell id  %i', outlet.cell_id)
 
     agg_data = {}
     # ------------------------------------------------------------ #

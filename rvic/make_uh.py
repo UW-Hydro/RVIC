@@ -30,7 +30,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     """
     Make the Unit Hydrograph Grid
     """
-    log.info("Starting routing program...")
+    log.info("Starting routing program for point: %s", pour_point)
     # ---------------------------------------------------------------- #
     # Unpack a few structures
     uh_t = uh_box['time']
@@ -39,8 +39,6 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Find Basin Dims and ID
-    pour_point.x = find_nearest(fdr_data[rout_dict['LONGITUDE_VAR']], pour_point.lon)
-    pour_point.y = find_nearest(fdr_data[rout_dict['LATITUDE_VAR']], pour_point.lat)
     basin_id = fdr_data[rout_dict['BASIN_ID_VAR']][pour_point.y, pour_point.x]
 
     log.info('Input Latitude: %f' % pour_point.lat)

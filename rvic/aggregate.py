@@ -5,6 +5,7 @@ aggregate.py
 
 import numpy as np
 from scipy.spatial import cKDTree
+from collections import OrderedDict
 from share import FILLVALUE_F
 from utilities import find_nearest
 from variables import Point
@@ -19,7 +20,8 @@ log = getLogger(LOG_NAME)
 
 # -------------------------------------------------------------------- #
 # Find target cells for pour points
-def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids, agg_type='agg'):
+def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
+                   fdr_lons, fdr_lats, fdr_srcarea, agg_type='agg'):
     """
     Group pour points by domain grid outlet cell
     """
@@ -32,6 +34,11 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids, agg_type='agg'):
         posinds = np.nonzero(dom_lon > 180)
         dom_lon[posinds] -= 360
         log.info('adjusted domain lon minimum')
+
+    if (min(lons) < 0 and fdr_lons.min() >= 0):
+        posinds = np.nonzero(fdr_lons > 180)
+        fdr_lons[posinds] -= 360
+        log.info('adjusted fdr lon minimum')
 
     if agg_type != 'test':
         combined = np.dstack(([dom_lat.ravel(), dom_lon.ravel()]))[0]
@@ -51,15 +58,31 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids, agg_type='agg'):
     outlets = {}
 
     for i, ind in enumerate(indexes):
+        # Define pour point object (on )
+        pour_point = Point(y=find_nearest(fdr_lats, points[i][0]),
+                           x=find_nearest(fdr_lons, points[i][1]),
+                           lat=points[i][0],
+                           lon=points[i][1])
+        print points[i][0], pour_point.y, fdr_lats
+
         cell_id = dom_ids[yinds[i], xinds[i]]
         if cell_id in outlets:
-            outlets[cell_id].pour_points.append(Point(lat=points[i][0], lon=points[i][1]))
+            outlets[cell_id].pour_points.append(pour_point)
+            outlets[cell_id].upstream_area += pour_point.source_area
         else:
-            outlets[cell_id] = Point(y=yinds[i], x=xinds[i],
-                                     lat=combined[ind][0], lon=combined[ind][1])
-            outlets[cell_id].pour_points = [Point(lat=points[i][0], lon=points[i][1])]
+            # define outlet grid cell (on domain grid)
+            outlets[cell_id] = Point(y=yinds[i],
+                                     x=xinds[i],
+                                     lat=combined[ind][0],
+                                     lon=combined[ind][1])
+            outlets[cell_id].pour_points = [pour_point]
             outlets[cell_id].cell_id = cell_id
+            outlets[cell_id].upstream_area = pour_point.source_area
+    # ---------------------------------------------------------------- #
 
+    # ---------------------------------------------------------------- #
+    # Sort based on outlet total source area pour_point.source_area
+    outlets = OrderedDict(sorted(outlets.items(), key=lambda t: t[1].upstream_area))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
