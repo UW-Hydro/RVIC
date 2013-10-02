@@ -8,6 +8,9 @@ from rvic.write import write_param_file
 from rvic.share import NcGlobals, PRECISION
 import os
 from datetime import date
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -34,7 +37,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # adjust fractions
     if options['CONSTRAIN_FRACTIONS']:
         log.info('Adjusting Fractions to be less than or equal to domain fractions')
-        outlets = adjust_fractions(outlets, dom_data[config_dict['DOMAIN']['FRACTION_VAR']])
+        outlets, plot_dict = adjust_fractions(outlets,
+                                              dom_data[config_dict['DOMAIN']['FRACTION_VAR']])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -52,8 +56,20 @@ def finish_params(outlets, dom_data, config_dict, directories):
     for p, ind in enumerate(source2outlet_ind):
         unit_hydrograph[:, p] *= area[source_y_ind[p], source_x_ind[p]]
         unit_hydrograph[:, p] /= area[outlet_y_ind[ind], outlet_x_ind[ind]]
-        unit_hydrograph[:, p] *= frac_sources[source_y_ind[p], source_x_ind[p]]
+        unit_hydrograph[:, p] *= frac_sources[p]
     # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Make diagnostic plots
+    sum_after = np.zeros(dom_data[config_dict['DOMAIN']['FRACTION_VAR']].shape)
+    for i, (y, x) in enumerate(zip(source_y_ind, source_x_ind)):
+        sum_after[y, x] += unit_hydrograph[:, i].sum()
+
+    plot_dict['Sum UH Final'] = sum_after
+
+    for title, data in plot_dict.iteritems():
+        pfname = plot_fractions(data, title, directories['plots'])
+        log.info('%s Plot:  %s', title, pfname)
 
     # ---------------------------------------------------------------- #
     # fill in some misc arrays
@@ -123,6 +139,8 @@ def adjust_fractions(outlets, dom_fractions):
 
     fractions = np.zeros(dom_fractions.shape)
     ratio_fraction = np.ones(fractions.shape)
+    adjusted_fractions = np.zeros(dom_fractions.shape)
+    sum_uh_fractions = np.zeros(dom_fractions.shape)
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
@@ -134,8 +152,15 @@ def adjust_fractions(outlets, dom_fractions):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
+    # First set fractions to zero where there is no land in the domain
+    yd, xd = np.nonzero(dom_fractions == 0.0)
+    fractions[yd, xd] = 0.0
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
     # Only adjust fractions where the aggregated fractions are gt the domain fractions
     yi, xi = np.nonzero(fractions > dom_fractions)
+    log.info('Adjust fractions for %s grid cells', len(yi))
     ratio_fraction[yi, xi] = dom_fractions[yi, xi]/fractions[yi, xi]
     # ---------------------------------------------------------------- #
 
@@ -145,9 +170,43 @@ def adjust_fractions(outlets, dom_fractions):
         y = outlet.y_source
         x = outlet.x_source
         outlets[cell_id].fractions *= ratio_fraction[y, x]
+        # For Diagnostics only
+        adjusted_fractions[y, x] += outlets[cell_id].fractions
+        sum_uh_fractions[y, x] += outlets[cell_id].unit_hydrograph.sum(axis=0)
     # ---------------------------------------------------------------- #
 
-    return outlets
+    # ---------------------------------------------------------------- #
+    # Make Fractions Dict for plotting
+    plot_dict= {'Domain Fractions':dom_fractions,
+                'Aggregated Fractions':fractions,
+                'Ratio Fractions':ratio_fraction,
+                'Adjusted Fractions':adjusted_fractions,
+                'Sum UH Before':sum_uh_fractions}
+    # ---------------------------------------------------------------- #
+
+    return outlets, plot_dict
+
+def plot_fractions(data, title, plot_dir):
+    """
+    Plot diagnotic plots of fraction variables
+    """
+    # ---------------------------------------------------------------- #
+    # Plot Fractions
+    file_name = title.lower().replace(" ","_")+'.png'
+    pfname = os.path.join(plot_dir, file_name)
+
+    fig = plt.figure()
+    plt.pcolor(data)
+    plt.autoscale(tight=True)
+    plt.colorbar()
+    plt.title(title)
+    plt.xlabel('x')
+    plt.ylabel('y')
+    fig.savefig(pfname)
+
+    return pfname
+    # ---------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 # Shorten the unit hydrograph
