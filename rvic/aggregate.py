@@ -83,7 +83,7 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
 
     # ---------------------------------------------------------------- #
     # Sort based on outlet total source area pour_point.source_area
-    outlets = OrderedDict(sorted(outlets.items(), key=lambda t: t[1].upstream_area))
+    outlets = OrderedDict(sorted(outlets.items(), key=lambda t: t[1].upstream_area, reverse=True))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
