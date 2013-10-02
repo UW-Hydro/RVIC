@@ -63,9 +63,10 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
                            x=find_nearest(fdr_lons, points[i][1]),
                            lat=points[i][0],
                            lon=points[i][1])
-        print points[i][0], pour_point.y, fdr_lats
+        pour_point.source_area = fdr_srcarea[pour_point.y, pour_point.x]
 
         cell_id = dom_ids[yinds[i], xinds[i]]
+
         if cell_id in outlets:
             outlets[cell_id].pour_points.append(pour_point)
             outlets[cell_id].upstream_area += pour_point.source_area
