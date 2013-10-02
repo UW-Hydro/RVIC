@@ -18,24 +18,23 @@ log = logging.getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 #
 def finish_params(outlets, dom_data, config_dict, directories):
+    """
+    Adjust the unit hydrographs and pack for parameter file
+    """
     options = config_dict['OPTIONS']
 
-    if 'NEW_DOMAIN' in config_dict.keys():
-        dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
-    else:
-        dom_file_name = config_dict['DOMAIN']['FILE_NAME']
+    # ---------------------------------------------------------------- #
+    # subset (shorten time base)
+    outlets, full_time_length = subset(outlets,
+                                       subset_length=options['SUBSET_LENGTH'],
+                                       threshold=options['SUBSET_THRESHOLD'])
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # adjust fractions
     if options['CONSTRAIN_FRACTIONS']:
+        log.info('Adjusting Fractions to be less than or equal to domain fractions')
         outlets = adjust_fractions(outlets, dom_data[config_dict['DOMAIN']['FRACTION_VAR']])
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # subset
-    outlets, full_time_length = subset(outlets,
-                                       subset_length=options['SUBSET_LENGTH'],
-                                       threshold=options['SUBSET_THRESHOLD'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -47,12 +46,13 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Adjust Unit Hydrographs for differences in source/outlet areas
-    unit_hydrograph *= frac_sources
-    unit_hydrograph *= dom_data[config_dict['DOMAIN']['AREA_VAR']][source_y_ind, source_x_ind]
+    # Adjust Unit Hydrographs for differences in source/outlet areas and fractions
+    area = dom_data[config_dict['DOMAIN']['AREA_VAR']]
 
     for p, ind in enumerate(source2outlet_ind):
-        unit_hydrograph[:, p] /= dom_data[config_dict['DOMAIN']['AREA_VAR']][outlet_y_ind[ind], outlet_x_ind[ind]]
+        unit_hydrograph[:, p] *= area[source_y_ind[p], source_x_ind[p]]
+        unit_hydrograph[:, p] /= area[outlet_y_ind[ind], outlet_x_ind[ind]]
+        unit_hydrograph[:, p] *= frac_sources[source_y_ind[p], source_x_ind[p]]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -68,6 +68,11 @@ def finish_params(outlets, dom_data, config_dict, directories):
     param_file = os.path.join(directories['params'],
                              '%s.rvic.prm.%s.%s.nc' % (options['CASEID'],
                                                        options['GRIDID'], today))
+
+    if 'NEW_DOMAIN' in config_dict.keys():
+        dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
+    else:
+        dom_file_name = config_dict['DOMAIN']['FILE_NAME']
 
     write_param_file(param_file,
                      nc_format=options['NETCDF_FORMAT'],
@@ -114,11 +119,13 @@ def adjust_fractions(outlets, dom_fractions):
     exceed the domain fractions.
     """
 
-    log.debug('In adjust fractions now')
+    log.info('Adjusting fractions now')
+
+    fractions = np.zeros(dom_fractions.shape)
+    ratio_fraction = np.ones(fractions.shape)
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
-    fractions = np.zeros(dom_fractions.shape)
     for cell_id, outlet in outlets.iteritems():
         y = outlet.y_source
         x = outlet.x_source
@@ -127,14 +134,8 @@ def adjust_fractions(outlets, dom_fractions):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Determin how to adjust the fractions
-    diff_fractions = fractions - dom_fractions
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Only adjust fractions where the fractions are gt the domain fractions
+    # Only adjust fractions where the aggregated fractions are gt the domain fractions
     yi, xi = np.nonzero(fractions > dom_fractions)
-    ratio_fraction = np.ones(diff_fractions.shape)
     ratio_fraction[yi, xi] = dom_fractions[yi, xi]/fractions[yi, xi]
     # ---------------------------------------------------------------- #
 
@@ -152,8 +153,6 @@ def adjust_fractions(outlets, dom_fractions):
 # Shorten the unit hydrograph
 def subset(outlets, subset_length=None, threshold=PRECISION):
     """ Shorten the Unit Hydrograph"""
-    if not threshold:
-        threshold = PRECISION
 
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
         if i == 0:
