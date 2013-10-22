@@ -39,6 +39,7 @@ NC_DOUBLE = 'f8'
 NC_FLOAT = 'f4'
 NC_INT = 'i4'
 NC_CHAR = 'S1'
+MAX_NC_CHARS = 256
 
 # fill values
 FILLVALUE_F = default_fillvals[NC_DOUBLE]

@@ -60,6 +60,7 @@ class Tape(object):
         self._out_time_bnds = np.zeros((self._mfilt, 2))
 
         self.__get_rvar(Rvar)           # Get the initial Rvar fields
+        self.rest_filename = 'null'
 
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid, setup out_data
@@ -253,7 +254,7 @@ class Tape(object):
     def write_restart(self):
         self._hist_rest_file = 'temp_file_name'
 
-        return self._filename, self._hist_rest_file
+        return self.filename, self._hist_rest_file
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -307,12 +308,12 @@ class Tape(object):
         # Get next file name and timeord
         if self._avgflag == 'I':
             self._write_ord = b1
-            self._filename = num2date(b1, TIMEUNITS,
+            self.filename = num2date(b1, TIMEUNITS,
                                      calendar=self._calendar).strftime(self._fname_format)
         else:
             self._time_bnds = np.array([[b0, b1]])
             self._write_ord = np.average(self._time_bnds)
-            self._filename = num2date(b0, TIMEUNITS,
+            self.filename = num2date(b0, TIMEUNITS,
                                      calendar=self._calendar).strftime(self._fname_format)
         # ------------------------------------------------------------ #
 
@@ -337,7 +338,7 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # Open file
-        f = Dataset(self._filename, 'w', self._file_format)
+        f = Dataset(self.filename, 'w', self._file_format)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -426,7 +427,7 @@ class Tape(object):
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % self._filename)
+        log.info('Finished writing %s' % self.filename)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -436,7 +437,7 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # Open file
-        f = Dataset(self._filename, 'w', self._file_format)
+        f = Dataset(self.filename, 'w', self._file_format)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -519,6 +520,6 @@ class Tape(object):
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % self._filename)
+        log.info('Finished writing %s' % self.filename)
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #

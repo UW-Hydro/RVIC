@@ -39,7 +39,7 @@ def main():
     # Finally, make the parameter file
     uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories)
     # ---------------------------------------------------------------- #
-
+    return
 # -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
@@ -141,6 +141,7 @@ def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
     log.info('Location of Log: %s' % log_tar)
     log.info('Location of Parmeter File %s' % param_file)
     # ---------------------------------------------------------------- #
+    return
 # -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #

@@ -8,7 +8,7 @@ from logging import getLogger
 from log import LOG_NAME
 from time_utility import ord_to_datetime
 from share import TIMEUNITS, NC_INT, NC_DOUBLE, NC_CHAR, REFERENCE_DATE, REFERENCE_TIME
-from share import CALENDAR_KEYS, RVIC_TRACERS, NcGlobals, SECSPERDAY
+from share import CALENDAR_KEYS, RVIC_TRACERS, NcGlobals, SECSPERDAY, MAX_NC_CHARS
 import share
 
 # -------------------------------------------------------------------- #
@@ -217,7 +217,7 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     # Write the current state
-    def write_restart(self, history_restart_files):
+    def write_restart(self, current_history_files, history_restart_files):
 
         # ------------------------------------------------------------ #
         # Open file
@@ -304,24 +304,29 @@ class Rvar(object):
                 setattr(timemgr_rst_curr_tod, key, val)
 
 
-        # History file links
+        # ------------------------------------------------------------ #
+        # Setup Tape Dimensions
+        coords = ('tapes', 'mak_chars')
         ntapes = f.createDimension(coords[0], len(history_restart_files))
+        ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
+        # ------------------------------------------------------------ #
 
-        # # History file restart links
-        # locfnh = f.createVariable('locfnh', NC_CHAR, ('ntapes', 'max_chars',))
-        # locfnh[:] = 'null'
-        # locfnh.long_name = 'History filename'
-        # locfnh.comment = 'This variable NOT needed for startup or branch simulations'
+        # ------------------------------------------------------------ #
+        # Write Fields
+        locfnh = f.createVariable('locfnh', NC_CHAR, ('ntapes', 'max_chars',))
+        locfnh[:] = current_history_files
+        locfnh.long_name = 'History filename'
+        locfnh.comment = 'This variable NOT needed for startup or branch simulations'
 
-        # locfnhr = f.createVariable('locfnhr', NC_CHAR, ('ntapes', 'max_chars',))
-        # locfnhr[:] = 'null'
-        # locfnhr.long_name = 'History filename'
-        # locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
+        locfnhr = f.createVariable('locfnhr', NC_CHAR, ('ntapes', 'max_chars',))
+        locfnhr[:] = history_restart_files
+        locfnhr.long_name = 'History filename'
+        locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
 
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # Setup Coordinate Variables
+        # Setup Point Dimensions
         coords = ('outlets', 'tracers')
 
         outlets = f.createDimension(coords[0], self.n_outlets)
