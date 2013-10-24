@@ -308,22 +308,22 @@ def read_domain(domain_dict):
 
     # ---------------------------------------------------------------- #
     # Make sure the area is in m2
-    if dom_vatts[domain_dict['AREA_VAR']]['units'] in ["rad2", "radians2", "radian2", "rad^2",
-                                                    "radians^2", "rads^2", "radians squared",
-                                                    "square-radians"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * EARTHRADIUS * EARTHRADIUS
-    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["m2", "m^2", "meters^2", "meters2",
-                                                      "square-meters", "meters squared"]:
+    area_units = dom_vatts[domain_dict['AREA_VAR']]['units']
+
+    if area_units in ["rad2", "radians2", "radian2", "radian^2", "rad^2",
+                      "radians^2", "rads^2", "radians squared", "square-radians"]:
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*EARTHRADIUS*EARTHRADIUS
+    elif area_units in ["m2", "m^2", "meters^2", "meters2", "square-meters",
+                        "meters squared"]:
         dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]
-    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["km2", "km^2", "kilometers^2",
-                                                      "kilometers2", "square-kilometers",
-                                                      "kilometers squared"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * METERSPERKM * METERSPERKM
-    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["mi2", "mi^2", "miles^2", "miles",
-                                                      "square-miles", "miles squared"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * METERSPERMILE * METERSPERMILE
-    elif dom_vatts[domain_dict['AREA_VAR']]['units'] in ["acres", "ac", "ac."]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']] * METERS2PERACRE
+    elif area_units in ["km2", "km^2", "kilometers^2", "kilometers2",
+                        "square-kilometers", "kilometers squared"]:
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*METERSPERKM*METERSPERKM
+    elif area_units in ["mi2", "mi^2", "miles^2", "miles", "square-miles",
+                        "miles squared"]:
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*METERSPERMILE*METERSPERMILE
+    elif area_units in ["acres", "ac", "ac."]:
+        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*METERS2PERACRE
     else:
         log.warning("WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN "
                     "SQUARE METERS" % dom_data[domain_dict['AREA_VAR']]['units'])
