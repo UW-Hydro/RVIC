@@ -30,5 +30,5 @@ where `$N_PROCESSORS` is the number of processors to be used.  This uses the Pyt
 ### Upcoming Development
 1.  Write core convolution routine in C for speed.  
 2.  History file restarts to further support short model runs.
-3   Possible distributed application to support full grid routing (rather than source to sink only).  
-3.  Plans to couple directly to VIC
+3.  Possible distributed application to support full grid routing (rather than source to sink only).
+4.  Plans to couple directly to VIC.
