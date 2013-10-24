@@ -1,11 +1,11 @@
 """
-params.py
+param_file.py
 """
 import numpy as np
 import logging
 from log import LOG_NAME
 from rvic.write import write_param_file
-from rvic.share import NcGlobals, PRECISION
+from rvic.share import NcGlobals, PRECISION, SECSPERDAY
 import os
 from datetime import date
 import matplotlib
@@ -19,7 +19,7 @@ log = logging.getLogger(LOG_NAME)
 
 
 # -------------------------------------------------------------------- #
-#
+# Wrap up functiions to finish the parameter file
 def finish_params(outlets, dom_data, config_dict, directories):
     """
     Adjust the unit hydrographs and pack for parameter file
@@ -28,8 +28,9 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
+    subset_length = options['SUBSET_DAYS']*config_dict['ROUTING']['OUTPUT_INTERVAL']/SECSPERDAY
     outlets, full_time_length = subset(outlets,
-                                       subset_length=options['SUBSET_LENGTH'],
+                                       subset_length=subset_length,
                                        threshold=options['SUBSET_THRESHOLD'])
     # ---------------------------------------------------------------- #
 
@@ -98,7 +99,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
                                          RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
                                          RvicDomainFile=os.path.split(dom_file_name)[1]),
                      full_time_length=full_time_length,
-                     subset_length=options['SUBSET_LENGTH'],
+                     subset_length=subset_length,
                      unit_hydrograph_dt=config_dict['ROUTING']['OUTPUT_INTERVAL'],
                      outlet_lon=outlet_lon,
                      outlet_lat=outlet_lat,
