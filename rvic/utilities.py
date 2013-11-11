@@ -3,6 +3,7 @@ utilities.py
 """
 import os
 import tarfile
+from scipy.spatial import cKDTree
 import numpy as np
 from shutil import rmtree, copyfile
 from ConfigParser import SafeConfigParser
@@ -18,6 +19,24 @@ from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE, METERS2PE
 log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
+
+# -------------------------------------------------------------------- #
+# find x y coordinates
+def latlon2yx(plats, plons, glats, glons):
+    """find y x coordinates """
+
+    if glons.ndim == 1 or glats.ndim == 1:
+        glons, glats = np.meshgrid(glons, glats)
+
+    combined = np.dstack(([glats.ravel(), glons.ravel()]))[0]
+    points = list(np.vstack((np.array(plats), np.array(plons))).transpose())
+
+    mytree = cKDTree(combined)
+    dist, indexes = mytree.query(points, k=1)
+    y, x = np.unravel_index(np.array(indexes), glons.shape)
+    return y, x
+
+# -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #
 # Write rpointer file

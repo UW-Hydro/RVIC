@@ -3,10 +3,10 @@ write.py
 """
 
 import numpy as np
-from netCDF4 import Dataset
+from netCDF4 import Dataset, stringtochar
 from logging import getLogger
 from log import LOG_NAME
-from share import NC_DOUBLE, NC_INT, FILLVALUE_F, NcGlobals
+from share import NC_DOUBLE, NC_INT, NC_CHAR, FILLVALUE_F, NcGlobals
 import share
 
 # -------------------------------------------------------------------- #
@@ -105,6 +105,7 @@ def write_param_file(file_name,
                      outlet_decomp_ind=None,
                      outlet_number=None,
                      outlet_mask=None,
+                     outlet_name=None,
                      source_lon=None,
                      source_lat=None,
                      source_x_ind=None,
@@ -142,6 +143,7 @@ def write_param_file(file_name,
     for key, val in glob_atts.__dict__.iteritems():
         if val:
             setattr(f, key, val)
+    f.featureType = "timeSeries"
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -170,9 +172,13 @@ def write_param_file(file_name,
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Outlet Dimension
+    # Outlet Dimensions
     ocoords = ('outlets',)
     outlets = f.createDimension(ocoords[0], len(outlet_lon))
+
+    nocoords = ocoords + ('nc_chars',)
+    char_names = stringtochar(outlet_name)
+    chars = f.createDimension(nocoords[1], char_names.shape[1])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -227,6 +233,12 @@ def write_param_file(file_name,
         if val:
             setattr(om, key, val)
 
+    # Outlet Names
+    onm = f.createVariable('outlet_name', NC_CHAR, nocoords)
+    onm[:, :] = char_names
+    for key, val in share.outlet_name.__dict__.iteritems():
+        if val:
+            setattr(onm, key, val)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

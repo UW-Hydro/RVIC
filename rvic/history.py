@@ -518,6 +518,7 @@ class Tape(object):
         for key, val in self._glob_ats.__dict__.iteritems():
             if val:
                 setattr(f, key, val)
+        f.featureType = "timeSeries"
         # ------------------------------------------------------------ #
         f.close()
         log.info('Finished writing %s' % self.filename)

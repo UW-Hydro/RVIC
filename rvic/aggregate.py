@@ -7,7 +7,7 @@ import numpy as np
 from scipy.spatial import cKDTree
 from collections import OrderedDict
 from share import FILLVALUE_F
-from utilities import find_nearest
+from utilities import find_nearest, latlon2yx
 from variables import Point
 from logging import getLogger
 from log import LOG_NAME
@@ -20,11 +20,25 @@ log = getLogger(LOG_NAME)
 
 # -------------------------------------------------------------------- #
 # Find target cells for pour points
-def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
-                   fdr_lons, fdr_lats, fdr_srcarea, agg_type='agg'):
+def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
+# def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
+                   # fdr_lons, fdr_lats, fdr_srcarea, agg_type='agg'):
     """
     Group pour points by domain grid outlet cell
     """
+    lons = pour_points['lons']
+    lats = pour_points['lats']
+    dom_lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']]
+    dom_lat = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']]
+    dom_ids = dom_data['cell_ids']
+    fdr_lons = fdr_data[config_dict['ROUTING']['LONGITUDE_VAR']]
+    fdr_lats = fdr_data[config_dict['ROUTING']['LATITUDE_VAR']]
+    fdr_srcarea = fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']]
+
+    routys, routxs = latlon2yx(plats=lats,
+                               plons=lons,
+                               glats=fdr_lats,
+                               glons=fdr_lons)
 
     # ---------------------------------------------------------------- #
     #Find Destination grid cells
@@ -40,17 +54,12 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
         fdr_lons[posinds] -= 360
         log.info('adjusted fdr lon minimum')
 
-    if agg_type != 'test':
-        combined = np.dstack(([dom_lat.ravel(), dom_lon.ravel()]))[0]
-    else:
-        # limit the inputs arrays to a single point
-        # so that all points are mapped to just one location
-        combined = np.dstack(([dom_lat[0, 0].ravel(), dom_lon[0, 0].ravel()]))[0]
+    combined = np.dstack(([dom_lat.ravel(), dom_lon.ravel()]))[0]
     points = list(np.vstack((np.array(lats), np.array(lons))).transpose())
 
     mytree = cKDTree(combined)
     dist, indexes = mytree.query(points, k=1)
-    yinds, xinds = np.unravel_index(np.array(indexes), dom_lat.shape)
+    gridys, gridxs = np.unravel_index(np.array(indexes), dom_lat.shape)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -59,21 +68,25 @@ def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
 
     for i, ind in enumerate(indexes):
         # Define pour point object (on )
-        pour_point = Point(y=find_nearest(fdr_lats, points[i][0]),
-                           x=find_nearest(fdr_lons, points[i][1]),
-                           lat=points[i][0],
-                           lon=points[i][1])
-        pour_point.source_area = fdr_srcarea[pour_point.y, pour_point.x]
+        pour_point = Point(lat=lats[i],
+                           lon=lons[i],
+                           gridx=gridxs[i],
+                           gridy=gridys[i],
+                           routx=routxs[i],
+                           routy=routys[i],
+                           name=None,
+                           cell_id=dom_ids[gridys[i], gridxs[i]])
+        pour_point.source_area = fdr_srcarea[pour_point.routy, pour_point.routx]
 
-        cell_id = dom_ids[yinds[i], xinds[i]]
+        cell_id = dom_ids[gridys[i], gridxs[i]]
 
         if cell_id in outlets:
             outlets[cell_id].pour_points.append(pour_point)
             outlets[cell_id].upstream_area += pour_point.source_area
         else:
             # define outlet grid cell (on domain grid)
-            outlets[cell_id] = Point(y=yinds[i],
-                                     x=xinds[i],
+            outlets[cell_id] = Point(gridy=gridys[i],
+                                     gridx=gridxs[i],
                                      lat=combined[ind][0],
                                      lon=combined[ind][1])
             outlets[cell_id].pour_points = [pour_point]
