@@ -14,8 +14,7 @@ Now called from make_parameters.py
 import numpy as np
 import logging
 from scipy.interpolate import interp1d
-from utilities import find_nearest
-from variables import Point
+from utilities import latlon2yx
 from share import SECSPERDAY, PRECISION
 from log import LOG_NAME
 
@@ -39,7 +38,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Find Basin Dims and ID
-    basin_id = fdr_data[rout_dict['BASIN_ID_VAR']][pour_point.y, pour_point.x]
+    basin_id = fdr_data[rout_dict['BASIN_ID_VAR']][pour_point.routy, pour_point.routx]
 
     log.info('Input Latitude: %f' % pour_point.lat)
     log.info('Input Longitude: %f' % pour_point.lon)
@@ -68,10 +67,10 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     log.debug('Grid cells in subset: %i' % basin['velocity'].size)
 
-    basin_point = Point(x=find_nearest(basin['lon'], pour_point.lon),
-                        y=find_nearest(basin['lat'], pour_point.lat),
-                        lon=pour_point.lon, lat=pour_point.lat)
-
+    pour_point.basiny, pour_point.basinx = latlon2yx(plats=pour_point.lat,
+                                                     plons=pour_point.lon,
+                                                     glats=basin['lat'],
+                                                     glons=basin['lon'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -107,7 +106,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Find all grid cells upstream of pour point
-    catchment, rout_data['fraction'] = search_catchment(to_y, to_x, basin_point,
+    catchment, rout_data['fraction'] = search_catchment(to_y, to_x, pour_point,
                                                          basin['basin_id'],
                                                          basin_id)
     # ---------------------------------------------------------------- #
@@ -121,7 +120,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Make uh_river by incrementally moving upstream comining uh functions
-    uh_river = make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point,
+    uh_river = make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point,
                                   catchment['y_inds'], catchment['x_inds'],
                                   catchment['count_ds'])
 
@@ -184,12 +183,12 @@ def read_direction(fdr, dy, dx):
 
 # -------------------------------------------------------------------- #
 # Search the catchment
-def search_catchment(to_y, to_x, basin_point, basin_ids, basin_id):
+def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     """
     Find all cells upstream of pour point.  Retrun a dictionary with x_inds,
     yinds, and #of cell to downstream pour point.  All are sorted the by the
     latter. For each x,y pair, the flow path is followed until either the
-    catchment outlet is encountered (if (yy==basin_point.y and xx==basin_point.x):)
+    catchment outlet is encountered (if (yy==pour_point.basiny and xx==pour_point.basinx):)
     or the flowpath leads outside of grid.
     *** Does not handle wrapped coordinates. ***
     """
@@ -209,7 +208,7 @@ def search_catchment(to_y, to_x, basin_point, basin_ids, basin_id):
         yy, xx = y, x
         cells = 0
         while True:
-            if (yy == basin_point.y and xx == basin_point.x):
+            if (yy == pour_point.basiny and xx == pour_point.basinx):
                 catchment['count_ds'][i] = cells
                 count += 1
                 break
@@ -267,15 +266,15 @@ def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
 
 # -------------------------------------------------------------------- #
 # Make uh river
-def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, basin_point, y_inds,
+def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point, y_inds,
                        x_inds, count_ds):
     """
     Calculate impulse response function for river routing.  Starts at
     downstream point incrementally moves upstream.
     """
     log.debug("Making uh_river grid.... It takes a while...")
-    y_ind = basin_point.y
-    x_ind = basin_point.x
+    y_ind = pour_point.basiny
+    x_ind = pour_point.basinx
 
     uh_river = np.zeros((t_uh, uh.shape[1], uh.shape[2]))
     for (y, x, d) in zip(y_inds, x_inds, count_ds):

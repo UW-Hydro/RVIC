@@ -28,7 +28,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
-    subset_length = options['SUBSET_DAYS']*config_dict['ROUTING']['OUTPUT_INTERVAL']/SECSPERDAY
+    subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
     outlets, full_time_length = subset(outlets,
                                        subset_length=subset_length,
                                        threshold=options['SUBSET_THRESHOLD'])
@@ -37,27 +37,46 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # adjust fractions
     if options['CONSTRAIN_FRACTIONS']:
+        adjust=True
         log.info('Adjusting Fractions to be less than or equal to domain fractions')
-        outlets, plot_dict = adjust_fractions(outlets,
-                                              dom_data[config_dict['DOMAIN']['FRACTION_VAR']])
+    else:
+        adjust=False
+    outlets, plot_dict = adjust_fractions(outlets,
+                                          dom_data[config_dict['DOMAIN']['FRACTION_VAR']],
+                                          adjust=adjust)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Group
-    unit_hydrograph, frac_sources, source_lon, source_lat, source_x_ind, \
-    source_y_ind, source_decomp_ind, source_time_offset, source2outlet_ind, \
-    outlet_lon, outlet_lat, outlet_x_ind, outlet_y_ind, outlet_decomp_ind, \
-    outlet_number = group(outlets)
+    grouped_data = group(outlets)
+
+    # unpack grouped data
+    unit_hydrograph = grouped_data['unit_hydrograph']
+    frac_sources = grouped_data['frac_sources']
+    source_lon = grouped_data['source_lon']
+    source_lat = grouped_data['source_lat']
+    source_x_ind = grouped_data['source_x_ind']
+    source_y_ind = grouped_data['source_y_ind']
+    source_decomp_ind = grouped_data['source_decomp_ind']
+    source_time_offset = grouped_data['source_time_offset']
+    source2outlet_ind = grouped_data['source2outlet_ind']
+    outlet_lon = grouped_data['outlet_lon']
+    outlet_lat = grouped_data['outlet_lat']
+    outlet_x_ind = grouped_data['outlet_x_ind']
+    outlet_y_ind = grouped_data['outlet_y_ind']
+    outlet_decomp_ind = grouped_data['outlet_decomp_ind']
+    outlet_number = grouped_data['outlet_number']
+    outlet_name = grouped_data['outlet_name']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Adjust Unit Hydrographs for differences in source/outlet areas and fractions
     area = dom_data[config_dict['DOMAIN']['AREA_VAR']]
 
-    for p, ind in enumerate(source2outlet_ind):
-        unit_hydrograph[:, p] *= area[source_y_ind[p], source_x_ind[p]]
-        unit_hydrograph[:, p] /= area[outlet_y_ind[ind], outlet_x_ind[ind]]
-        unit_hydrograph[:, p] *= frac_sources[p]
+    for source, outlet in enumerate(source2outlet_ind):
+        unit_hydrograph[:, source] *= area[source_y_ind[source], source_x_ind[source]]
+        unit_hydrograph[:, source] /= area[outlet_y_ind[outlet], outlet_x_ind[outlet]]
+        unit_hydrograph[:, source] *= frac_sources[source]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -71,6 +90,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     for title, data in plot_dict.iteritems():
         pfname = plot_fractions(data, title, directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # fill in some misc arrays
@@ -108,6 +128,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
                      outlet_decomp_ind=outlet_decomp_ind,
                      outlet_number=outlet_number,
                      outlet_mask=outlet_mask,
+                     outlet_name=outlet_name,
                      source_lon=source_lon,
                      source_lat=source_lat,
                      source_x_ind=source_x_ind,
@@ -129,7 +150,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
 
 # -------------------------------------------------------------------- #
-def adjust_fractions(outlets, dom_fractions):
+def adjust_fractions(outlets, dom_fractions, adjust=True):
     """
     Constrain the fractions in the outles.
     The basic idea is that the sum of fraction from the outlets should not
@@ -170,7 +191,8 @@ def adjust_fractions(outlets, dom_fractions):
     for cell_id, outlet in outlets.iteritems():
         y = outlet.y_source
         x = outlet.x_source
-        outlets[cell_id].fractions *= ratio_fraction[y, x]
+        if adjust:
+            outlets[cell_id].fractions *= ratio_fraction[y, x]
         # For Diagnostics only
         adjusted_fractions[y, x] += outlets[cell_id].fractions
         sum_uh_fractions[y, x] += outlets[cell_id].unit_hydrograph.sum(axis=0)
@@ -270,10 +292,11 @@ def group(outlets):
             # outlet specific inputs
             outlet_lon = np.array(outlet.lon)
             outlet_lat = np.array(outlet.lat)
-            outlet_x_ind = np.array(outlet.x)
-            outlet_y_ind = np.array(outlet.y)
+            outlet_x_ind = np.array(outlet.gridx)
+            outlet_y_ind = np.array(outlet.gridy)
             outlet_decomp_ind = np.array(cell_id)
             outlet_number = np.array(i)
+            outlet_name = np.array(outlet.name)
         else:
             # -------------------------------------------------------- #
             # Point specific values
@@ -292,14 +315,29 @@ def group(outlets):
             # outlet specific inputs
             outlet_lon = np.append(outlet_lon, outlet.lon)
             outlet_lat = np.append(outlet_lat, outlet.lat)
-            outlet_x_ind = np.append(outlet_x_ind, outlet.x)
-            outlet_y_ind = np.append(outlet_y_ind, outlet.y)
+            outlet_x_ind = np.append(outlet_x_ind, outlet.gridx)
+            outlet_y_ind = np.append(outlet_y_ind, outlet.gridy)
             outlet_decomp_ind = np.append(outlet_decomp_ind, cell_id)
             outlet_number = np.append(outlet_number, i)
+            outlet_name = np.append(outlet_name, outlet.name)
             # -------------------------------------------------------- #
 
-    return unit_hydrograph, frac_sources, source_lon, source_lat, source_x_ind, \
-    source_y_ind, source_decomp_ind, source_time_offset, source2outlet_ind, \
-    outlet_lon, outlet_lat, outlet_x_ind, outlet_y_ind, outlet_decomp_ind, \
-    outlet_number
+    grouped_data = {'unit_hydrograph': unit_hydrograph,
+                    'frac_sources': frac_sources,
+                    'source_lon': source_lon,
+                    'source_lat': source_lat,
+                    'source_x_ind': source_x_ind,
+                    'source_y_ind': source_y_ind,
+                    'source_decomp_ind': source_decomp_ind,
+                    'source_time_offset': source_time_offset,
+                    'source2outlet_ind': source2outlet_ind,
+                    'outlet_lon': outlet_lon,
+                    'outlet_lat': outlet_lat,
+                    'outlet_x_ind': outlet_x_ind,
+                    'outlet_y_ind': outlet_y_ind,
+                    'outlet_decomp_ind': outlet_decomp_ind,
+                    'outlet_number': outlet_number,
+                    'outlet_name': outlet_name}
+
+    return grouped_data
 # -------------------------------------------------------------------- #

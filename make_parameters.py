@@ -4,13 +4,14 @@ RVIC parameter file development driver
 """
 import os
 import numpy as np
+import pandas as pd
 import argparse
 from collections import OrderedDict
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
 from rvic.utilities import read_config, make_directories, copy_inputs, read_netcdf, tar_inputs
-from rvic.utilities import check_ncvars, remap, clean_file, read_domain
+from rvic.utilities import check_ncvars, remap, clean_file, read_domain, latlon2yx
 from rvic.aggregate import make_agg_pairs, aggregate
 from rvic.make_uh import rout
 from rvic.share import NcGlobals
@@ -98,14 +99,14 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Read Pour Points files
-    pour_points = {}
     try:
-        pour_points['lons'], pour_points['lats'] = np.genfromtxt(config_dict['POUR_POINTS']['FILE_NAME'],
-                                                                 skip_header=int(config_dict['POUR_POINTS']['HEADER_LINES']),
-                                                                 delimiter=',', unpack=True)
+        pour_points = pd.read_csv(config_dict['POUR_POINTS']['FILE_NAME'], comment='#')
         log.info('Opened Pour Points File: %s' % config_dict['POUR_POINTS']['FILE_NAME'])
-    except:
-        log.exception('Error opening pour points file: %s' % config_dict['POUR_POINTS']['FILE_NAME'])
+        if not all(x in pour_points.keys() for x in ['lons', 'lats']):
+            raise ValueError('Pour Points File must include variables (lons, lats)')
+    except Exception as e:
+        log.error('Error opening pour points file: %s' % config_dict['POUR_POINTS']['FILE_NAME'])
+        log.exception(e)
         raise
     # ---------------------------------------------------------------- #
 
@@ -160,35 +161,57 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Read domain file (if applicable)
-    if options['REMAP']:
-        dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
-        log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
-    else:
-        dom_data = {}
+    # Read domain file
+    dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
+    log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
     # ---------------------------------------------------------------- #
 
+    # ---------------------------------------------------------------- #
+    # If remap is False, domain coordinates needs to be in the fdr coordinates
+    # We can move the unit hydrographs to the domain grid later
+    if not options['REMAP']:
+        log.error('RVIC parameter generation requires REMAP option to be True')
+        log.error('In theory, this is possible but it has not been tested.')
+        raise ValueError('Invalid option')
+    # ---------------------------------------------------------------- #
 
 
     # ---------------------------------------------------------------- #
     # Group pour points (if aggregate)
     if options['AGGREGATE']:
-        outlets = make_agg_pairs(pour_points['lons'], pour_points['lats'],
-                                 dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']],
-                                 dom_data[config_dict['DOMAIN']['LATITUDE_VAR']],
-                                 dom_data['cell_ids'],
-                                 fdr_data[config_dict['ROUTING']['LONGITUDE_VAR']],
-                                 fdr_data[config_dict['ROUTING']['LATITUDE_VAR']],
-                                 fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']],
-                                 agg_type='agg')
+        outlets = make_agg_pairs(pour_points, dom_data, fdr_data, config_dict)
 
         log.info('Finished making agg pairs of pour points and outlet grid cells')
 
     else:
         outlets = {}
-        for i, (lon, lat) in enumerate(zip(pour_points['lons'], pour_points['lats'])):
-            outlets[i] = Point(lat=lat, lon=lon)
-            outlets[i].pour_points = [Point(lat=lat, lon=lon)]
+
+        gridys, gridxs = latlon2yx(plats=pour_points['lats'],
+                                   plons=pour_points['lons'],
+                                   glats=dom_data[config_dict['DOMAIN']['LATITUDE_VAR']],
+                                   glons=dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']])
+
+        routys, routxs = latlon2yx(plats=pour_points['lats'],
+                                   plons=pour_points['lons'],
+                                   glats=fdr_data[config_dict['ROUTING']['LATITUDE_VAR']],
+                                   glons=fdr_data[config_dict['ROUTING']['LONGITUDE_VAR']])
+
+        for i in xrange(len(pour_points['lats'])):
+            if 'names' in pour_points.keys():
+                name = pour_points['names'][i]
+            else:
+                name = None
+
+            outlets[i] = Point(lat=pour_points['lats'][i],
+                               lon=pour_points['lons'][i],
+                               gridx=gridxs[i],
+                               gridy=gridys[i],
+                               routx=routxs[i],
+                               routy=routys[i],
+                               name=name,
+                               cell_id=dom_data['cell_ids'][gridys[i], gridxs[i]])
+
+            outlets[i].pour_points = [outlets[i]]
     # ---------------------------------------------------------------- #
 
     log.info('Finished with gen_uh_init')
@@ -234,10 +257,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
                                      pad=config_dict['OPTIONS']['AGG_PAD'], maskandnorm=True)
 
                 log.debug('agg_data: %f, %f' % (agg_data['unit_hydrograph'].min(), agg_data['unit_hydrograph'].max()))
-        elif config_dict['OPTIONS']['REMAP']:
-            agg_data = rout_data
         else:
-            remap_data = rout_data
+            agg_data = rout_data
         # -------------------------------------------------------- #
 
     # ------------------------------------------------------------ #
@@ -253,16 +274,9 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
         write_agg_netcdf(temp_file_1, agg_data, glob_atts,
                          config_dict['OPTIONS']['NETCDF_FORMAT'])
-    elif config_dict['OPTIONS']['AGGREGATE']:
-        remap_data = agg_data
-    else:
-        pass
-    # ------------------------------------------------------------ #
 
-    # ------------------------------------------------------------ #
-    # Remap temporary file #1 to temporary file #2
-    if config_dict['OPTIONS']['REMAP']:
-
+        # -------------------------------------------------------- #
+        # Remap temporary file #1 to temporary file #2
         temp_file_2 = os.path.join(directories['remapped'], 'remapUH_%i.nc' % outlet.cell_id)
 
         remap(config_dict['DOMAIN']['FILE_NAME'], temp_file_1, temp_file_2)
@@ -275,8 +289,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
 
         # -------------------------------------------------------- #
         # Read temporary file #2
-        remap_data, remap_vatts, remap_gatts = read_netcdf(temp_file_2,
-                                                           variables=['unit_hydrograph', 'fraction'])
+        final_data, fva, fga = read_netcdf(temp_file_2,
+                                           variables=['unit_hydrograph', 'fraction'])
         # -------------------------------------------------------- #
 
         # -------------------------------------------------------- #
@@ -286,22 +300,21 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
         # -------------------------------------------------------- #
 
     else:
-        remap_data = agg_data
+        final_data = agg_data
     # ------------------------------------------------------------ #
 
     # ------------------------------------------------------------ #
     # Add to adjust fractions Structure
-    if config_dict['OPTIONS']['REMAP']:
-        y, x = np.nonzero((remap_data['fraction'] > 0.0) * (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
+    y, x = np.nonzero((final_data['fraction'] > 0.0) * (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
 
-        outlet.fractions = remap_data['fraction'][y, x]
-        outlet.unit_hydrograph = remap_data['unit_hydrograph'][:, y, x]
-        outlet.time = np.arange(remap_data['unit_hydrograph'].shape[0])
-        outlet.lon_source = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
-        outlet.lat_source = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
-        outlet.cell_id_source = dom_data['cell_ids'][y, x]
-        outlet.x_source = x
-        outlet.y_source = y
+    outlet.fractions = final_data['fraction'][y, x]
+    outlet.unit_hydrograph = final_data['unit_hydrograph'][:, y, x]
+    outlet.time = np.arange(final_data['unit_hydrograph'].shape[0])
+    outlet.lon_source = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
+    outlet.lat_source = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
+    outlet.cell_id_source = dom_data['cell_ids'][y, x]
+    outlet.x_source = x
+    outlet.y_source = y
     # ---------------------------------------------------------------- #
     return outlet
 # -------------------------------------------------------------------- #

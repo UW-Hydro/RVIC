@@ -163,6 +163,9 @@ outlet_number = NcVar(long_name='outlet number',
 outlet_mask = NcVar(long_name='type of outlet point',
                     units='0-ocean, 1-land, 2-guage, 3-none')
 
+outlet_name = NcVar(long_name='Outlet guage name',
+                    units='unitless')
+
 source_x_ind = NcVar(long_name='x grid coordinate of source grid cell',
                      units='unitless')
 

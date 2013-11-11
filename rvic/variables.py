@@ -22,15 +22,24 @@ log = getLogger(LOG_NAME)
 class Point(object):
     '''Creates a point class for intellegently storing coordinate information'''
 
-    def __init__(self, lat='', lon='', x='', y=''):
+    def __init__(self, lat='', lon='', gridx='', gridy='', routx='',
+                 routy='', name=None, cell_id=None):
         '''Defines x and y variables'''
         self.lat = lat
         self.lon = lon
-        self.x = x
-        self.y = y
+        self.gridx = gridx
+        self.gridy = gridy
+        self.routx = routx
+        self.routy = routy
+        self.cell_id = cell_id
+
+        if name:
+            self.name = name
+        else:
+            self.name = 'outlet_%s_%s' %(self.lat, self.lon)
 
     def __str__(self):
-        return "Point(%s,%s,%s,%s)" % (self.lat, self.lon, self.y, self.x)
+        return "Point(%s,%s,%s,%s)" % (self.lat, self.lon, self.gridy, self.gridx)
 
     def __repr__(self):
         return '__repr__'
