@@ -364,11 +364,11 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Setup Coordinate Variables
         if self._grid_lons.ndim > 1:
-            coords = ('yc', 'xc',)
-
+            coords = ('y', 'x',)
+	    
             # Grid is not regular
-            xc = f.createDimension('xc', self._grid_lons.shape[1])
-            yc = f.createDimension('yc', self._grid_lons.shape[0])
+            x = f.createDimension('x', self._grid_lons.shape[1])
+            y = f.createDimension('y', self._grid_lons.shape[0])
 
             xc = f.createVariable('xc', self._ndens, coords)
             yc = f.createVariable('yc', self._ndens, coords)
@@ -406,11 +406,9 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Write Fields
         tcoords = ('time',) + coords
-
         for field in self._fincl:
             var = f.createVariable(field, self._ndens, tcoords)
             var[:, :] = self._out_data[field] * self._units_mult
-
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
                     setattr(var, key, val)
@@ -504,7 +502,7 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ndens, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
+            var[:, :] = self._out_data[field] * self._units_mult
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:

@@ -33,7 +33,7 @@ def latlon2yx(plats, plons, glats, glons):
 
     mytree = cKDTree(combined)
     dist, indexes = mytree.query(points, k=1)
-    y, x = np.unravel_index(np.array(indexes), glons.shape)
+    y, x = np.unravel_index(indexes, glons.shape)
     return y, x
 
 # -------------------------------------------------------------------- #
@@ -67,7 +67,7 @@ def read_netcdf(nc_file, variables=None, coords=None):
     Both variables (data and attributes) are returned as dictionaries named by variable
     """
 
-    f = Dataset(nc_file, 'r+')
+    f = Dataset(nc_file, 'r')
 
     if not variables:
         variables = f.variables.keys()
