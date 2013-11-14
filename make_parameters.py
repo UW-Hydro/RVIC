@@ -271,14 +271,14 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
                               RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
                               RvicDomainFile=os.path.split(config_dict['DOMAIN']['FILE_NAME'])[1])
 
-        temp_file_1 = os.path.join(directories['aggregated'], 'aggUH_%i.nc' % j)
+        temp_file_1 = os.path.join(directories['aggregated'], 'aggUH_%s.nc' % outlet.name)
 
         write_agg_netcdf(temp_file_1, agg_data, glob_atts,
                          config_dict['OPTIONS']['NETCDF_FORMAT'])
 
         # -------------------------------------------------------- #
         # Remap temporary file #1 to temporary file #2
-        temp_file_2 = os.path.join(directories['remapped'], 'remapUH_%i.nc' % j)
+        temp_file_2 = os.path.join(directories['remapped'], 'remapUH_%s.nc' % outlet.name)
 
         remap(config_dict['DOMAIN']['FILE_NAME'], temp_file_1, temp_file_2)
 

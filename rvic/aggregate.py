@@ -35,41 +35,28 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     fdr_lats = fdr_data[config_dict['ROUTING']['LATITUDE_VAR']]
     fdr_srcarea = fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']]
 
+    # ---------------------------------------------------------------- #
+    #Find Destination grid cells
+    log.info('Finding addresses now...')
     routys, routxs = latlon2yx(plats=lats,
                                plons=lons,
                                glats=fdr_lats,
                                glons=fdr_lons)
 
-    # ---------------------------------------------------------------- #
-    #Find Destination grid cells
-    log.info('Finding addresses now...')
-
-    if (min(lons) < 0 and dom_lon.min() >= 0):
-        posinds = np.nonzero(dom_lon > 180)
-        dom_lon[posinds] -= 360
-        log.info('adjusted domain lon minimum')
-
-    if (min(lons) < 0 and fdr_lons.min() >= 0):
-        posinds = np.nonzero(fdr_lons > 180)
-        fdr_lons[posinds] -= 360
-        log.info('adjusted fdr lon minimum')
-
-    combined = np.dstack(([dom_lat.ravel(), dom_lon.ravel()]))[0]
-    points = list(np.vstack((np.array(lats), np.array(lons))).transpose())
-
-    mytree = cKDTree(combined)
-    dist, indexes = mytree.query(points, k=1)
-    gridys, gridxs = np.unravel_index(np.array(indexes), dom_lat.shape)
+    gridys, gridxs = latlon2yx(plats=lats,
+                               plons=lons,
+                               glats=dom_lat,
+                               glons=dom_lon)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Do the aggregation
     outlets = {}
 
-    for i, ind in enumerate(indexes):
+    for i, (lat, lon) in enumerate(zip(lats, lons)):
         # Define pour point object (on )
-        pour_point = Point(lat=lats[i],
-                           lon=lons[i],
+        pour_point = Point(lat=lat,
+                           lon=lon,
                            gridx=gridxs[i],
                            gridy=gridys[i],
                            routx=routxs[i],
@@ -87,8 +74,8 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
             # define outlet grid cell (on domain grid)
             outlets[cell_id] = Point(gridy=gridys[i],
                                      gridx=gridxs[i],
-                                     lat=combined[ind][0],
-                                     lon=combined[ind][1])
+                                     lat=dom_lat[gridys[i], gridxs[i]],
+                                     lon=dom_lon[gridys[i], gridxs[i]])
             outlets[cell_id].pour_points = [pour_point]
             outlets[cell_id].cell_id = cell_id
             outlets[cell_id].upstream_area = pour_point.source_area
