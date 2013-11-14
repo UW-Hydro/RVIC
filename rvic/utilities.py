@@ -25,6 +25,16 @@ log = getLogger(LOG_NAME)
 def latlon2yx(plats, plons, glats, glons):
     """find y x coordinates """
 
+    # use astronomical conventions for longitude (i.e. negative longitudes to the east of 0)
+    if (glons.max() > 180):
+        posinds = np.nonzero(glons > 180)
+        glons[posinds] -= 360
+        log.info('adjusted grid lon to ')
+    if (plons.max() > 180):
+        posinds = np.nonzero(plons > 180)
+        plons[posinds] -= 360
+        log.info('adjusted points lon minimum')
+
     if glons.ndim == 1 or glats.ndim == 1:
         glons, glats = np.meshgrid(glons, glats)
 

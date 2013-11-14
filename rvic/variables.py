@@ -75,6 +75,7 @@ class Rvar(object):
         self.outlet_mask = f.variables['outlet_mask'][:]
         self.outlet_decomp_ind = f.variables['outlet_decomp_ind'][:]
         self.unit_hydrograph = f.variables['unit_hydrograph'][:]
+        self.outlet_name = f.variables['outlet_name'][:]
         self.RvicDomainFile = f.RvicDomainFile
         self.RvicPourPointsFile = f.RvicPourPointsFile
         self.RvicUHFile = f.RvicUHFile

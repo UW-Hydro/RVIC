@@ -268,6 +268,7 @@ class Tape(object):
         self._outlet_y_ind = rvar.outlet_y_ind
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
+        self._outlet_name = rvar.outlet_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
