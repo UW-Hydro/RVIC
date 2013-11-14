@@ -200,7 +200,7 @@ def gen_uh_init(config_file):
             if 'names' in pour_points.keys():
                 name = pour_points['names'][i]
             else:
-                name = None
+                name = 'name-{}'.format(i)
 
             outlets[i] = Point(lat=pour_points['lats'][i],
                                lon=pour_points['lons'][i],
@@ -270,22 +270,16 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
                               RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
                               RvicDomainFile=os.path.split(config_dict['DOMAIN']['FILE_NAME'])[1])
 
-        temp_file_1 = os.path.join(directories['aggregated'], 'aggUH_%i.nc' % outlet.cell_id)
+        temp_file_1 = os.path.join(directories['aggregated'], 'aggUH_%i.nc' % j)
 
         write_agg_netcdf(temp_file_1, agg_data, glob_atts,
                          config_dict['OPTIONS']['NETCDF_FORMAT'])
 
         # -------------------------------------------------------- #
         # Remap temporary file #1 to temporary file #2
-        temp_file_2 = os.path.join(directories['remapped'], 'remapUH_%i.nc' % outlet.cell_id)
+        temp_file_2 = os.path.join(directories['remapped'], 'remapUH_%i.nc' % j)
 
         remap(config_dict['DOMAIN']['FILE_NAME'], temp_file_1, temp_file_2)
-
-        # -------------------------------------------------------- #
-        # Clean temporary file #1 (if applicable)
-        if config_dict['OPTIONS']['CLEAN']:
-            clean_file(temp_file_1)
-        # -------------------------------------------------------- #
 
         # -------------------------------------------------------- #
         # Read temporary file #2
@@ -296,6 +290,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, direc
         # -------------------------------------------------------- #
         # Clean temporary file #2 (if applicable)
         if config_dict['OPTIONS']['CLEAN']:
+            clean_file(temp_file_1)
             clean_file(temp_file_2)
         # -------------------------------------------------------- #
 
