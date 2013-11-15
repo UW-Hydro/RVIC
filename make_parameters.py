@@ -104,6 +104,7 @@ def gen_uh_init(config_file):
         log.info('Opened Pour Points File: %s' % config_dict['POUR_POINTS']['FILE_NAME'])
         if not all(x in pour_points.keys() for x in ['lons', 'lats']):
             raise ValueError('Pour Points File must include variables (lons, lats)')
+	pour_points = pour_points.drop_duplicates().dropna()
     except Exception as e:
         log.error('Error opening pour points file: %s' % config_dict['POUR_POINTS']['FILE_NAME'])
         log.exception(e)
@@ -198,12 +199,12 @@ def gen_uh_init(config_file):
 
         for i in xrange(len(pour_points['lats'])):
             if 'names' in pour_points.keys():
-                name = pour_points['names'][i]
+                name = pour_points['names'].values[i]
             else:
                 name = 'name-{}'.format(i)
 
-            outlets[i] = Point(lat=pour_points['lats'][i],
-                               lon=pour_points['lons'][i],
+            outlets[i] = Point(lat=pour_points['lats'].values[i],
+                               lon=pour_points['lons'].values[i],
                                gridx=gridxs[i],
                                gridy=gridys[i],
                                routx=routxs[i],

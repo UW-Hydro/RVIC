@@ -264,7 +264,6 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
                 history_restart_files.append(tape.rest_filename)
 
             restart_file = rout_var.write_restart(history_files,
-                                                  current_history_files,
                                                   history_restart_files)
             write_rpointer(directories['restarts'], restart_file, end_timestamp)
 

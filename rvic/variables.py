@@ -3,7 +3,7 @@ variables.py
 """
 import os
 import numpy as np
-from netCDF4 import Dataset, date2num
+from netCDF4 import Dataset, date2num, stringtochar
 from logging import getLogger
 from log import LOG_NAME
 from time_utility import ord_to_datetime
@@ -126,7 +126,8 @@ class Rvar(object):
         if run_type in ['startup', 'restart']:
             log.info('reading state_file: %s' %state_file)
             f = Dataset(state_file, 'r+')
-            self.ring = f.variables['ring'][:]
+            for i, tracer in enumerate(RVIC_TRACERS):
+		self.ring[:, :, i] = f.variables[tracer+'_ring_'][:]
             file_timestamp = ord_to_datetime(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar)
 
             if run_type == 'restart':
@@ -272,7 +273,7 @@ class Rvar(object):
                 setattr(timemgr_rst_type, key, val)
 
         timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec', NC_DOUBLE, ())
-        timemgr_rst_step_sec[:] = unit_hydrograph_dt
+        timemgr_rst_step_sec[:] = self.unit_hydrograph_dt
         for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_step_sec, key, val)
@@ -316,31 +317,32 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Setup Tape Dimensions
-        coords = ('tapes', 'mak_chars')
+        coords = ('tapes', 'max_chars', )
         ntapes = f.createDimension(coords[0], len(history_restart_files))
         ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
         # ------------------------------------------------------------ #
-
-        # ------------------------------------------------------------ #
+        
+	# ------------------------------------------------------------ #
         # Write Fields
-        locfnh = f.createVariable('locfnh', NC_CHAR, ('ntapes', 'max_chars',))
-        locfnh[:] = current_history_files
+        locfnh = f.createVariable('locfnh', NC_CHAR, coords)
+        for i, string in enumerate(current_history_files):
+	    locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
         locfnh.long_name = 'History filename'
         locfnh.comment = 'This variable NOT needed for startup or branch simulations'
 
-        locfnhr = f.createVariable('locfnhr', NC_CHAR, ('ntapes', 'max_chars',))
-        locfnhr[:] = history_restart_files
-        locfnhr.long_name = 'History filename'
+        locfnhr = f.createVariable('locfnhr', NC_CHAR, coords)
+        for i, string in enumerate(history_restart_files):
+            locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
+	locfnhr.long_name = 'History restart filename'
         locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
 
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Setup Point Dimensions
-        coords = ('outlets', 'tracers')
+        coords = ('outlets', )
 
         outlets = f.createDimension(coords[0], self.n_outlets)
-        tracers = f.createDimension(coords[1], len(RVIC_TRACERS))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -363,10 +365,11 @@ class Rvar(object):
             if val:
                 setattr(odi, key, val)
 
-        tcoords = ('timesteps',) + coords
+        tcoords = ('timesteps', ) + coords
 
-        ring = f.createVariable('ring', NC_DOUBLE, tcoords)
-        ring[:, :, :] = self.ring
+        for i, tracer in enumerate(RVIC_TRACERS):
+	    ring = f.createVariable(tracer+'_ring', NC_DOUBLE, tcoords)
+            ring[:, :] = self.ring[:, :, i]
 
         for key, val in share.ring.__dict__.iteritems():
             if val:
