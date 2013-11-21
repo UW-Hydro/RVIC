@@ -284,7 +284,7 @@ class Tape(object):
 
         if self._nhtfrq == 0:
             if self._timestamp.month == 12:
-                b1 = date2num(datetime(self._timestamp.year + 1, 2, 1),
+                b1 = date2num(datetime(self._timestamp.year + 1, 1, 1),
                               TIMEUNITS, calendar=self._calendar)
             else:
                 b1 = date2num(datetime(self._timestamp.year, self._timestamp.month + 1, 1),
@@ -366,7 +366,7 @@ class Tape(object):
         # Setup Coordinate Variables
         if self._grid_lons.ndim > 1:
             coords = ('y', 'x',)
-	    
+
             # Grid is not regular
             x = f.createDimension('x', self._grid_lons.shape[1])
             y = f.createDimension('y', self._grid_lons.shape[0])
