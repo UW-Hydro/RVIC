@@ -160,7 +160,15 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
     # Setup history Tape(s) and Write Initial Outputs
     history = config_dict['HISTORY']
+    numtapes = history['RVICHIST_NTAPES']
     hist_tapes = {}
+
+    # make sure history file fields are all in list form
+    if numtapes == 1:
+        for var, value in history.iteritems():
+            if not isinstance(value, list):
+                history[var] = list([value])
+
     for j in xrange(int(config_dict['HISTORY']['RVICHIST_NTAPES'])):
         tapename = 'Tape.%i' % j
         log.info('setting up History %s' %tapename)
