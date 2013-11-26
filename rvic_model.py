@@ -255,16 +255,15 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         # Write State
         if rest_flag:
             # History files
-            history_files = []
+            current_history_files = []
             history_restart_files = []
             for tapename, tape in hist_tapes.iteritems():
                 log.debug('Writing Restart File for Tape:%s' % tapename)
                 hist_fname, rest_fname = tape.write_restart()
-                history_files.append(tape.filename)
+                current_history_files.append(tape.filename)
                 history_restart_files.append(tape.rest_filename)
 
-            restart_file = rout_var.write_restart(history_files,
-                                                  current_history_files,
+            restart_file = rout_var.write_restart(current_history_files,
                                                   history_restart_files)
             write_rpointer(directories['restarts'], restart_file, end_timestamp)
 

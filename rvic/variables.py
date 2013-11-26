@@ -329,7 +329,7 @@ class Rvar(object):
 
         locfnhr = f.createVariable('locfnhr', NC_CHAR, ('ntapes', 'max_chars',))
         locfnhr[:] = history_restart_files
-        locfnhr.long_name = 'History filename'
+        locfnhr.long_name = 'Restart history filename'
         locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
 
         # ------------------------------------------------------------ #
