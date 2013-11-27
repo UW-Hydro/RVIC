@@ -268,6 +268,7 @@ class Tape(object):
         self._outlet_y_ind = rvar.outlet_y_ind
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
+        self._outlet_name = rvar.outlet_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -283,7 +284,7 @@ class Tape(object):
 
         if self._nhtfrq == 0:
             if self._timestamp.month == 12:
-                b1 = date2num(datetime(self._timestamp.year + 1, 2, 1),
+                b1 = date2num(datetime(self._timestamp.year + 1, 1, 1),
                               TIMEUNITS, calendar=self._calendar)
             else:
                 b1 = date2num(datetime(self._timestamp.year, self._timestamp.month + 1, 1),
@@ -364,11 +365,11 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Setup Coordinate Variables
         if self._grid_lons.ndim > 1:
-            coords = ('yc', 'xc',)
+            coords = ('y', 'x',)
 
             # Grid is not regular
-            xc = f.createDimension('xc', self._grid_lons.shape[1])
-            yc = f.createDimension('yc', self._grid_lons.shape[0])
+            x = f.createDimension('x', self._grid_lons.shape[1])
+            y = f.createDimension('y', self._grid_lons.shape[0])
 
             xc = f.createVariable('xc', self._ndens, coords)
             yc = f.createVariable('yc', self._ndens, coords)
@@ -406,11 +407,9 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Write Fields
         tcoords = ('time',) + coords
-
         for field in self._fincl:
             var = f.createVariable(field, self._ndens, tcoords)
             var[:, :] = self._out_data[field] * self._units_mult
-
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
                     setattr(var, key, val)
@@ -504,7 +503,7 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ndens, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
+            var[:, :] = self._out_data[field] * self._units_mult
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:

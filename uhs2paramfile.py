@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2.7
 """
 Read a set of uhs files and write an RVIC parameter file
 """

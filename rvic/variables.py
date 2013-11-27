@@ -3,7 +3,7 @@ variables.py
 """
 import os
 import numpy as np
-from netCDF4 import Dataset, date2num
+from netCDF4 import Dataset, date2num, stringtochar
 from logging import getLogger
 from log import LOG_NAME
 from time_utility import ord_to_datetime
@@ -75,6 +75,7 @@ class Rvar(object):
         self.outlet_mask = f.variables['outlet_mask'][:]
         self.outlet_decomp_ind = f.variables['outlet_decomp_ind'][:]
         self.unit_hydrograph = f.variables['unit_hydrograph'][:]
+        self.outlet_name = f.variables['outlet_name'][:]
         self.RvicDomainFile = f.RvicDomainFile
         self.RvicPourPointsFile = f.RvicPourPointsFile
         self.RvicUHFile = f.RvicUHFile
@@ -125,7 +126,8 @@ class Rvar(object):
         if run_type in ['startup', 'restart']:
             log.info('reading state_file: %s' %state_file)
             f = Dataset(state_file, 'r+')
-            self.ring = f.variables['ring'][:]
+            for i, tracer in enumerate(RVIC_TRACERS):
+		self.ring[:, :, i] = f.variables[tracer+'_ring_'][:]
             file_timestamp = ord_to_datetime(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar)
 
             if run_type == 'restart':
@@ -264,82 +266,83 @@ class Rvar(object):
             if val:
                 setattr(unit_hydrograph_dt, key, val)
 
-        # timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, ())
-        # timemgr_rst_type[:] = self._calendar_key
-        # for key, val in share.timemgr_rst_type.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_type, key, val)
+        timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, ())
+        timemgr_rst_type[:] = self._calendar_key
+        for key, val in share.timemgr_rst_type.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_type, key, val)
 
-        # timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec', NC_DOUBLE, ())
-        # timemgr_rst_step_sec[:] = unit_hydrograph_dt
-        # for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_step_sec, key, val)
+        timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec', NC_DOUBLE, ())
+        timemgr_rst_step_sec[:] = self.unit_hydrograph_dt
+        for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_step_sec, key, val)
 
-        # timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd', NC_DOUBLE, ())
-        # timemgr_rst_start_ymd[:] = self._start_date.year*10000+self._start_date.month*100+self._start_date.day
-        # for key, val in share.timemgr_rst_start_ymd.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_start_ymd, key, val)
+        timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd', NC_DOUBLE, ())
+        timemgr_rst_start_ymd[:] = self._start_date.year*10000+self._start_date.month*100+self._start_date.day
+        for key, val in share.timemgr_rst_start_ymd.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_start_ymd, key, val)
 
-        # timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod', NC_DOUBLE, ())
-        # timemgr_rst_start_tod[:] = (self._start_ord%1)*SECSPERDAY
-        # for key, val in share.timemgr_rst_start_tod.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_start_tod, key, val)
+        timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod', NC_DOUBLE, ())
+        timemgr_rst_start_tod[:] = (self._start_ord%1)*SECSPERDAY
+        for key, val in share.timemgr_rst_start_tod.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_start_tod, key, val)
 
-        # timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd', NC_DOUBLE, ())
-        # timemgr_rst_ref_ymd[:] = REFERENCE_DATE
-        # for key, val in share.timemgr_rst_ref_ymd.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_ref_ymd, key, val)
+        timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd', NC_DOUBLE, ())
+        timemgr_rst_ref_ymd[:] = REFERENCE_DATE
+        for key, val in share.timemgr_rst_ref_ymd.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_ref_ymd, key, val)
 
-        # timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod', NC_DOUBLE, ())
-        # timemgr_rst_ref_tod[:] = REFERENCE_TIME
-        # for key, val in share.timemgr_rst_ref_tod.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_ref_tod, key, val)
+        timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod', NC_DOUBLE, ())
+        timemgr_rst_ref_tod[:] = REFERENCE_TIME
+        for key, val in share.timemgr_rst_ref_tod.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_ref_tod, key, val)
 
-        # timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd', NC_DOUBLE, ())
-        # timemgr_rst_curr_ymd[:] = self.timestamp.year*10000+self.timestamp.month*100+self.timestamp.day
-        # for key, val in share.timemgr_rst_curr_ymd.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_curr_ymd, key, val)
+        timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd', NC_DOUBLE, ())
+        timemgr_rst_curr_ymd[:] = self.timestamp.year*10000+self.timestamp.month*100+self.timestamp.day
+        for key, val in share.timemgr_rst_curr_ymd.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_curr_ymd, key, val)
 
-        # timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod', NC_DOUBLE, ())
-        # timemgr_rst_curr_tod[:] = (self.time_ord%1)*SECSPERDAY
-        # for key, val in share.timemgr_rst_curr_tod.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_curr_tod, key, val)
+        timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod', NC_DOUBLE, ())
+        timemgr_rst_curr_tod[:] = (self.time_ord%1)*SECSPERDAY
+        for key, val in share.timemgr_rst_curr_tod.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_curr_tod, key, val)
 
 
         # ------------------------------------------------------------ #
         # Setup Tape Dimensions
-        # coords = ('tapes', 'mak_chars')
-        # ntapes = f.createDimension(coords[0], len(history_restart_files))
-        # ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
+        coords = ('tapes', 'max_chars', )
+        ntapes = f.createDimension(coords[0], len(history_restart_files))
+        ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
         # ------------------------------------------------------------ #
-
-        # ------------------------------------------------------------ #
+        
+	# ------------------------------------------------------------ #
         # Write Fields
-        # locfnh = f.createVariable('locfnh', NC_CHAR, ('ntapes', 'max_chars',))
-        # locfnh[:] = current_history_files
-        # locfnh.long_name = 'History filename'
-        # locfnh.comment = 'This variable NOT needed for startup or branch simulations'
+        locfnh = f.createVariable('locfnh', NC_CHAR, coords)
+        for i, string in enumerate(current_history_files):
+	    locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
+        locfnh.long_name = 'History filename'
+        locfnh.comment = 'This variable NOT needed for startup or branch simulations'
 
-        # locfnhr = f.createVariable('locfnhr', NC_CHAR, ('ntapes', 'max_chars',))
-        # locfnhr[:] = history_restart_files
-        # locfnhr.long_name = 'Restart history filename'
-        # locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
+        locfnhr = f.createVariable('locfnhr', NC_CHAR, coords)
+        for i, string in enumerate(history_restart_files):
+            locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
+	locfnhr.long_name = 'History restart filename'
+        locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
 
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Setup Point Dimensions
-        coords = ('outlets', 'tracers')
+        coords = ('outlets', )
 
         outlets = f.createDimension(coords[0], self.n_outlets)
-        tracers = f.createDimension(coords[1], len(RVIC_TRACERS))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -362,10 +365,11 @@ class Rvar(object):
             if val:
                 setattr(odi, key, val)
 
-        tcoords = ('timesteps',) + coords
+        tcoords = ('timesteps', ) + coords
 
-        ring = f.createVariable('ring', NC_DOUBLE, tcoords)
-        ring[:, :, :] = self.ring
+        for i, tracer in enumerate(RVIC_TRACERS):
+	    ring = f.createVariable(tracer+'_ring', NC_DOUBLE, tcoords)
+            ring[:, :] = self.ring[:, :, i]
 
         for key, val in share.ring.__dict__.iteritems():
             if val:
