@@ -271,7 +271,7 @@ def tar_inputs(inputs, suffix=''):
     # ---------------------------------------------------------------- #
     # Make the TarFile
     tar_file = inputs + suffix + '.tar.gz'
-    print 'tarfile: %s' %tar_file
+    log.info('tarfile: %s' %tar_file)
 
     if os.path.isdir(inputs):
         arcname = os.path.basename(os.path.normpath(inputs))
