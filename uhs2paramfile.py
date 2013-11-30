@@ -9,7 +9,7 @@ from rvic.log import init_logger, LOG_NAME
 from rvic.utilities import make_directories, copy_inputs, read_domain, tar_inputs
 from rvic.convert import read_station_file, read_uhs_files, move_domain
 from rvic.param_file import finish_params
-from config import read_config
+from rvic.config import read_config
 
 
 # -------------------------------------------------------------------- #

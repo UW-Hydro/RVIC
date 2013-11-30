@@ -13,6 +13,7 @@ sys.path.append("../")
 # -------------------------------------------------------------------- #
 # Unit tests for utilities.py
 from rvic.utilities import *
+from rvic.config import *
 
 def test_config_type_int():
     assert config_type('1') == 1
