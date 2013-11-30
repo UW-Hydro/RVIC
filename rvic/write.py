@@ -81,7 +81,7 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format):
 
     # ---------------------------------------------------------------- #
     # write globals
-    for key, val in glob_atts.__dict__.iteritems():
+    for key, val in glob_atts.atts.iteritems():
         if val:
             setattr(f, key, val)
     # ---------------------------------------------------------------- #
@@ -140,7 +140,7 @@ def write_param_file(file_name,
     # ---------------------------------------------------------------- #
     # write global attributes
     glob_atts.update()
-    for key, val in glob_atts.__dict__.iteritems():
+    for key, val in glob_atts.atts.iteritems():
         if val:
             setattr(f, key, val)
     f.featureType = "timeSeries"
