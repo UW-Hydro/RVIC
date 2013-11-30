@@ -202,7 +202,7 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
 
     fractions = np.zeros((len_y, len_x))
     fractions[yinds, xinds] = 1.0
-    catchment['count_ds'] = np.empty(len(yinds))
+    catchment['count_ds'] = np.zeros(len(yinds), dtype=int)
 
     for i, (y, x) in enumerate(zip(yinds, xinds)):
         yy, xx = y, x
@@ -335,8 +335,7 @@ def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval, x
     the Unit Hydrographs to a output_interval<input_interval.
     """
     if output_interval == input_interval:
-        log.debug('No need to aggregate (output_interval = input_interval) \
-                      Skipping the adjust_uh_timestep step')
+        log.debug('No need to aggregate in time (output_interval = input_interval) Skipping the adjust_uh_timestep step')
         uh_out = unit_hydrograph
         ts_new = np.arange(t_uh)
     elif np.remainder(output_interval, input_interval) == 0:
