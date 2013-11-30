@@ -88,7 +88,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     plot_dict['Sum UH Final'] = sum_after
 
     for title, data in plot_dict.iteritems():
-        pfname = plot_fractions(data, title, directories['plots'])
+        pfname = plot_fractions(data, title, options['CASEID'], directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     # ---------------------------------------------------------------- #
 
@@ -209,18 +209,22 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     return outlets, plot_dict
 
-def plot_fractions(data, title, plot_dir):
+def plot_fractions(data, title, case_id, plot_dir):
     """
     Plot diagnotic plots of fraction variables
     """
     # ---------------------------------------------------------------- #
     # Plot Fractions
-    file_name = title.lower().replace(" ","_")+'.png'
+    today = date.today().strftime('%Y%m%d')
+    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
+                                      case_id.lower().replace(" ", "_"),
+                                      today)
     pfname = os.path.join(plot_dir, file_name)
 
     fig = plt.figure()
-    plt.pcolor(data)
+    plt.pcolormesh(data)
     plt.autoscale(tight=True)
+    plt.axis('tight')
     plt.colorbar()
     plt.title(title)
     plt.xlabel('x')
