@@ -2,9 +2,13 @@
 share.py
 """
 import sys
-from netCDF4 import default_fillvals
+import socket
 import time as time_mod
+import subprocess
+from collections import OrderedDict
+from netCDF4 import default_fillvals
 from getpass import getuser
+
 
 # ----------------------- CONSTANTS --------------------------------- #
 EARTHRADIUS = 6.37122e6  # meters
@@ -62,39 +66,89 @@ CALENDAR_KEYS = {0:['None'],
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #
 class NcGlobals:
-    def __init__(self, title='',
-                 casename='',
-                 casestr='',
-                 history='Created: {} by {}'.format(time_mod.ctime(time_mod.time()), getuser()),
-                 institution='Univeristy of Washington', source=sys.argv[0],
+    def __init__(self,
+                 title=None,
+                 casename=None,
+                 casestr=None,
+                 history='Created: {}'.format(time_mod.ctime(time_mod.time())),
+                 institution='Univeristy of Washington',
+                 source=sys.argv[0],
                  references='Based on the initial model of Lohmann, et al., 1996, Tellus, 48(A), 708-721',
                  comment='Output from the RVIC Streamflow Routing Model.',
                  Conventions='CF-1.6',
-                 RvicPourPointsFile='',
-                 RvicFdrFile='',
-                 RvicUHFile='',
-                 RvicDomainFile=''):
-        self.title = title
-        self.casename = casename
-        self.history = history
-        self.institution = institution
-        self.source = source
-        self.references = references
-        self.comment = comment
-        self.Conventions = Conventions
-        self.RvicPourPointsFile = RvicPourPointsFile
-        self.RvicUHFile = RvicUHFile
-        self.RvicFdrFile = RvicFdrFile
-        self.RvicDomainFile = RvicDomainFile
+                 RvicPourPointsFile=None,
+                 RvicFdrFile=None,
+                 RvicUHFile=None,
+                 RvicDomainFile=None,
+                 version=None,
+                 hostname=None,
+                 username=None):
+
+        self.atts = OrderedDict()
+
+
+        if title:
+            self.atts['title'] = title
+
+        if comment:
+            self.atts['comment'] = comment
+
+        if Conventions:
+            self.atts['Conventions'] = Conventions
+
+        if history:
+            self.atts['history'] = history
+
+        if source:
+            self.atts['source'] = source
+
+        if institution:
+            self.atts['institution'] = institution
+
+        if hostname:
+            self.atts['hostname'] = hostname
+        else:
+            self.atts['hostname'] = socket.gethostname()
+
+        if username:
+            self.atts['username'] = username
+        else:
+            self.atts['username'] = getuser()
+
+        if casename:
+            self.atts['casename'] = casename
+
+        if references:
+            self.atts['references'] = references
+
+        if version:
+            self.atts['version'] = version
+        else:
+            try:
+                self.atts['version'] = subprocess.check_output(["git", "describe"]).rstrip()
+            except:
+                self.atts['version'] = 'unknown'
+
+        if RvicPourPointsFile:
+            self.atts['RvicPourPointsFile'] = RvicPourPointsFile
+
+        if RvicUHFile:
+            self.atts['RvicUHFile'] = RvicUHFile
+
+        if RvicFdrFile:
+            self.atts['RvicFdrFile'] = RvicFdrFile
+
+        if RvicDomainFile:
+            self.atts['RvicDomainFile'] = RvicDomainFile
 
     def update(self):
-        self.history = 'Created: {}'.format(time_mod.ctime(time_mod.time()))
+        self.atts['history'] = 'Created: {}'.format(time_mod.ctime(time_mod.time()))
 
 
 class NcVar:
-    def __init__(self, long_name='', units=''):
-        self.long_name = long_name
-        self.units = units
+    def __init__(self, **kwargs):
+        for key, val in kwargs.iteritems():
+            setattr(self, key, val)
 
 # Coordinate Variables
 time = NcVar(long_name='time',
@@ -197,32 +251,77 @@ storage = NcVar(long_name='Mass storage in stream upstream of outlet grid cell',
 
 # valid values http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#calendar
 timemgr_rst_type = NcVar(long_name='calendar type',
-                         units='unitless')
-timemgr_rst_type.flag_values = '0, 1, 2, 3, 4, 5, 6'
-timemgr_rst_type.flag_meanings = 'NONE, NO_LEAP_C, GREGORIAN, PROLEPTIC_GREGORIAN, ALL_LEAP, 360_DAY, JULIAN'
+                         units='unitless',
+                         flag_values='0, 1, 2, 3, 4, 5, 6',
+                         flag_meanings='NONE, NO_LEAP_C, GREGORIAN, PROLEPTIC_GREGORIAN, ALL_LEAP, 360_DAY, JULIAN')
 
 timemgr_rst_step_sec = NcVar(long_name='seconds component of timestep size',
-                             units='sec')
-timemgr_rst_step_sec.valid_range = [0, 86400]
+                             units='sec',
+                             valid_range='0, 86400')
 
 timemgr_rst_start_ymd = NcVar(long_name='start date',
                               units='YYYYMMDD')
 
 timemgr_rst_start_tod = NcVar(long_name='start time of day',
-                              units='sec')
-timemgr_rst_step_sec.valid_range = [0, 86400]
+                              units='sec',
+                              valid_range='0, 86400')
 
 timemgr_rst_ref_ymd = NcVar(long_name='reference date',
                             units='YYYYMMDD')
 
 timemgr_rst_ref_tod = NcVar(long_name='reference time of day',
-                            units='sec')
-timemgr_rst_ref_tod.valid_range = [0, 86400]
-
+                            units='sec',
+                            valid_range='0, 86400')
 
 timemgr_rst_curr_ymd = NcVar(long_name='current date',
-                            units='YYYYMMDD')
+                             units='YYYYMMDD')
 
 timemgr_rst_curr_tod = NcVar(long_name='current time of day',
-                            units='sec')
-timemgr_rst_ref_tod.valid_range = [0, 86400]
+                            units='sec',
+                            valid_range='0, 86400')
+
+nhtfrq = NcVar(long_name='Frequency of history writes',
+               units='absolute value of negative is in hours, 0=monthly, positive is time-steps',
+               comment='Namelist item')
+
+mfilt = NcVar(long_name='Number of history time samples on a file',
+              units='initless',
+              comment='Namelist item')
+
+ncprec = NcVar(long_name='Flag for data precision',
+               flag_values='1, 2',
+               flag_meanings='single-precision double-precision',
+               comment='Namelist item',
+               valid_range='1, 2')
+
+fincl = NcVar(long_name='Fieldnames to include',
+               comment='Namelist item')
+
+fexcl = NcVar(long_name='Fieldnames to exclude',
+               comment='Namelist item')
+
+nflds = NcVar(long_name='Number of fields on file',
+               units='unitless')
+
+ntimes = NcVar(long_name='Number of time steps on file',
+               units='time-step')
+is_endhist = NcVar(long_name='End of history file',
+                   flag_values='0, 1',
+                   flag_meanings='FALSE TRUE',
+                   comment='Namelist item',
+                   valid_range='0, 1')
+
+begtime = NcVar(long_name='Beginning time',
+                units='time units')
+
+hpindex = NcVar(long_name='History pointer index',
+                units='units')
+
+avgflag = NcVar(long_name='Averaging flag',
+                units='"A=Average, X=Maximum, M=Minimum, I=Instantaneous')
+
+name = NcVar(long_name='Fieldnames')
+
+long_name = NcVar(long_name='Long descriptive names for fields')
+
+units = NcVar(long_name='Units for each history field output')
