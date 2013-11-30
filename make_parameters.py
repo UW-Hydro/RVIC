@@ -10,14 +10,16 @@ from collections import OrderedDict
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
-from rvic.utilities import read_config, make_directories, copy_inputs, read_netcdf, tar_inputs
-from rvic.utilities import check_ncvars, remap, clean_file, read_domain, latlon2yx
+from rvic.utilities import make_directories, copy_inputs, read_netcdf, tar_inputs
+from rvic.utilities import check_ncvars, clean_file, read_domain, latlon2yx
 from rvic.aggregate import make_agg_pairs, aggregate
 from rvic.make_uh import rout
 from rvic.share import NcGlobals
 from rvic.write import write_agg_netcdf
 from rvic.variables import Point
 from rvic.param_file import finish_params
+from rvic.remap import remap
+from rvic.config import read_config
 
 
 # -------------------------------------------------------------------- #
@@ -65,10 +67,11 @@ def main():
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 # Initialize the Genuh Program
 def gen_uh_init(config_file):
-    """Initialize RVIC parameter """
+    """Initialize RVIC parameter"""
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
@@ -220,6 +223,7 @@ def gen_uh_init(config_file):
     return uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, directories
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 #
 def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories):
@@ -365,6 +369,7 @@ def process_command_line():
     return args.config_file, args.numofproc
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 # store_result helper function
 results = {}
@@ -373,6 +378,7 @@ def store_result(result):
     # result_list is modified only by the main process, not the pool workers.
     results[result.cell_id] = result
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 if __name__ == "__main__":
