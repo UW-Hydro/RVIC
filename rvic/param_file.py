@@ -4,8 +4,8 @@ param_file.py
 import numpy as np
 import logging
 from log import LOG_NAME
-from rvic.write import write_param_file
-from rvic.share import NcGlobals, PRECISION, SECSPERDAY
+from write import write_param_file
+from share import NcGlobals, PRECISION, SECSPERDAY
 import os
 from datetime import date
 import matplotlib
@@ -28,20 +28,23 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
-    subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
-    outlets, full_time_length, before, after = subset(outlets,
-                                       subset_length=subset_length,
-                                       threshold=options['SUBSET_THRESHOLD'])
+    if options['SUBSET_DAYS'] and options['SUBSET_DAYS']<config_dict['ROUTING']['BASIN_FLOWDAYS']:
+        subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
+        outlets, full_time_length, before, after = subset(outlets,
+                                           subset_length=subset_length)
 
-    log.debug('plotting unit hydrograph timeseries now for before / after subseting')
+        log.debug('plotting unit hydrograph timeseries now for before / after subseting')
 
-    title = 'UHS before subset'
-    pfname = plot_uhs(before, title, options['CASEID'], directories['plots'])
-    log.info('%s Plot:  %s', title, pfname)
+        title = 'UHS before subset'
+        pfname = plot_uhs(before, title, options['CASEID'], directories['plots'])
+        log.info('%s Plot:  %s', title, pfname)
 
-    title = 'UHS after subset'
-    pfname = plot_uhs(after, title, options['CASEID'], directories['plots'])
-    log.info('%s Plot:  %s', title, pfname)
+        title = 'UHS after subset'
+        pfname = plot_uhs(after, title, options['CASEID'], directories['plots'])
+        log.info('%s Plot:  %s', title, pfname)
+    else:
+        subset_length = config_dict['ROUTING']['BASIN_FLOWDAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
+        log.info('Not subsetting because either SUBSET_DAYS is null or SUBSET_DAYS<BASIN_FLOWDAYS')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -266,16 +269,18 @@ def plot_fractions(data, title, case_id, plot_dir):
 
 # -------------------------------------------------------------------- #
 # Shorten the unit hydrograph
-def subset(outlets, subset_length=None, threshold=PRECISION):
+def subset(outlets, subset_length=None):
     """ Shorten the Unit Hydrograph"""
 
     log.info('subsetting unit-hydrographs now...')
+    log.debug('Subset Length:  %s' % subset_length)
 
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
             if not subset_length:
                 subset_length = full_time_length
+                log.debug('No subset_length provided, using full_time_length')
             before = outlets[cell_id].unit_hydrograph
         else:
             before = np.append(before, outlets[cell_id].unit_hydrograph, axis=1)
@@ -283,19 +288,38 @@ def subset(outlets, subset_length=None, threshold=PRECISION):
         outlets[cell_id].offset = np.empty(outlet.unit_hydrograph.shape[1], dtype=int)
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]))
 
+        d_left = -1*subset_length/2
+        d_right = subset_length/2
+
+
         for j in xrange(outlet.unit_hydrograph.shape[1]):
-            # find position of first index > threshold
-            inds = np.nonzero(outlet.unit_hydrograph[:, j] > threshold)
-            if len(inds[0]) > 0:
-                start = inds[0][0]
-            else:
-                start = 0
-            # find end point
-            end = np.minimum(full_time_length, start + subset_length)
-            start = np.minimum(start, full_time_length - subset_length)
-            outlets[cell_id].offset[j] = start
+            # find index position of maximum
+            maxind = np.argmax(outlet.unit_hydrograph[:, j])
+
+            # find bounds
+            left = maxind + d_left
+            right = maxind + d_right
+
+            # make sure left and right fit in unit hydrograph array, if not adjust
+            if left < 0:
+                left = 0
+                right = subset_length
+            if right > full_time_length:
+                right = full_time_length
+                left = full_time_length - subset_length
+
+                log.warning('Subset centered on UH max extends beyond length of unit hydrograph.')
+                log.warning('--> Outlet %s' % outlet)
+                log.warning('----> Max Index is %s' % maxind)
+                log.warning('----> Last value in subset is %s' % outlet.unit_hydrograph[-1, j])
+                if maxind == full_time_length:
+                    log.warning('maxind == full_time_length, not able to resolve unithydrograph')
+
+            outlets[cell_id].offset[j] = left
+
             # clip and normalize
-            out_uh[:, j] = outlet.unit_hydrograph[start:end, j] / outlet.unit_hydrograph[start:end, j].sum()
+            out_uh[:, j] = outlet.unit_hydrograph[left:right, j] / outlet.unit_hydrograph[left:right, j].sum()
+
         outlets[cell_id].unit_hydrograph = out_uh
 
         if i == 0:
