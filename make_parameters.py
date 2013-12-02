@@ -18,7 +18,6 @@ from rvic.share import NcGlobals
 from rvic.write import write_agg_netcdf
 from rvic.variables import Point
 from rvic.param_file import finish_params
-from rvic.remap import remap
 from rvic.config import read_config
 
 
@@ -76,6 +75,12 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Read Configuration files
     config_dict = read_config(config_file)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Import optional modules
+    if config_dict['OPTIONS']['REMAP']:
+        from rvic.remap import remap
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
