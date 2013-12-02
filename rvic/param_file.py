@@ -29,9 +29,19 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
     subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
-    outlets, full_time_length = subset(outlets,
+    outlets, full_time_length, before, after = subset(outlets,
                                        subset_length=subset_length,
                                        threshold=options['SUBSET_THRESHOLD'])
+
+    log.debug('plotting unit hydrograph timeseries now for before / after subseting')
+
+    title = 'UHS before subset'
+    pfname = plot_uhs(before, title, options['CASEID'], directories['plots'])
+    log.info('%s Plot:  %s', title, pfname)
+
+    title = 'UHS after subset'
+    pfname = plot_uhs(after, title, options['CASEID'], directories['plots'])
+    log.info('%s Plot:  %s', title, pfname)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -209,9 +219,28 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     return outlets, plot_dict
 
+def plot_uhs(data, title, case_id, plot_dir):
+    """
+    Plot diagnostic plot showing all unit hydrographs
+    """
+    today = date.today().strftime('%Y%m%d')
+    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
+                                      case_id.lower().replace(" ", "_"),
+                                      today)
+    pfname = os.path.join(plot_dir, file_name)
+
+    fig = plt.figure()
+    plt.plot(data)
+    plt.title(title)
+    plt.xlabel('timesteps')
+    plt.ylabel('unit-hydrograph')
+    fig.savefig(pfname)
+
+    return pfname
+
 def plot_fractions(data, title, case_id, plot_dir):
     """
-    Plot diagnotic plots of fraction variables
+    Plot diagnostic plots of fraction variables
     """
     # ---------------------------------------------------------------- #
     # Plot Fractions
@@ -240,17 +269,23 @@ def plot_fractions(data, title, case_id, plot_dir):
 def subset(outlets, subset_length=None, threshold=PRECISION):
     """ Shorten the Unit Hydrograph"""
 
+    log.info('subsetting unit-hydrographs now...')
+
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
             if not subset_length:
                 subset_length = full_time_length
+            before = outlets[cell_id].unit_hydrograph
+        else:
+            before = np.append(before, outlets[cell_id].unit_hydrograph, axis=1)
 
         outlets[cell_id].offset = np.empty(outlet.unit_hydrograph.shape[1], dtype=int)
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]))
-        for i in xrange(outlet.unit_hydrograph.shape[1]):
+
+        for j in xrange(outlet.unit_hydrograph.shape[1]):
             # find position of first index > threshold
-            inds = np.nonzero(outlet.unit_hydrograph[:, i] > threshold)
+            inds = np.nonzero(outlet.unit_hydrograph[:, j] > threshold)
             if len(inds[0]) > 0:
                 start = inds[0][0]
             else:
@@ -258,12 +293,18 @@ def subset(outlets, subset_length=None, threshold=PRECISION):
             # find end point
             end = np.minimum(full_time_length, start + subset_length)
             start = np.minimum(start, full_time_length - subset_length)
-            outlets[cell_id].offset[i] = start
+            outlets[cell_id].offset[j] = start
             # clip and normalize
-            out_uh[:, i] = outlet.unit_hydrograph[start:end, i] / outlet.unit_hydrograph[start:end, i].sum()
+            out_uh[:, j] = outlet.unit_hydrograph[start:end, j] / outlet.unit_hydrograph[start:end, j].sum()
         outlets[cell_id].unit_hydrograph = out_uh
 
-    return outlets, full_time_length
+        if i == 0:
+            after = outlets[cell_id].unit_hydrograph
+        else:
+            after = np.append(after, outlets[cell_id].unit_hydrograph, axis=1)
+
+
+    return outlets, full_time_length, before, after
 # -------------------------------------------------------------------- #
 
 
