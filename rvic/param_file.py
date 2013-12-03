@@ -278,6 +278,7 @@ def subset(outlets, subset_length=None):
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
+            log.debug('Subset Length:  %s' % subset_length)
             if not subset_length:
                 subset_length = full_time_length
                 log.debug('No subset_length provided, using full_time_length')
@@ -314,6 +315,8 @@ def subset(outlets, subset_length=None):
                 log.warning('----> Last value in subset is %s' % outlet.unit_hydrograph[-1, j])
                 if maxind == full_time_length:
                     log.warning('maxind == full_time_length, not able to resolve unithydrograph')
+            if left < 0 or right > full_time_length:
+                raise ValueError('Subsetting failed left: %s or right %s does not fit inside bounds' %(left, right))
 
             outlets[cell_id].offset[j] = left
 
@@ -327,6 +330,7 @@ def subset(outlets, subset_length=None):
         else:
             after = np.append(after, outlets[cell_id].unit_hydrograph, axis=1)
 
+    log.info('Done subsetting')
 
     return outlets, full_time_length, before, after
 # -------------------------------------------------------------------- #

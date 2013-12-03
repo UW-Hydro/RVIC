@@ -71,7 +71,7 @@ class NcGlobals:
                  casename=None,
                  casestr=None,
                  history='Created: {}'.format(time_mod.ctime(time_mod.time())),
-                 institution='Univeristy of Washington',
+                 institution='University of Washington',
                  source=sys.argv[0],
                  references='Based on the initial model of Lohmann, et al., 1996, Tellus, 48(A), 708-721',
                  comment='Output from the RVIC Streamflow Routing Model.',
