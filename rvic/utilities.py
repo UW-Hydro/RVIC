@@ -25,6 +25,16 @@ log = getLogger(LOG_NAME)
 def latlon2yx(plats, plons, glats, glons):
     """find y x coordinates """
 
+    # use astronomical conventions for longitude (i.e. negative longitudes to the east of 0)
+    if (glons.max() > 180):
+        posinds = np.nonzero(glons > 180)
+        glons[posinds] -= 360
+        log.info('adjusted grid lon to ')
+    if (plons.max() > 180):
+        posinds = np.nonzero(plons > 180)
+        plons[posinds] -= 360
+        log.info('adjusted points lon minimum')
+
     if glons.ndim == 1 or glats.ndim == 1:
         glons, glats = np.meshgrid(glons, glats)
 
@@ -33,7 +43,7 @@ def latlon2yx(plats, plons, glats, glons):
 
     mytree = cKDTree(combined)
     dist, indexes = mytree.query(points, k=1)
-    y, x = np.unravel_index(np.array(indexes), glons.shape)
+    y, x = np.unravel_index(indexes, glons.shape)
     return y, x
 
 # -------------------------------------------------------------------- #
@@ -67,7 +77,7 @@ def read_netcdf(nc_file, variables=None, coords=None):
     Both variables (data and attributes) are returned as dictionaries named by variable
     """
 
-    f = Dataset(nc_file, 'r+')
+    f = Dataset(nc_file, 'r')
 
     if not variables:
         variables = f.variables.keys()
@@ -271,7 +281,7 @@ def tar_inputs(inputs, suffix=''):
     # ---------------------------------------------------------------- #
     # Make the TarFile
     tar_file = inputs + suffix + '.tar.gz'
-    print 'tarfile: %s' %tar_file
+    log.info('tarfile: %s' %tar_file)
 
     if os.path.isdir(inputs):
         arcname = os.path.basename(os.path.normpath(inputs))

@@ -50,7 +50,7 @@ def read_station_file(file_name, dom_data, config_dict):
             active = False
 
         if active:
-            outlets[i] = Point(x=x, y=y)
+            outlets[i] = Point(gridx=x, gridy=y)
             outlets[i].name = name
             outlets[i].area = float(area)
             outlets[i].uhs_file = uhs_file
@@ -183,13 +183,13 @@ def move_domain(dom_data, new_dom_data, outlets):
     # Adjust locations
     for cell_id, outlet in outlets.iteritems():
 
-        outlets[cell_id].y = new_y[outlet.y]
-        outlets[cell_id].x = new_x[outlet.x]
-
+        outlets[cell_id].gridy = new_y[outlet.gridy]
+        outlets[cell_id].gridx = new_x[outlet.gridx]
+	
         outlets[cell_id].y_source = new_y[outlet.y_source]
         outlets[cell_id].x_source = new_x[outlet.x_source]
 
-        outlets[cell_id].outlet_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].y, outlets[cell_id].x]
+        outlets[cell_id].outlet_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].gridy, outlets[cell_id].gridx]
         outlets[cell_id].source_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
     # ---------------------------------------------------------------- #
 

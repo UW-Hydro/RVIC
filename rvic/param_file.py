@@ -74,9 +74,14 @@ def finish_params(outlets, dom_data, config_dict, directories):
     area = dom_data[config_dict['DOMAIN']['AREA_VAR']]
 
     for source, outlet in enumerate(source2outlet_ind):
-        unit_hydrograph[:, source] *= area[source_y_ind[source], source_x_ind[source]]
-        unit_hydrograph[:, source] /= area[outlet_y_ind[outlet], outlet_x_ind[outlet]]
-        unit_hydrograph[:, source] *= frac_sources[source]
+	if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim==0:
+	    unit_hydrograph[:, source] *= area[source_y_ind[source], source_x_ind[source]]
+	    unit_hydrograph[:, source] /= area[outlet_y_ind[()], outlet_x_ind[()]]
+	    unit_hydrograph[:, source] *= frac_sources[source]
+	else:	
+	    unit_hydrograph[:, source] *= area[source_y_ind[source], source_x_ind[source]]
+	    unit_hydrograph[:, source] /= area[outlet_y_ind[outlet], outlet_x_ind[outlet]]
+	    unit_hydrograph[:, source] *= frac_sources[source]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -94,7 +99,11 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # fill in some misc arrays
-    outlet_mask = np.zeros(len(outlet_lon))
+    if outlet_y_ind.ndim == 0:
+	numoutlets = 1
+    else:
+	numoutlets = len(outlet_lon)
+    outlet_mask = np.zeros(numoutlets)
     newshape = unit_hydrograph.shape + (1,)
     unit_hydrograph = unit_hydrograph.reshape(newshape)
     # ---------------------------------------------------------------- #

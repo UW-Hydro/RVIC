@@ -1,4 +1,4 @@
-#!/opt/local/bin/python
+#!/usr/bin/env python2.7
 """
 Read a set of uhs files and write an RVIC parameter file
 """
@@ -79,7 +79,7 @@ def uhs2param_init(config_file):
     dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
     log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
 
-    if config_dict['NEW_DOMAIN']:
+    if 'NEW_DOMAIN' in config_dict:
         new_dom_data, new_DomVats, new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
         log.info('Opened New Domain File: %s' % config_dict['NEW_DOMAIN']['FILE_NAME'])
     else:

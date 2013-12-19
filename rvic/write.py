@@ -173,8 +173,13 @@ def write_param_file(file_name,
 
     # ---------------------------------------------------------------- #
     # Outlet Dimensions
+    if outlet_y_ind.ndim == 0:
+        numoutlets = 1
+	outlet_name = np.array([outlet_name])
+    else:
+        numoutlets = len(outlet_lon)
     ocoords = ('outlets',)
-    outlets = f.createDimension(ocoords[0], len(outlet_lon))
+    outlets = f.createDimension(ocoords[0], numoutlets)
 
     nocoords = ocoords + ('nc_chars',)
     char_names = stringtochar(outlet_name)

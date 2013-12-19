@@ -1,4 +1,4 @@
-#!/opt/local/bin/python
+#!/usr/bin/env python2.7
 """
 This is the convolution routine developed in preparation in coupling RVIC to
 CESM.  Eventually, this will be the offline RVIC model.
@@ -160,8 +160,16 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
     # Setup history Tape(s) and Write Initial Outputs
     history = config_dict['HISTORY']
+    numtapes = int(history['RVICHIST_NTAPES'])
     hist_tapes = {}
-    for j in xrange(int(config_dict['HISTORY']['RVICHIST_NTAPES'])):
+
+    # make sure history file fields are all in list form
+    if numtapes == 1:
+        for var, value in history.iteritems():
+            if not isinstance(value, list):
+                history[var] = list([value])
+
+    for j in xrange(numtapes):
         tapename = 'Tape.%i' % j
         log.info('setting up History %s' %tapename)
         hist_tapes[tapename] = Tape(time_handle.time_ord,
@@ -255,15 +263,15 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         # Write State
         if rest_flag:
             # History files
-            current_history_files = []
+            history_files = []
             history_restart_files = []
             for tapename, tape in hist_tapes.iteritems():
                 log.debug('Writing Restart File for Tape:%s' % tapename)
                 hist_fname, rest_fname = tape.write_restart()
-                current_history_files.append(tape.filename)
+                history_files.append(tape.filename)
                 history_restart_files.append(tape.rest_filename)
 
-            restart_file = rout_var.write_restart(current_history_files,
+            restart_file = rout_var.write_restart(history_files,
                                                   history_restart_files)
             write_rpointer(directories['restarts'], restart_file, end_timestamp)
 
