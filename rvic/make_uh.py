@@ -173,9 +173,13 @@ def read_direction(fdr, dy, dx):
         try:
             to_y[y, x] = y+dy[d]
             to_x[y, x] = x+dx[d]
-        except:
-            to_y[y, x] = -9999
-            to_x[y, x] = -9999
+        except KeyError:
+             if (d == 0) or (d == -9999):
+                 to_y[y, x] = -9999
+                 to_x[y, x] = -9999
+             else:
+                 log.error('got a flow direction key that we dont know {}'.format(d))
+                 raise
 
     return to_y, to_x
 # -------------------------------------------------------------------- #
@@ -202,7 +206,7 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
 
     fractions = np.zeros((len_y, len_x))
     fractions[yinds, xinds] = 1.0
-    catchment['count_ds'] = np.empty(len(yinds))
+    catchment['count_ds'] = np.zeros(len(yinds), dtype=int)
 
     for i, (y, x) in enumerate(zip(yinds, xinds)):
         yy, xx = y, x
