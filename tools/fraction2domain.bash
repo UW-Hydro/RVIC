@@ -1,4 +1,4 @@
-#!/opt/local/bin/bash
+#!/usr/bin/env bash
 
 # This script uses gdal, nco and cdo to make a CESM type domain file from a ascii fraction file
 # gdal --> http://www.gdal.org/
