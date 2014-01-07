@@ -209,8 +209,8 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     count_ds = []
 
     fractions = np.zeros((len_y, len_x))
-    fractions[yinds, xinds] = 1.0
-    catchment['count_ds'] = np.zeros(len(yinds), dtype=int)
+    #fractions[yinds, xinds] = 1.0
+    catchment['count_ds'] = np.zeros(len(byinds), dtype=int)
 
     for i, (y, x) in enumerate(zip(byinds, bxinds)):
         yy, xx = y, x

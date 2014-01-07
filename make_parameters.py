@@ -20,6 +20,12 @@ from rvic.variables import Point
 from rvic.param_file import finish_params
 from rvic.config import read_config
 
+try:
+    from rvic.remap import remap
+    remap_available = True
+except:
+    remap_available = False
+
 
 # -------------------------------------------------------------------- #
 # Top level driver
@@ -79,8 +85,8 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Import optional modules
-    if config_dict['OPTIONS']['REMAP']:
-        from rvic.remap import remap
+    if config_dict['OPTIONS']['REMAP'] and not remap_available:
+	raise ValueError('Problem importing remap module (check to make sure cdo.py is available)')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
