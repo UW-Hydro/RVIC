@@ -164,7 +164,8 @@ def move_domain(dom_data, new_dom_data, outlets):
         new_y = np.zeros(len(dom_data['cord_lats']), dtype=np.int) - FILLVALUE_I
         new_x = np.zeros(len(dom_data['cord_lons']), dtype=np.int) - FILLVALUE_I
     else:
-        raise ValueError('Grids must be regular and coordinate variables must have only 1 dimension to move domain to smaller size')
+        raise ValueError('Grids must be regular and coordinate variables must have\
+                          only 1 dimension to move domain to smaller size')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

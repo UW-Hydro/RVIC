@@ -202,18 +202,25 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     (len_y, len_x) = to_x.shape
     catchment = {}
 
-    yinds, xinds = np.nonzero(basin_ids == basin_id)
+    byinds, bxinds = np.nonzero(basin_ids == basin_id)
+
+    cyinds = []
+    cxinds = []
+    count_ds = []
 
     fractions = np.zeros((len_y, len_x))
     fractions[yinds, xinds] = 1.0
     catchment['count_ds'] = np.zeros(len(yinds), dtype=int)
 
-    for i, (y, x) in enumerate(zip(yinds, xinds)):
+    for i, (y, x) in enumerate(zip(byinds, bxinds)):
         yy, xx = y, x
         cells = 0
         while True:
             if (yy == pour_point.basiny and xx == pour_point.basinx):
-                catchment['count_ds'][i] = cells
+                cyinds.append(y)
+                cxinds.append(x)
+                count_ds.append(cells)
+                fractions[y, x] = 1
                 count += 1
                 break
             else:
@@ -223,17 +230,21 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
                     break
 
     log.debug("Found %i upstream grid cells from present station" % count)
-    log.debug("Expected at most %i upstream grid cells from present station" % len(yinds))
-    if count>len(yinds):
+    log.debug("Expected at most %i upstream grid cells from present station" % len(byinds))
+    if count>len(byinds):
         log.exception('Error, too many points found.')
         raise
+
+    cyinds = np.array(cyinds)
+    cxinds = np.array(cxinds)
+    catchment['count_ds'] = np.array(count_ds)
 
     # ---------------------------------------------------------------- #
     # sort catchment
     ii = np.argsort(catchment['count_ds'])
     catchment['count_ds'] = catchment['count_ds'][ii]
-    catchment['x_inds'] = xinds[ii]
-    catchment['y_inds'] = yinds[ii]
+    catchment['x_inds'] = cxinds[ii]
+    catchment['y_inds'] = cyinds[ii]
     # ---------------------------------------------------------------- #
     return catchment, fractions
 # -------------------------------------------------------------------- #
@@ -339,8 +350,7 @@ def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval, x
     the Unit Hydrographs to a output_interval<input_interval.
     """
     if output_interval == input_interval:
-        log.debug('No need to aggregate (output_interval = input_interval) \
-                      Skipping the adjust_uh_timestep step')
+        log.debug('No need to aggregate in time (output_interval = input_interval) Skipping the adjust_uh_timestep step')
         uh_out = unit_hydrograph
         ts_new = np.arange(t_uh)
     elif np.remainder(output_interval, input_interval) == 0:

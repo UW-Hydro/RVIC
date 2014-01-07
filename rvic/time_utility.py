@@ -185,7 +185,7 @@ class Dtime(object):
             if relativedelta(temp, self.start_date).years >= self.rest_n:
                 flag = True
         elif self.rest_option == 'date':
-            if self.timestamp >= self.rest_date:
+            if self.timestamp == self.rest_date:
                 flag = True
         elif self.rest_option == 'end':
             if self.timestamp >= self.end:
