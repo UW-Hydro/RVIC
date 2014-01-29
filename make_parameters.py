@@ -42,21 +42,24 @@ def main():
 
     # ---------------------------------------------------------------- #
     # Run
-    if numofproc >1:
+    if numofproc > 1:
         pool = LoggingPool(processes=numofproc)
 
         for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
-            log.info('On Outlet #%i of %i' %(i+1, len(outlets)))
+            log.info('On Outlet #%i of %i' % (i+1, len(outlets)))
             pool.apply_async(gen_uh_run,
-                             args = (uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories),
-                             callback = store_result)
+                             args=(uh_box, fdr_data, fdr_vatts, dom_data,
+                                   outlet, config_dict, directories),
+                             callback=store_result)
         pool.close()
         pool.join()
 
         outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
     else:
         for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
-            outlets[cell_id] = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict, directories)
+            outlets[cell_id] = gen_uh_run(uh_box, fdr_data, fdr_vatts,
+                                          dom_data, outlet, config_dict,
+                                          directories)
 
     # ---------------------------------------------------------------- #
 

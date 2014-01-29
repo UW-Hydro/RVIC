@@ -26,7 +26,7 @@ class DataModel(object):
     # ---------------------------------------------------------------- #
     # Initialize
     def __init__(self, path, file_str, time_fld, liq_flds,
-                 start, end, timestamp):
+                 start, end):
 
         self.path = path
         self.time_fld = time_fld
@@ -35,7 +35,6 @@ class DataModel(object):
         else:
             self.liq_flds = [liq_flds]
         self.ice_flds = []
-        self.timestamp = timestamp
         self.files = []
         self.start_dates = []
         self.end_ords = []
@@ -129,14 +128,22 @@ class DataModel(object):
         # ------------------------------------------------------------ #
         # find timestep information
         if len(time_series) > 1:
-            t0 = date2num(num2date(time_series[0], self.time_units, calendar=self.calendar), TIMEUNITS, calendar=self.calendar)
-            t1 = date2num(num2date(time_series[1], self.time_units, calendar=self.calendar), TIMEUNITS, calendar=self.calendar)
-            secs_per_step = (t1-t0) * SECSPERDAY
+            t0 = date2num(num2date(time_series[0], self.time_units, calendar=self.calendar),
+                          TIMEUNITS, calendar=self.calendar)
+            t1 = date2num(num2date(time_series[1], self.time_units, calendar=self.calendar),
+                          TIMEUNITS, calendar=self.calendar)
+            self.secs_per_step = (t1-t0) * SECSPERDAY
         else:
             raise ValueError('Need more than 1 forcing timestep in order to calculate timestep')
 
         # ------------------------------------------------------------ #
 
+    # ---------------------------------------------------------------- #
+
+
+    # ---------------------------------------------------------------- #
+    def start(self, timestamp):
+        """ Initialize the first files inputs"""
         # ------------------------------------------------------------ #
         # find and open first file
         self.ordtime = date2num(timestamp, self.time_units, calendar=self.calendar)
@@ -168,15 +175,16 @@ class DataModel(object):
             if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1', 'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
             elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
-                self.fld_mult[fld] = secs_per_step * WATERDENSITY / MMPERMETER
+                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / MMPERMETER
             elif units in ['m', 'M', 'meters', 'Meters']:
-                self.fld_mult[fld] = secs_per_step * WATERDENSITY
+                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY
             elif units in ['cm', 'CM', 'centimeters', 'Centimeters']:
-                self.fld_mult[fld] = secs_per_step * WATERDENSITY / CMPERMETER
+                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / CMPERMETER
             else:
                 raise ValueError('unknown forcing units')
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
+
 
     # ---------------------------------------------------------------- #
     def read(self, timestamp):

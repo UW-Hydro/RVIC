@@ -18,13 +18,15 @@ from argparse import ArgumentParser
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 # from rvic.mpi import LoggingPool
-from rvic.utilities import read_config, make_directories, read_domain
+from rvic.utilities import make_directories, read_domain
 from rvic.utilities import write_rpointer, tar_inputs
 from rvic.variables import Rvar
 from rvic.time_utility import Dtime
 from rvic.read_forcing import DataModel
 from rvic.history import Tape
-from rvic.share import NcGlobals
+from rvic.share import NcGlobals, RVIC_TRACERS
+from rvic.config import read_config
+
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
@@ -100,8 +102,8 @@ def rvic_mod_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Read Domain File
-    Domain = config_dict['DOMAIN']
-    dom_data, dom_vatts, dom_gatts = read_domain(Domain)
+    domain = config_dict['DOMAIN']
+    dom_data, dom_vatts, dom_gatts = read_domain(domain)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -110,7 +112,7 @@ def rvic_mod_init(config_file):
 
     rout_var = Rvar(config_dict['PARAM_FILE']['FILE_NAME'], options['CASEID'],
                     options['CALENDAR'], directories['restarts'], options['REST_NCFORM'])
-    rout_var.check_grid_file(Domain['FILE_NAME'])
+    rout_var.check_grid_file(domain['FILE_NAME'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -131,11 +133,25 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
+    # Initialize the data model
+    forcings = config_dict['INPUT_FORCINGS']
+    data_model = DataModel(forcings['DATL_PATH'],
+                           forcings['DATL_FILE'],
+                           forcings['TIME_VAR'],
+                           forcings['DATL_LIQ_FLDS'],
+                           forcings['START'],
+                           forcings['END'])
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
     # Setup time_handle
     time_handle = Dtime(timestr, options['STOP_OPTION'], options['STOP_N'],
                         options['STOP_DATE'], options['REST_OPTION'],
                         options['REST_N'], options['REST_DATE'],
-                        options['CALENDAR'], rout_var.unit_hydrograph_dt)
+                        options['CALENDAR'], data_model.secs_per_step)
+    time_handle.end = data_model.end
+
+    data_model.start(time_handle.timestamp)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -144,17 +160,8 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Initialize the data model
-    forcings = config_dict['INPUT_FORCINGS']
-    data_model = DataModel(forcings['DATL_PATH'],
-                           forcings['DATL_FILE'],
-                           forcings['TIME_VAR'],
-                           forcings['DATL_LIQ_FLDS'],
-                           forcings['START'],
-                           forcings['END'],
-                           time_handle.timestamp)
-
-    time_handle.end = data_model.end
+    # Determine the number of aggregation timesteps
+    rout_var.get_time_mode(data_model.secs_per_step)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -168,6 +175,14 @@ def rvic_mod_init(config_file):
         for var, value in history.iteritems():
             if not isinstance(value, list):
                 history[var] = list([value])
+
+    global_atts = NcGlobals(title='RVIC history file',
+                            casename=options['CASEID'],
+                            casestr=options['CASESTR'],
+                            RvicPourPointsFile=os.path.split(rout_var.RvicPourPointsFile)[1],
+                            RvicUHFile=os.path.split(rout_var.RvicUHFile)[1],
+                            RvicFdrFile=os.path.split(rout_var.RvicFdrFile)[1],
+                            RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
 
     for j in xrange(numtapes):
         tapename = 'Tape.%i' % j
@@ -184,18 +199,12 @@ def rvic_mod_init(config_file):
                                     units=history['RVICHIST_UNITS'][j],
                                     file_format=history['RVICHIST_NCFORM'][j],
                                     outtype=history['RVICHIST_OUTTYPE'][j],
-                                    grid_area=dom_data[Domain['AREA_VAR']],
+                                    grid_area=dom_data[domain['AREA_VAR']],
                                     grid_lons=dom_data['cord_lons'],
                                     grid_lats=dom_data['cord_lats'],
                                     out_dir=directories['hist'],
                                     calendar=time_handle.calendar,
-                                    glob_ats=NcGlobals(title='RVIC history file',
-                                                      casename=options['CASEID'],
-                                                      casestr=options['CASESTR'],
-                                                      RvicPourPointsFile=os.path.split(rout_var.RvicPourPointsFile)[1],
-                                                      RvicUHFile=os.path.split(rout_var.RvicUHFile)[1],
-                                                      RvicFdrFile=os.path.split(rout_var.RvicFdrFile)[1],
-                                                      RvicDomainFile=os.path.split(Domain['FILE_NAME'])[1]))
+                                    glob_ats=global_atts)
 
     # loop over again and print summary
     for tapename, tape in hist_tapes.iteritems():
@@ -211,14 +220,14 @@ def rvic_mod_init(config_file):
 def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
                  directories, config_dict):
     """
-    - Loop over flux files
-    - Combine the Baseflow and Runoff Variables
-    - Adjust units as necessary
-    - Do convolution
-    - Write output files
+    Main run loop for RVIC model.
     """
 
     data2tape = {}
+    aggrunin = {}
+    for t in RVIC_TRACERS:
+        aggrunin[t] = 0.0
+    aggcounter = 0
 
     # ---------------------------------------------------------------- #
     # Start log
@@ -238,14 +247,25 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
     # Iterate Through time_handlesteps
     while True:
         # ------------------------------------------------------------ #
-        # Get This time_handlesteps Forcing
-        aggrunin = data_model.read(timestamp)
+        # Get this time_handlesteps forcing
+        runin = data_model.read(timestamp)
+
+        for t in RVIC_TRACERS:
+            aggrunin[t] += runin[t]
+        aggcounter += 1
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Do the Convolution
         # (end_timestamp is the timestamp at the end of the convolution period)
-        end_timestamp = rout_var.convolve(aggrunin, time_ord)
+        if aggcounter == rout_var.agg_tsteps:
+            end_timestamp = rout_var.convolve(aggrunin, time_ord)
+            aggcounter = 0
+            for t in RVIC_TRACERS:
+                aggrunin[t][:] = 0.0
+        else:
+            log.info("Agg_counter is at %s of %s" %(aggcounter, rout_var.agg_tsteps))
+            log.info("Waiting to convolve...")
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -267,7 +287,7 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
             history_restart_files = []
             for tapename, tape in hist_tapes.iteritems():
                 log.debug('Writing Restart File for Tape:%s' % tapename)
-                hist_fname, rest_fname = tape.write_restart()
+                # hist_fname, rest_fname = tape.write_restart()
                 current_history_files.append(tape.filename)
                 history_restart_files.append(tape.rest_filename)
 

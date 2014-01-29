@@ -36,10 +36,10 @@ class Point(object):
         if name:
             self.name = name
         else:
-            self.name = 'outlet_%s_%s' %(self.lat, self.lon)
+            self.name = 'outlet_{:3.4f}_{:3.4f}'.format(self.lat, self.lon)
 
     def __str__(self):
-        return "Point(%s,%s,%s,%s)" % (self.lat, self.lon, self.gridy, self.gridx)
+        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon, self.gridy, self.gridx)
 
     def __repr__(self):
         return '__repr__'
@@ -56,7 +56,7 @@ class Rvar(object):
     # Initialize
     def __init__(self, param_file, case_name, calendar, out_dir, file_format):
         self.param_file = param_file
-        f = Dataset(param_file, 'r+')
+        f = Dataset(param_file, 'r')
         self.n_sources = len(f.dimensions['sources'])
         self.n_outlets = len(f.dimensions['outlets'])
         self.subset_length = f.variables['subset_length'][0]
@@ -124,7 +124,7 @@ class Rvar(object):
     def init_state(self, state_file, run_type, timestamp):
         if run_type in ['startup', 'restart']:
             log.info('reading state_file: %s' %state_file)
-            f = Dataset(state_file, 'r+')
+            f = Dataset(state_file, 'r')
             self.ring = f.variables['ring'][:]
             file_timestamp = ord_to_datetime(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar)
 
@@ -183,8 +183,8 @@ class Rvar(object):
         # ------------------------------------------------------------ #
         # First update the ring
         log.debug('rolling the ring')
-        self.ring[0, :, 0] = 0                      # Zero out current ring
-        self.ring = np.roll(self.ring, 1, axis=0)   # Equivalent to Fortran 90 cshift function
+        self.ring[0, :, 0] = 0                       # Zero out current ring
+        self.ring = np.roll(self.ring, -1, axis=0)   # Equivalent to Fortran 90 cshift function
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -209,7 +209,27 @@ class Rvar(object):
 
         return self.timestamp
         # ------------------------------------------------------------ #
+    # ---------------------------------------------------------------- #
 
+    # ---------------------------------------------------------------- #
+    def get_time_mode(self, cpl_secs_per_step):
+        """
+        Determine the relationship between the coupling period and the unit-
+        hydrograph period.  In cases where they do not match, the model will
+        aggregate the appropriate quantities before/after the confolution step.
+        """
+
+        log.info('Coupling Timestep is (seconds): %s' %cpl_secs_per_step)
+        log.info('RVIC Timestep is (seconds): %s' %self.unit_hydrograph_dt)
+
+        if (self.unit_hydrograph_dt%cpl_secs_per_step == 0) and \
+           (self.unit_hydrograph_dt >= cpl_secs_per_step):
+           self.agg_tsteps = self.unit_hydrograph_dt/cpl_secs_per_step
+        else:
+            log.error('unit_hydrograph_dt must be a multiple of the cpl_secs_per_step')
+            raise ValueError("Stopped due to error in determining agg_tsteps")
+
+        log.info('RVIC will run 1 time for every %i coupling periods' %self.agg_tsteps)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -222,6 +242,12 @@ class Rvar(object):
     # Extract the current storage
     def get_storage(self):
         return self.ring.sum(axis=1)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # write initial flux
+    def write_initial(self):
+        pass
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -264,60 +290,60 @@ class Rvar(object):
             if val:
                 setattr(unit_hydrograph_dt, key, val)
 
-        # timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, ())
-        # timemgr_rst_type[:] = self._calendar_key
-        # for key, val in share.timemgr_rst_type.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_type, key, val)
+        timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, ())
+        timemgr_rst_type[:] = self._calendar_key
+        for key, val in share.timemgr_rst_type.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_type, key, val)
 
-        # timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec', NC_DOUBLE, ())
-        # timemgr_rst_step_sec[:] = unit_hydrograph_dt
-        # for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_step_sec, key, val)
+        timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec', NC_DOUBLE, ())
+        timemgr_rst_step_sec[:] = self.unit_hydrograph_dt
+        for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_step_sec, key, val)
 
-        # timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd', NC_DOUBLE, ())
-        # timemgr_rst_start_ymd[:] = self._start_date.year*10000+self._start_date.month*100+self._start_date.day
-        # for key, val in share.timemgr_rst_start_ymd.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_start_ymd, key, val)
+        timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd', NC_DOUBLE, ())
+        timemgr_rst_start_ymd[:] = self._start_date.year*10000+self._start_date.month*100+self._start_date.day
+        for key, val in share.timemgr_rst_start_ymd.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_start_ymd, key, val)
 
-        # timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod', NC_DOUBLE, ())
-        # timemgr_rst_start_tod[:] = (self._start_ord%1)*SECSPERDAY
-        # for key, val in share.timemgr_rst_start_tod.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_start_tod, key, val)
+        timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod', NC_DOUBLE, ())
+        timemgr_rst_start_tod[:] = (self._start_ord%1)*SECSPERDAY
+        for key, val in share.timemgr_rst_start_tod.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_start_tod, key, val)
 
-        # timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd', NC_DOUBLE, ())
-        # timemgr_rst_ref_ymd[:] = REFERENCE_DATE
-        # for key, val in share.timemgr_rst_ref_ymd.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_ref_ymd, key, val)
+        timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd', NC_DOUBLE, ())
+        timemgr_rst_ref_ymd[:] = REFERENCE_DATE
+        for key, val in share.timemgr_rst_ref_ymd.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_ref_ymd, key, val)
 
-        # timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod', NC_DOUBLE, ())
-        # timemgr_rst_ref_tod[:] = REFERENCE_TIME
-        # for key, val in share.timemgr_rst_ref_tod.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_ref_tod, key, val)
+        timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod', NC_DOUBLE, ())
+        timemgr_rst_ref_tod[:] = REFERENCE_TIME
+        for key, val in share.timemgr_rst_ref_tod.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_ref_tod, key, val)
 
-        # timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd', NC_DOUBLE, ())
-        # timemgr_rst_curr_ymd[:] = self.timestamp.year*10000+self.timestamp.month*100+self.timestamp.day
-        # for key, val in share.timemgr_rst_curr_ymd.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_curr_ymd, key, val)
+        timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd', NC_DOUBLE, ())
+        timemgr_rst_curr_ymd[:] = self.timestamp.year*10000+self.timestamp.month*100+self.timestamp.day
+        for key, val in share.timemgr_rst_curr_ymd.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_curr_ymd, key, val)
 
-        # timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod', NC_DOUBLE, ())
-        # timemgr_rst_curr_tod[:] = (self.time_ord%1)*SECSPERDAY
-        # for key, val in share.timemgr_rst_curr_tod.__dict__.iteritems():
-        #     if val:
-        #         setattr(timemgr_rst_curr_tod, key, val)
+        timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod', NC_DOUBLE, ())
+        timemgr_rst_curr_tod[:] = (self.time_ord%1)*SECSPERDAY
+        for key, val in share.timemgr_rst_curr_tod.__dict__.iteritems():
+            if val:
+                setattr(timemgr_rst_curr_tod, key, val)
 
 
         # ------------------------------------------------------------ #
         # Setup Tape Dimensions
-        # coords = ('tapes', 'mak_chars')
-        # ntapes = f.createDimension(coords[0], len(history_restart_files))
-        # ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
+        coords = ('ntapes', 'max_chars')
+        ntapes = f.createDimension(coords[0], len(history_restart_files))
+        max_chars = f.createDimension(coords[1], MAX_NC_CHARS)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -376,7 +402,7 @@ class Rvar(object):
         # write global attributes
         self.glob_atts.update()
 
-        for key, val in self.glob_atts.__dict__.iteritems():
+        for key, val in self.glob_atts.atts.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #

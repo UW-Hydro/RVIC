@@ -1,4 +1,4 @@
-#!/opt/local/bin/python
+#!/usr/local/env python
 """
 rvic_unit_test.py
 
