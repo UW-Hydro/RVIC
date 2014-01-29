@@ -6,17 +6,18 @@ Summary:
     The core of the module is the Tape class.  The basic procedure is as follows:
         - initialization:  sets tape options, determines filenames, etc.
         - update: method that incorporates new fluxes into the history tape.
-        - __next_update_outdata: method to determine when to update the outdata container
+        - __next_update_out_data: method to determine when to update the outdata container
 
 """
 import os
 import numpy as np
+from collections import OrderedDict
 from netCDF4 import Dataset, date2num, num2date
 from datetime import datetime
 from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE, WATERDENSITY
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE, NC_CHAR, WATERDENSITY
 import share
 
 # -------------------------------------------------------------------- #
@@ -41,10 +42,11 @@ class Tape(object):
         self._caseid = caseid            # Case ID and prefix for outfiles
         self._fincl = fincl              # Fields to include in history file
         self._mfilt = mfilt              # Maximum number of time samples
-        if ndens == 1:                   # Output file precision
-            self._ndens = NC_FLOAT
+        self._ndens = ndens
+        if self._ndens == 1:             # Output file precision
+            self._ncprec = NC_FLOAT
         else:
-            self._ndens = NC_DOUBLE
+            self._ncprec = NC_DOUBLE
         self._nhtfrq = nhtfrq            # Write frequency
         self._avgflag = avgflag          # Average Flag (A,I,X,M)
         self._outtype = outtype          # Outfile type (grid, array)
@@ -60,7 +62,7 @@ class Tape(object):
         self._out_time_bnds = np.zeros((self._mfilt, 2))
 
         self.__get_rvar(Rvar)           # Get the initial Rvar fields
-        self.rest_filename = 'null'
+        self._grid_shape = grid_area.shape
 
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid, setup out_data
@@ -71,9 +73,9 @@ class Tape(object):
                 self._grid_lats = grid_lats
                 for field in self._fincl:
                     if grid_lons.ndim == 1:
-                        shape = (self._mfilt,) + self._grid_lats.shape + self._grid_lons.shape
+                        shape = (self._mfilt,) + self._grid_shape
                     else:
-                        shape = (self._mfilt,) + self._grid_lons.shape
+                        shape = (self._mfilt,) + self._grid_shape
                     self._out_data[field] = np.zeros(shape)
             else:
                 raise ValueError('Must include grid lons / lats if outtype == grid')
@@ -120,11 +122,13 @@ class Tape(object):
             else:
                 self._fname_format = os.path.join(out_dir,
                                                  "%s.rvic.h%s%s.%%Y-%%m-%%d-%%H.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
+        self._rest_fname_format = os.path.join(out_dir,
+                                               "%s.rvic.rh%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (self._caseid, self._tape_num))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Determine when the next write should be
-        self.__next_update_outdata()
+        self.__next_update_out_data()
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
 
@@ -136,7 +140,7 @@ class Tape(object):
         '\t# fincl:        %s' %','.join(self._fincl),
         '\t# nhtfrq:       %s' %self._nhtfrq,
         '\t# mfilt:        %s' %self._mfilt,
-        '\t# ndens:        %s' %self._ndens,
+        '\t# ncprec:       %s' %self._ncprec,
         '\t# avgflag:      %s' %self._avgflag,
         '\t# fname_format: %s' %self._fname_format,
         '\t# file_format:  %s' %self._file_format,
@@ -200,13 +204,16 @@ class Tape(object):
             # move the data to the out_data structure
             self.__update_out_data()
             # Determine next update
-            self.__next_update_outdata()
+            self.__next_update_out_data()
 
             # zero out temp_data
             for field in self._fincl:
                 self._temp_data[field][:] = 0.0
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
+
+    def write_initial(self):
+        pass
 
     # ---------------------------------------------------------------- #
     # fill in out_data
@@ -244,20 +251,6 @@ class Tape(object):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # write initial flux
-    def write_initial(self):
-        pass
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # write initial flux
-    def write_restart(self):
-        self._hist_rest_file = 'temp_file_name'
-
-        return self.filename, self._hist_rest_file
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
     # Get import rvar fields
     def __get_rvar(self, rvar):
         """ Get the rvar Fields that are useful in writing output """
@@ -268,12 +261,11 @@ class Tape(object):
         self._outlet_y_ind = rvar.outlet_y_ind
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
-        self._outlet_name = rvar.outlet_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Determine next write time
-    def __next_update_outdata(self):
+    def __next_update_out_data(self):
         """ Determine the count for when the next write should occur """
         # ------------------------------------------------------------ #
         # If monthly, write at (YYYY,MM,1,0,0)
@@ -281,10 +273,11 @@ class Tape(object):
         # b1 is end of last timestep of next period
 
         b0 = self._time_ord
+        self._begtime = b0
 
         if self._nhtfrq == 0:
             if self._timestamp.month == 12:
-                b1 = date2num(datetime(self._timestamp.year + 1, 1, 1),
+                b1 = date2num(datetime(self._timestamp.year + 1, 2, 1),
                               TIMEUNITS, calendar=self._calendar)
             else:
                 b1 = date2num(datetime(self._timestamp.year, self._timestamp.month + 1, 1),
@@ -306,7 +299,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # Get next file name and timeord
+        # Get next file names and timeord
         if self._avgflag == 'I':
             self._write_ord = b1
             self.filename = num2date(b1, TIMEUNITS,
@@ -315,6 +308,8 @@ class Tape(object):
             self._time_bnds = np.array([[b0, b1]])
             self._write_ord = np.average(self._time_bnds)
             self.filename = num2date(b0, TIMEUNITS,
+                                     calendar=self._calendar).strftime(self._fname_format)
+        self.rest_filename = num2date(b1, TIMEUNITS,
                                      calendar=self._calendar).strftime(self._fname_format)
         # ------------------------------------------------------------ #
 
@@ -346,7 +341,7 @@ class Tape(object):
         # Time Variable
         time = f.createDimension('time', None)
 
-        time = f.createVariable('time', self._ndens, ('time',))
+        time = f.createVariable('time', self._ncprec, ('time',))
         time[:] = self._out_times
         for key, val in share.time.__dict__.iteritems():
             if val:
@@ -358,21 +353,21 @@ class Tape(object):
 
             time.bounds = 'time_bnds'
 
-            time_bnds = f.createVariable('time_bnds', self._ndens, ('time', 'nv',))
+            time_bnds = f.createVariable('time_bnds', self._ncprec, ('time', 'nv',))
             time_bnds[:, :] = self._out_time_bnds
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Setup Coordinate Variables
         if self._grid_lons.ndim > 1:
-            coords = ('y', 'x',)
+            coords = ('yc', 'xc',)
 
             # Grid is not regular
-            x = f.createDimension('x', self._grid_lons.shape[1])
-            y = f.createDimension('y', self._grid_lons.shape[0])
+            xc = f.createDimension('xc', self._grid_lons.shape[1])
+            yc = f.createDimension('yc', self._grid_lons.shape[0])
 
-            xc = f.createVariable('xc', self._ndens, coords)
-            yc = f.createVariable('yc', self._ndens, coords)
+            xc = f.createVariable('xc', self._ncprec, coords)
+            yc = f.createVariable('yc', self._ncprec, coords)
             xc[:, :] = self._grid_lons
             yc[:, :] = self._grid_lats
 
@@ -390,8 +385,8 @@ class Tape(object):
             lon = f.createDimension('lon', len(self._grid_lons))
             lat = f.createDimension('lat', len(self._grid_lats))
 
-            lon = f.createVariable('lon', self._ndens, ('lon',))
-            lat = f.createVariable('lat', self._ndens, ('lat',))
+            lon = f.createVariable('lon', self._ncprec, ('lon',))
+            lat = f.createVariable('lat', self._ncprec, ('lat',))
             lon[:] = self._grid_lons
             lat[:] = self._grid_lats
 
@@ -407,9 +402,11 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Write Fields
         tcoords = ('time',) + coords
+
         for field in self._fincl:
-            var = f.createVariable(field, self._ndens, tcoords)
+            var = f.createVariable(field, self._ncprec, tcoords)
             var[:, :] = self._out_data[field] * self._units_mult
+
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
                     setattr(var, key, val)
@@ -421,7 +418,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # write global attributes
         self._glob_ats.update()
-        for key, val in self._glob_ats.__dict__.iteritems():
+        for key, val in self._glob_ats.atts.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
@@ -443,7 +440,7 @@ class Tape(object):
         # Time Variable
         time = f.createDimension('time', None)
 
-        time = f.createVariable('time', self._ndens, ('time',))
+        time = f.createVariable('time', self._ncprec, ('time',))
         time[:] = self._out_times
         for key, val in share.time.__dict__.iteritems():
             if val:
@@ -455,7 +452,7 @@ class Tape(object):
 
             time.bounds = 'time_bnds'
 
-            time_bnds = f.createVariable('time_bnds', self._ndens, ('time', 'nv',))
+            time_bnds = f.createVariable('time_bnds', self._ncprec, ('time', 'nv',))
             time_bnds[:, :] = self._out_time_bnds
         # ------------------------------------------------------------ #
 
@@ -465,8 +462,8 @@ class Tape(object):
 
         outlets = f.createDimension('outlets', self._num_outlets)
 
-        outlet_lon = f.createVariable('lon', self._ndens, coords)
-        outlet_lat = f.createVariable('lat', self._ndens, coords)
+        outlet_lon = f.createVariable('lon', self._ncprec, coords)
+        outlet_lat = f.createVariable('lat', self._ncprec, coords)
         outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
         outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
         outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT, coords)
@@ -502,8 +499,8 @@ class Tape(object):
         tcoords = ('time',) + coords
 
         for field in self._fincl:
-            var = f.createVariable(field, self._ndens, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult
+            var = f.createVariable(field, self._ncprec, tcoords)
+            var[:, :] = self._out_data[field] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
@@ -514,7 +511,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # write global attributes
         self._glob_ats.update()
-        for key, val in self._glob_ats.__dict__.iteritems():
+        for key, val in self._glob_ats.atts.iteritems():
             if val:
                 setattr(f, key, val)
         f.featureType = "timeSeries"
@@ -522,4 +519,86 @@ class Tape(object):
         f.close()
         log.info('Finished writing %s' % self.filename)
     # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # write initial flux
+    # def write_restart(self):
+    #     """Write history tape state, matches CESM-RVIC format"""
+    #     """dims nx, ny, allrof, string_length, fname_lenp2, fname_len,
+    #     len1, scalar, max_chars, max_nflds, max_flds"""
+
+    #     # ------------------------------------------------------------ #
+    #     # Open file
+    #     f = Dataset(self.rest_filename, 'w', self._file_format)
+    #     # ------------------------------------------------------------ #
+
+    #     # ------------------------------------------------------------ #
+    #     # Dimensions
+    #     nx = f.createDimension('nx', self._grid_shape[1])
+    #     ny = f.createDimension('ny', self._grid_shape[0])
+    #     allrof = f.createDimension('allrof', )
+    #     string_length = f.createDimension('string_length', 8)
+    #     fname_lenp2 = f.createDimension('fname_lenp2', 34)
+    #     fname_len = f.createDimension('fname_len', 32)
+    #     len1 = f.createDimension('len1', 1)
+    #     scalar = f.createDimension('scalar', 1)
+    #     max_chars = f.createDimension('max_chars', 128)
+    #     max_nflds = f.createDimension('max_nflds', 2)
+    #     max_flds = f.createDimension('max_flds', 15)
+    #     # ------------------------------------------------------------ #
+
+    #     # ------------------------------------------------------------ #
+    #     # Write Fields
+    #     restvars = OrderedDict()
+    #     restvars['nhtfrq'] = f.createVariable('nhtfrq', NC_INT, ('scalar', ))
+    #     restvars['mfilt'] = f.createVariable('mfilt', NC_INT, ('scalar', ))
+    #     restvars['ncprec'] = f.createVariable('ncprec', NC_INT, ('scalar', ))
+    #     restvars['fincl'] = f.createVariable('fincl', NC_CHAR, ('max_flds', 'fname_lenp2',))
+    #     restvars['fexcl'] = f.createVariable('fexcl', NC_CHAR, ('max_flds', 'fname_lenp2',))
+    #     restvars['nflds'] = f.createVariable('nflds', NC_INT, ('scalar', ))
+    #     restvars['ntimes'] = f.createVariable('ntimes', NC_INT, ('scalar', ))
+    #     restvars['is_endhist'] = f.createVariable('is_endhist', NC_INT, ('scalar', ))
+    #     restvars['begtime'] = f.createVariable('begtime', NC_DOUBLE, ('scalar', ))
+    #     restvars['hpindex'] = f.createVariable('hpindex', NC_INT, ('max_nflds', ))
+    #     restvars['avgflag'] = f.createVariable('avgflag', NC_CHAR, ('max_nflds', 'len1',))
+    #     restvars['name'] = f.createVariable('name', NC_CHAR, ('max_nflds', 'fname_len', ))
+    #     restvars['long_name'] = f.createVariable('long_name', NC_CHAR, ('max_nflds', 'max_chars', ))
+    #     restvars['units'] = f.createVariable('units', NC_CHAR, ('max_nflds', 'max_chars', ))
+
+    #     restvars['nhtfrq'][:] = self._nhtfrq
+    #     restvars['mfilt'][:] = self._mfilt
+    #     restvars['ncprec'][:] = self._ndens
+    #     # restvars['fincl'][:, :] = self._fincl
+    #     restvars['fexcl'][:, :] =  self._fexcl
+    #     restvars['nflds'][:] = len(self._fincl)
+    #     restvars['ntimes'][:] = 1
+    #     restvars['is_endhist'][:] = 0
+    #     restvars['begtime'][:] = self._begtime
+    #     restvars['hpindex'][:] = 'help'
+    #     restvars['avgflag'][:, :] = self._avgflag
+    #     restvars['name'][:, :] = self._fincl
+    #     restvars['long_name'][:, :] = 'help'
+    #     restvars['units'][:, :] = 'help'
+
+    #     for name, var in restvas.iteritems():
+    #         ncvar = getattr(share, name)
+    #         for key, val in ncvar.__dict__.iteritems():
+    #             if val:
+    #                 setattr(var, key, val)
+    #     # ------------------------------------------------------------ #
+    #     # ------------------------------------------------------------ #
+
+    #     # ------------------------------------------------------------ #
+    #     # write global attributes
+    #     self._glob_ats.update()
+    #     for key, val in self._glob_ats.atts.iteritems():
+    #         if val:
+    #             setattr(f, key, val)
+    #     f.title = "RVIC Restart History information, required to continue a simulation"
+    #     f.comment = "This entire file NOT needed for drystart, startup, or branch simulations"
+    #     f.featureType = "timeSeries"
+    #     # ------------------------------------------------------------ #
+
+    #     return self.filename, self.rest_filename
+    # # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #
