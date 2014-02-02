@@ -19,6 +19,13 @@ from rvic.share import NcGlobals
 from rvic.write import write_agg_netcdf
 from rvic.variables import Point
 from rvic.param_file import finish_params
+from rvic.config import read_config
+
+try:
+    from rvic.remap import remap
+    remap_available = True
+except:
+    remap_available = False
 
 
 # -------------------------------------------------------------------- #
@@ -72,11 +79,17 @@ def main():
 
 
 def gen_uh_init(config_file):
-    """Initialize RVIC parameter """
+    """Initialize RVIC parameter"""
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
     config_dict = read_config(config_file)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Import optional modules
+    if config_dict['OPTIONS']['REMAP'] and not remap_available:
+	raise ValueError('Problem importing remap module (check to make sure cdo.py is available)')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -396,6 +409,7 @@ def process_command_line():
     return args.config_file, args.numofproc
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 # store_result helper function
 results = {}
@@ -404,6 +418,7 @@ def store_result(result):
     # result_list is modified only by the main process, not the pool workers.
     results[result.cell_id] = result
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 if __name__ == "__main__":

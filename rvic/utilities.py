@@ -8,11 +8,10 @@ import numpy as np
 from shutil import rmtree, copyfile
 from ConfigParser import SafeConfigParser
 from netCDF4 import Dataset
-from cdo import Cdo
-cdo = Cdo()
 from logging import getLogger
 from log import LOG_NAME
 from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE, METERS2PERACRE, METERSPERKM
+from config import read_config
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -48,6 +47,7 @@ def latlon2yx(plats, plons, glats, glons):
 
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 # Write rpointer file
 def write_rpointer(restart_dir, restart_file, timestamp):
@@ -65,6 +65,7 @@ def write_rpointer(restart_dir, restart_file, timestamp):
 
     with open(rpointer_file, 'w') as configfile:
         config.write(configfile)
+    return
 # -------------------------------------------------------------------- #
 
 
@@ -117,56 +118,6 @@ def check_ncvars(config_section, nckeys):
 
 
 # -------------------------------------------------------------------- #
-# Read the Configuration File
-def read_config(config_file):
-    """
-    Return a dictionary with subdictionaries of all configFile options/values
-    """
-    config = SafeConfigParser()
-    config.optionxform = str
-    config.read(config_file)
-    sections = config.sections()
-    dict1 = {}
-    for section in sections:
-        options = config.options(section)
-        dict2 = {}
-        for option in options:
-            dict2[option] = config_type(config.get(section, option))
-        dict1[section] = dict2
-    return dict1
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
-# Find the type of the config options
-def config_type(value):
-    """
-    Parse the type of the configuration file option.
-    First see the value is a bool, then try float, finally return a string.
-    """
-    val_list = [x.strip() for x in value.split(',')]
-    if len(val_list) == 1:
-        value = val_list[0]
-        if value in ['true', 'True', 'TRUE', 'T']:
-            return True
-        elif value in ['false', 'False', 'FALSE', 'F']:
-            return False
-        elif value in ['none', 'None', 'NONE', '']:
-            return None
-        else:
-            try:
-                return float(value)
-            except:
-                return value
-    else:
-        try:
-            return map(float, val_list)
-        except:
-            return val_list
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
 # Find the index of the the nearest value
 def find_nearest(array, value):
     """ Find the index location in (array) with value nearest to (value)"""
@@ -203,25 +154,6 @@ def clean_file(file_name):
 
 
 # -------------------------------------------------------------------- #
-# Remap a file using CDO
-def remap(grid_file, in_file, out_file, operator='remapcon',
-          remap_options=None):
-    """Remap infile using cdo"""
-
-    remap_method = getattr(cdo, operator)
-
-    if remap_options:
-        remap_method(grid_file, input=in_file, output=out_file, options=remap_options)
-    else:
-        remap_method(grid_file, input=in_file, output=out_file)
-
-    log.debug('remapped to out file: %s' % os.path.split(out_file)[1])
-
-    return
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
 # Make a set of directories
 def make_directories(rundir, subdir_names):
     """Make rvic directory structure"""
@@ -244,6 +176,7 @@ def copy_inputs(config_file, InputsDir):
     config_dict = read_config(config_file)
 
     config = SafeConfigParser()
+    config.optionxform = str
     config.read(config_file)
 
     new_config = os.path.join(InputsDir, os.path.split(config_file)[1])
@@ -276,19 +209,31 @@ def copy_inputs(config_file, InputsDir):
 # -------------------------------------------------------------------- #
 
 
-def tar_inputs(inputs, suffix=''):
+# -------------------------------------------------------------------- #
+def tar_inputs(inputs, suffix='', tar_type='tar'):
     """ Tar the inputss directory or file at the end of a run"""
     # ---------------------------------------------------------------- #
     # Make the TarFile
-    tar_file = inputs + suffix + '.tar.gz'
-    print 'tarfile: %s' %tar_file
+    if tar_type == 'tar':
+        end = '.tar'
+        mode = 'w:'
+    elif tar_type in ['tgz', 'tar.gz', 'gunzip']:
+        end = '.tgz'
+        mode = 'w:'
+    else:
+        log.warning('Unknown tar_type: {}, proceeding with gunzipped mode'.format('tar_type'))
+        end = '.tgz'
+        mode = 'w:'
+
+    tar_file = inputs + suffix + end
+    log.info('tarfile: %s' %tar_file)
 
     if os.path.isdir(inputs):
         arcname = os.path.basename(os.path.normpath(inputs))
     else:
         arcname = os.path.split(inputs)[1]
 
-    with tarfile.open(tar_file, "w:gz") as tar:
+    with tarfile.open(tar_file, mode) as tar:
         tar.add(inputs, arcname=arcname)
 
     # ---------------------------------------------------------------- #

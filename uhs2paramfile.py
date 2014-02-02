@@ -6,9 +6,10 @@ Read a set of uhs files and write an RVIC parameter file
 import argparse
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
-from rvic.utilities import read_config, make_directories, copy_inputs, read_domain, tar_inputs
+from rvic.utilities import make_directories, copy_inputs, read_domain, tar_inputs
 from rvic.convert import read_station_file, read_uhs_files, move_domain
 from rvic.param_file import finish_params
+from rvic.config import read_config
 
 
 # -------------------------------------------------------------------- #
@@ -79,7 +80,7 @@ def uhs2param_init(config_file):
     dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
     log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
 
-    if config_dict['NEW_DOMAIN']:
+    if 'NEW_DOMAIN' in config_dict:
         new_dom_data, new_DomVats, new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
         log.info('Opened New Domain File: %s' % config_dict['NEW_DOMAIN']['FILE_NAME'])
     else:
