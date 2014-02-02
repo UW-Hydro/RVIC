@@ -36,10 +36,10 @@ class Point(object):
         if name:
             self.name = name
         else:
-            self.name = 'outlet_%s_%s' %(self.lat, self.lon)
+            self.name = 'outlet_{:3.4f}_{:3.4f}'.format(self.lat, self.lon)
 
     def __str__(self):
-        return "Point(%s,%s,%s,%s)" % (self.lat, self.lon, self.gridy, self.gridx)
+        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon, self.gridy, self.gridx)
 
     def __repr__(self):
         return '__repr__'
@@ -56,7 +56,7 @@ class Rvar(object):
     # Initialize
     def __init__(self, param_file, case_name, calendar, out_dir, file_format):
         self.param_file = param_file
-        f = Dataset(param_file, 'r+')
+        f = Dataset(param_file, 'r')
         self.n_sources = len(f.dimensions['sources'])
         self.n_outlets = len(f.dimensions['outlets'])
         self.subset_length = f.variables['subset_length'][0]
@@ -125,9 +125,8 @@ class Rvar(object):
     def init_state(self, state_file, run_type, timestamp):
         if run_type in ['startup', 'restart']:
             log.info('reading state_file: %s' %state_file)
-            f = Dataset(state_file, 'r+')
-            for i, tracer in enumerate(RVIC_TRACERS):
-		self.ring[:, :, i] = f.variables[tracer+'_ring_'][:]
+            f = Dataset(state_file, 'r')
+            self.ring = f.variables['ring'][:]
             file_timestamp = ord_to_datetime(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar)
 
             if run_type == 'restart':
@@ -185,8 +184,8 @@ class Rvar(object):
         # ------------------------------------------------------------ #
         # First update the ring
         log.debug('rolling the ring')
-        self.ring[0, :, 0] = 0                      # Zero out current ring
-        self.ring = np.roll(self.ring, 1, axis=0)   # Equivalent to Fortran 90 cshift function
+        self.ring[0, :, 0] = 0                       # Zero out current ring
+        self.ring = np.roll(self.ring, -1, axis=0)   # Equivalent to Fortran 90 cshift function
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -211,7 +210,27 @@ class Rvar(object):
 
         return self.timestamp
         # ------------------------------------------------------------ #
+    # ---------------------------------------------------------------- #
 
+    # ---------------------------------------------------------------- #
+    def get_time_mode(self, cpl_secs_per_step):
+        """
+        Determine the relationship between the coupling period and the unit-
+        hydrograph period.  In cases where they do not match, the model will
+        aggregate the appropriate quantities before/after the confolution step.
+        """
+
+        log.info('Coupling Timestep is (seconds): %s' %cpl_secs_per_step)
+        log.info('RVIC Timestep is (seconds): %s' %self.unit_hydrograph_dt)
+
+        if (self.unit_hydrograph_dt%cpl_secs_per_step == 0) and \
+           (self.unit_hydrograph_dt >= cpl_secs_per_step):
+           self.agg_tsteps = self.unit_hydrograph_dt/cpl_secs_per_step
+        else:
+            log.error('unit_hydrograph_dt must be a multiple of the cpl_secs_per_step')
+            raise ValueError("Stopped due to error in determining agg_tsteps")
+
+        log.info('RVIC will run 1 time for every %i coupling periods' %self.agg_tsteps)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -224,6 +243,12 @@ class Rvar(object):
     # Extract the current storage
     def get_storage(self):
         return self.ring.sum(axis=1)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # write initial flux
+    def write_initial(self):
+        pass
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -317,7 +342,7 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Setup Tape Dimensions
-        coords = ('tapes', 'max_chars', )
+        coords = ('tapes', 'max_chars')
         ntapes = f.createDimension(coords[0], len(history_restart_files))
         ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
         # ------------------------------------------------------------ #
@@ -380,7 +405,7 @@ class Rvar(object):
         # write global attributes
         self.glob_atts.update()
 
-        for key, val in self.glob_atts.__dict__.iteritems():
+        for key, val in self.glob_atts.atts.iteritems():
             if val:
                 setattr(f, key, val)
         # ------------------------------------------------------------ #

@@ -9,6 +9,7 @@ Usage: py.test (from RVIC or test directory)
 
 import traceback
 import sys
+import py_compile as pyc
 sys.path.append("../")
 
 
@@ -17,19 +18,19 @@ sys.path.append("../")
 
 def test_pylint_uhs2paramfile():
     try:
-        import uhs2paramfile
+        pyc.compile('../uhs2paramfile.py')
     except:
         assert traceback.format_exc() == None
 
 def test_pylint_make_parameters():
     try:
-        import make_parameters
+        pyc.compile('../make_parameters.py')
     except:
         assert traceback.format_exc() == None
 
 def test_pylint_rvic_model():
     try:
-        import rvic_model
+        pyc.compile('../rvic_model.py')
     except:
         assert traceback.format_exc() == None
 # -------------------------------------------------------------------- #
