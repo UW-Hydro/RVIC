@@ -6,7 +6,8 @@ Read a set of uhs files and write an RVIC parameter file
 import argparse
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
-from rvic.utilities import make_directories, copy_inputs, read_domain, tar_inputs
+from rvic.utilities import make_directories, copy_inputs, read_domain
+from rvic.utilities import tar_inputs
 from rvic.convert import read_station_file, read_uhs_files, move_domain
 from rvic.param_file import finish_params
 from rvic.config import read_config
@@ -22,7 +23,8 @@ def main():
 
     # ---------------------------------------------------------------- #
     # Initilize
-    dom_data, new_dom_data, outlets, config_dict, directories = uhs2param_init(config_file)
+    dom_data, new_dom_data, outlets, config_dict, \
+        directories = uhs2param_init(config_file)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -42,6 +44,7 @@ def main():
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 # Init
@@ -69,7 +72,8 @@ def uhs2param_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Start Logging
-    log = init_logger(directories['logs'], options['LOG_LEVEL'], options['VERBOSE'])
+    log = init_logger(directories['logs'], options['LOG_LEVEL'],
+                      options['VERBOSE'])
 
     for direc in directories:
         log.info('%s directory is %s' % (direc, directories[direc]))
@@ -81,10 +85,12 @@ def uhs2param_init(config_file):
     log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
 
     if 'NEW_DOMAIN' in config_dict:
-        new_dom_data, new_DomVats, new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
-        log.info('Opened New Domain File: %s' % config_dict['NEW_DOMAIN']['FILE_NAME'])
+        new_dom_data, new_DomVats, \
+            new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
+        log.info('Opened New Domain File: %s',
+                 config_dict['NEW_DOMAIN']['FILE_NAME'])
     else:
-         new_dom_data = None
+        new_dom_data = None
 
     # ---------------------------------------------------------------- #
 
@@ -97,6 +103,7 @@ def uhs2param_init(config_file):
     return dom_data, new_dom_data, outlets, config_dict, directories
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 # run
 def uhs2param_run(dom_data, outlets, config_dict, directories):
@@ -108,6 +115,7 @@ def uhs2param_run(dom_data, outlets, config_dict, directories):
 
     return outlets
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 #
@@ -129,7 +137,8 @@ def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # Write the parameter file
-    param_file, today = finish_params(outlets, dom_data, config_dict, directories)
+    param_file, today = finish_params(outlets, dom_data, config_dict,
+                                      directories)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -138,12 +147,13 @@ def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
     log_tar = tar_inputs(log.filename)
 
     log.info('Done with RvicGenParam.')
-    log.info('Location of Inputs: %s' % inputs_tar)
-    log.info('Location of Log: %s' % log_tar)
-    log.info('Location of Parmeter File %s' % param_file)
+    log.info('Location of Inputs: %s', inputs_tar)
+    log.info('Location of Log: %s', log_tar)
+    log.info('Location of Parmeter File %s', param_file)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 # Read Command Line Arguments
@@ -152,7 +162,8 @@ def process_command_line():
     Get the path to the config_file
     """
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Generate RVIC parameter files.')
+    parser = argparse.ArgumentParser(description='Generate RVIC parameter '
+                                     'files.')
     parser.add_argument("config_file", type=str,
                         help="Input configuration file")
     parser.add_argument("-np", "--numofproc", type=int,

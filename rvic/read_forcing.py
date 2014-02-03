@@ -58,7 +58,8 @@ class DataModel(object):
         elif len(start) == 1:
             for year in xrange(start[0], end[0]):
                 self.files.append(os.path.join(self.path,
-                                  file_str.replace('$YYYY', "{0:04d}".format(year))))
+                                  file_str.replace('$YYYY',
+                                                   "{0:04d}".format(year))))
 
         # Monthly
         elif len(start) == 2:
@@ -118,61 +119,69 @@ class DataModel(object):
                 if f.variables[self.time_fld].calendar != self.calendar:
                     raise ValueError('Calendars do not match in input files')
 
-                time_series = np.append(time_series, f.variables[self.time_fld][:])
+                time_series = np.append(time_series,
+                                        f.variables[self.time_fld][:])
 
             f.close()
 
-        self.end = ord_to_datetime(self.end_ords[-1], self.time_units, calendar=self.calendar)
+        self.end = ord_to_datetime(self.end_ords[-1], self.time_units,
+                                   calendar=self.calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # find timestep information
         if len(time_series) > 1:
-            t0 = date2num(num2date(time_series[0], self.time_units, calendar=self.calendar),
+            t0 = date2num(num2date(time_series[0], self.time_units,
+                                   calendar=self.calendar),
                           TIMEUNITS, calendar=self.calendar)
-            t1 = date2num(num2date(time_series[1], self.time_units, calendar=self.calendar),
+            t1 = date2num(num2date(time_series[1], self.time_units,
+                                   calendar=self.calendar),
                           TIMEUNITS, calendar=self.calendar)
             self.secs_per_step = (t1-t0) * SECSPERDAY
         else:
-            raise ValueError('Need more than 1 forcing timestep in order to calculate timestep')
-
+            raise ValueError('Need more than 1 forcing timestep in order to '
+                             'calculate timestep')
         # ------------------------------------------------------------ #
-
     # ---------------------------------------------------------------- #
-
 
     # ---------------------------------------------------------------- #
     def start(self, timestamp):
         """ Initialize the first files inputs"""
         # ------------------------------------------------------------ #
         # find and open first file
-        self.ordtime = date2num(timestamp, self.time_units, calendar=self.calendar)
+        self.ordtime = date2num(timestamp, self.time_units,
+                                calendar=self.calendar)
 
         if len(self.files) == 1:
             self.current_filenum = 0
         else:
-            self.current_filenum = bisect_right(self.start_dates, self.ordtime) - 1
+            self.current_filenum = bisect_right(self.start_dates,
+                                                self.ordtime) - 1
 
-        log.debug('Filenum %s' %self.current_filenum)
+        log.debug('Filenum %s', self.current_filenum)
 
         self.current_file = self.files[self.current_filenum]
         self.current_fhdl = Dataset(self.current_file, 'r+')
 
         try:
-            self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld])
+            self.current_tind = date2index(timestamp,
+                                           self.current_fhdl.variables[self.time_fld])
         except Exception, e:
-            log.error(num2date(self.start_dates, self.time_units, calendar=self.calendar))
-            log.error('timestamp: %s' %timestamp)
+            log.error(num2date(self.start_dates, self.time_units,
+                               calendar=self.calendar))
+            log.error('timestamp: %s', timestamp)
             log.exception(e)
             raise
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # find multiplier for units all fields will be in liquid flux (kg m-2 s-1)
+        # find multiplier for units all fields will be in liquid flux
+        # (kg m-2 s-1)
         for fld in self.liq_flds:
             units = self.current_fhdl.variables[fld].units
 
-            if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1', 'kg*m-2*s-1', 'kg s-1 m-2']:
+            if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1',
+                         'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
             elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
                 self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / MMPERMETER
@@ -184,7 +193,6 @@ class DataModel(object):
                 raise ValueError('unknown forcing units')
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
-
 
     # ---------------------------------------------------------------- #
     def read(self, timestamp):
@@ -204,18 +212,22 @@ class DataModel(object):
         # ------------------------------------------------------------ #
         # check that the timestamp is what was expected
         expected_timestamp = ord_to_datetime(self.current_fhdl.variables[self.time_fld][self.current_tind],
-                                             self.time_units, calendar=self.calendar)
+                                             self.time_units,
+                                             calendar=self.calendar)
         if timestamp != expected_timestamp:
             log.warning('Timestamp is not what was expected')
-            log.warning('Got timestamp %s' %timestamp)
-            log.warning('Expected timestamp %s' %expected_timestamp)
+            log.warning('Got timestamp %s', timestamp)
+            log.warning('Expected timestamp %s', expected_timestamp)
 
             # Attempt to find the correct timestamp
-            self.ordtime = date2num(timestamp, self.current_fhdl.variables[self.time_fld].units, calendar=self.calendar)
+            self.ordtime = date2num(timestamp,
+                                    self.current_fhdl.variables[self.time_fld].units,
+                                    calendar=self.calendar)
 
             # check to make sure the timestamp exists in input dataset
             if self.ordtime > max(self.end_ords):
-                raise ValueError('Timestamp is exceeds date range in input files')
+                raise ValueError('Timestamp is exceeds date range in '
+                                 'input files')
 
             new_filenum = bisect_right(self.start_dates, self.ordtime) - 1
             if new_filenum != self.current_filenum:
@@ -224,12 +236,13 @@ class DataModel(object):
                 self.current_file = self.files[new_filenum]
                 self.current_fhdl = Dataset(self.current_file, 'r+')
 
-            self.current_tind = date2index(timestamp, self.current_fhdl.variables[self.time_fld])
+            self.current_tind = date2index(timestamp,
+                                           self.current_fhdl.variables[self.time_fld])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Get the liquid fluxes
-        log.info('getting fluxes for %s (%s)' %(timestamp, self.current_tind))
+        log.info('getting fluxes for %s (%s)', timestamp, self.current_tind)
         forcing = {}
         for i, fld in enumerate(self.liq_flds):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)

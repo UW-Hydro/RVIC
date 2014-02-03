@@ -32,8 +32,7 @@ class StreamToFile(object):
         pass
 # -------------------------------------------------------------------- #
 
-# -------------------------------------------------------------------- #
-# Function to start logging
+
 def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     """ Setup the logger """
 
@@ -44,7 +43,8 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     # ---------------------------------------------------------------- #
     # create log file handler
     if log_dir:
-        log_file = os.path.join(log_dir, 'RVIC-'+strftime("%Y%m%d-%H%M%S", gmtime())+'.log')
+        log_file = os.path.join(log_dir, 'RVIC-'+strftime("%Y%m%d-%H%M%S",
+                                gmtime())+'.log')
         fh = logging.FileHandler(log_file)
         fh.setLevel(log_level)
         fh.setFormatter(FORMATTER)
@@ -70,11 +70,11 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     sys.stderr = StreamToFile(log_level=logging.ERROR)
     # ---------------------------------------------------------------- #
 
-    logger.info('--------------------- INITIALIZED RVIC LOG ---------------------')
+    logger.info('-------------------- INITIALIZED RVIC LOG ------------------')
     logger.info('LOG LEVEL: %s' % log_level)
     logger.info('Logging To Console: %s', verbose)
     logger.info('LOG FILE: %s', log_file)
-    logger.info('----------------------------------------------------------------\n')
+    logger.info('----------------------------------------------------------\n')
 
     return logger
 # -------------------------------------------------------------------- #

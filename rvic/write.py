@@ -20,7 +20,8 @@ log = getLogger(LOG_NAME)
 def write_agg_netcdf(file_name, agg_data, glob_atts, format):
     """
     Write output to netCDF.  Writes out a netCDF4 data file containing
-    the UH_S and fractions and a full set of history and description attributes.
+    the UH_S and fractions and a full set of history and description
+    attributes.
     """
     # ---------------------------------------------------------------- #
     # Open file
@@ -65,7 +66,8 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format):
             setattr(fraction, key, val)
 
     unit_hydrographs = f.createVariable('unit_hydrograph', NC_DOUBLE,
-                                        ('timesteps', 'lat', 'lon',), fill_value=FILLVALUE_F)
+                                        ('timesteps', 'lat', 'lon',),
+                                        fill_value=FILLVALUE_F)
     for key, val in share.unit_hydrograph.__dict__.iteritems():
         if val:
             setattr(unit_hydrographs, key, val)
@@ -175,7 +177,7 @@ def write_param_file(file_name,
     # Outlet Dimensions
     if outlet_y_ind.ndim == 0:
         numoutlets = 1
-	outlet_name = np.array([outlet_name])
+        outlet_name = np.array([outlet_name])
     else:
         numoutlets = len(outlet_lon)
     ocoords = ('outlets',)

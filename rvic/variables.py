@@ -7,8 +7,9 @@ from netCDF4 import Dataset, date2num, stringtochar
 from logging import getLogger
 from log import LOG_NAME
 from time_utility import ord_to_datetime
-from share import TIMEUNITS, NC_INT, NC_DOUBLE, NC_CHAR, REFERENCE_DATE, REFERENCE_TIME
-from share import CALENDAR_KEYS, RVIC_TRACERS, NcGlobals, SECSPERDAY, MAX_NC_CHARS
+from share import TIMEUNITS, NC_INT, NC_DOUBLE, NC_CHAR
+from share import RVIC_TRACERS, NcGlobals, SECSPERDAY, MAX_NC_CHARS
+from share import CALENDAR_KEYS, REFERENCE_DATE, REFERENCE_TIME
 import share
 
 # -------------------------------------------------------------------- #
@@ -20,7 +21,9 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # Point object
 class Point(object):
-    '''Creates a point class for intellegently storing coordinate information'''
+    '''
+    Creates a point class for intellegently storing coordinate information
+    '''
 
     def __init__(self, lat='', lon='', gridx='', gridy='', routx='',
                  routy='', name=None, cell_id=None):
@@ -39,11 +42,12 @@ class Point(object):
             self.name = 'outlet_{:3.4f}_{:3.4f}'.format(self.lat, self.lon)
 
     def __str__(self):
-        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon, self.gridy, self.gridx)
+        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon,
+                                                                      self.gridy, self.gridx)
 
     def __repr__(self):
-        return '__repr__'
-
+        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon,
+                                                                      self.gridy, self.gridx)
 # -------------------------------------------------------------------- #
 
 
@@ -91,9 +95,10 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Initialize state variables
-        self.ring = np.zeros((self.full_time_length, self.n_outlets, len(RVIC_TRACERS)))
+        self.ring = np.zeros((self.full_time_length,
+                             self.n_outlets,
+                             len(RVIC_TRACERS)), dtype=np.float64)
         # ------------------------------------------------------------ #
-
 
         self._calendar = calendar
         self.__fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
@@ -109,7 +114,9 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
     # Check that grid file matches
     def check_grid_file(self, domain_file):
-        """Confirm that the grid files match in the parameter and domain files"""
+        """
+        Confirm that the grid files match in the parameter and domain files
+        """
         input_file = os.path.split(domain_file)[1]
         log.info('domain_file: %s' % input_file)
         log.info('Parameter RvicDomainFile: %s' % self.RvicDomainFile)
@@ -117,17 +124,20 @@ class Rvar(object):
         if input_file == self.RvicDomainFile:
             log.info('Grid files match in parameter and domain file')
         else:
-            raise  ValueError('Grid files do not match in parameter and domain file')
+            raise ValueError('Grid files do not match in parameter and '
+                             'domain file')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initilize State
     def init_state(self, state_file, run_type, timestamp):
         if run_type in ['startup', 'restart']:
-            log.info('reading state_file: %s' %state_file)
+            log.info('reading state_file: %s', state_file)
             f = Dataset(state_file, 'r')
             self.ring = f.variables['ring'][:]
-            file_timestamp = ord_to_datetime(f.variables['time'][:], f.variables['time'].units, calendar=f.variables['time'].calendar)
+            file_timestamp = ord_to_datetime(f.variables['time'][:],
+                                             f.variables['time'].units,
+                                             calendar=f.variables['time'].calendar)
 
             if run_type == 'restart':
                 self.timestamp = file_timestamp
@@ -135,20 +145,25 @@ class Rvar(object):
             elif run_type == 'startup':
                 self.timestamp = timestamp
                 if timestamp != file_timestamp:
-                    log.warning('restart timestamps do not match (%s, %s', file_timestamp, self.timestamp)
+                    log.warning('restart timestamps do not match (%s, %s',
+                                file_timestamp, self.timestamp)
                     log.warning('Runtype is startup so model will continue')
             else:
-                raise ValueError('unknown run_type: %s' %run_type)
+                raise ValueError('unknown run_type: {0}'.format(run_type))
 
             # Check that timestep and outlet_decomp_ids match ParamFile
             if f.variables['unit_hydrograph_dt'][:] != self.unit_hydrograph_dt:
-                raise ValueError('Timestep in Statefile does not match timestep in ParamFile')
+                raise ValueError('Timestep in Statefile does not match '
+                                 'timestep in ParamFile')
 
-            if not np.array_equal(f.variables['outlet_decomp_ind'][:], self.outlet_decomp_ind):
-                raise ValueError('outlet_decomp_ind in Statefile does not match ParamFile')
+            if not np.array_equal(f.variables['outlet_decomp_ind'][:],
+                                  self.outlet_decomp_ind):
+                raise ValueError('outlet_decomp_ind in Statefile does not '
+                                 'match ParamFile')
 
             if f.RvicDomainFile != self.RvicDomainFile:
-                raise ValueError('RvicDomainFile in StateFile does not match ParamFile')
+                raise ValueError('RvicDomainFile in StateFile does not match '
+                                 'ParamFile')
 
             f.close()
 
@@ -156,7 +171,8 @@ class Rvar(object):
             log.info('run_type is drystart so no state_file will be read')
             self.timestamp = timestamp
 
-        self.time_ord = date2num(self.timestamp, TIMEUNITS, calendar=self._calendar)
+        self.time_ord = date2num(self.timestamp, TIMEUNITS,
+                                 calendar=self._calendar)
 
         self._start_date = self.timestamp
         self._start_ord = self.time_ord
@@ -166,47 +182,53 @@ class Rvar(object):
     # Convolve
     def convolve(self, aggrunin, time_ord):
         """
-        This convoluition funciton works by looping over all points and doing the
-        convolution one timestep at a time.  This is accomplished by creating an
-        convolution ring.  Contributing flow from each timestep is added to the
-        convolution ring.  The convolution ring is saved as the state.  The first
-        column of values in the ring are the current runoff.
+        This convoluition funciton works by looping over all points and doing
+        the convolution one timestep at a time.  This is accomplished by
+        creating a convolution ring.  Contributing flow from each timestep is
+        added to the convolution ring.  The convolution ring is saved as the
+        state.  The first column of values in the ring are the current runoff.
         """
         # ------------------------------------------------------------ #
         # Check that the time_ord is in sync
         # This is the time at the start of the current step (end of last step)
         if self.time_ord != time_ord:
-            log.error('rout_var.time_ord = %s, time_ord = %s' %(self.time_ord, time_ord))
-            raise ValueError('rout_var.time_ord does not match the time_ord passed in by the convolution call')
+            log.error('rout_var.time_ord = %s, time_ord = %s', self.time_ord,
+                      time_ord)
+            raise ValueError('rout_var.time_ord does not match the time_ord '
+                             'passed in by the convolution call')
 
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # First update the ring
         log.debug('rolling the ring')
-        self.ring[0, :, 0] = 0                       # Zero out current ring
-        self.ring = np.roll(self.ring, -1, axis=0)   # Equivalent to Fortran 90 cshift function
+        # Zero out current ring
+        self.ring[0, :, 0] = 0
+        # Equivalent to Fortran 90 cshift function
+        self.ring = np.roll(self.ring, -1, axis=0)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Do the convolution
         log.debug('convolving')
-        # this matches the fortran implementation, it may be faster to use np.convolve but testing
-        # can be done later
-        # also this is where the parallelization will happen
+        # this matches the fortran implementation, it may be faster to use
+        # np.convolve but testing can be done later
+        # also this is where the parallelization could happen
+        # loop over all source points
         for nt, tracer in enumerate(RVIC_TRACERS):
-            for s, outlet in enumerate(self.source2outlet_ind):   # loop over all source points
+            for s, outlet in enumerate(self.source2outlet_ind):
                 y = self.source_y_ind[s]
                 x = self.source_x_ind[s]
                 for i in xrange(self.subset_length):
                     j = i + self.source_time_offset[s]
-                    self.ring[j, outlet, nt] = self.ring[j, outlet, nt] + (self.unit_hydrograph[i, s, nt] * aggrunin[tracer][y, x])
+                    self.ring[j, outlet, nt] += (self.unit_hydrograph[i, s, nt] * aggrunin[tracer][y, x])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # move the time_ord forward
         self.time_ord += self.unit_hydrograph_dt / SECSPERDAY
-        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self._calendar)
+        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS,
+                                         calendar=self._calendar)
 
         return self.timestamp
         # ------------------------------------------------------------ #
@@ -220,34 +242,36 @@ class Rvar(object):
         aggregate the appropriate quantities before/after the confolution step.
         """
 
-        log.info('Coupling Timestep is (seconds): %s' %cpl_secs_per_step)
-        log.info('RVIC Timestep is (seconds): %s' %self.unit_hydrograph_dt)
+        log.info('Coupling Timestep is (seconds): %s', cpl_secs_per_step)
+        log.info('RVIC Timestep is (seconds): %s', self.unit_hydrograph_dt)
 
-        if (self.unit_hydrograph_dt%cpl_secs_per_step == 0) and \
+        if (self.unit_hydrograph_dt % cpl_secs_per_step == 0) and \
            (self.unit_hydrograph_dt >= cpl_secs_per_step):
-           self.agg_tsteps = self.unit_hydrograph_dt/cpl_secs_per_step
+            self.agg_tsteps = self.unit_hydrograph_dt/cpl_secs_per_step
         else:
-            log.error('unit_hydrograph_dt must be a multiple of the cpl_secs_per_step')
+            log.error('unit_hydrograph_dt must be a multiple of the '
+                      'cpl_secs_per_step')
             raise ValueError("Stopped due to error in determining agg_tsteps")
 
-        log.info('RVIC will run 1 time for every %i coupling periods' %self.agg_tsteps)
+        log.info('RVIC will run 1 time for every %i coupling periods',
+                 self.agg_tsteps)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Extract the current rof
     def get_rof(self):
-        return self.ring[0, :, 0]     # Current timestep flux (units=kg m-2 s-1)
+        """Extract the current rof"""
+        return self.ring[0, :, 0]  # Current timestep flux (units=kg m-2 s-1)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Extract the current storage
     def get_storage(self):
+        """Extract the current storage"""
         return self.ring.sum(axis=1)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # write initial flux
     def write_initial(self):
+        """write initial flux"""
         pass
     # ---------------------------------------------------------------- #
 
@@ -285,7 +309,8 @@ class Rvar(object):
         timesteps.timestep_length = 'unit_hydrograph_dt'
 
         # UH timestep
-        unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt', NC_DOUBLE, ())
+        unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt',
+                                              NC_DOUBLE, ())
         unit_hydrograph_dt[:] = self.unit_hydrograph_dt
         for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
             if val:
@@ -297,48 +322,56 @@ class Rvar(object):
             if val:
                 setattr(timemgr_rst_type, key, val)
 
-        timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec', NC_DOUBLE, ())
+        timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec',
+                                                NC_DOUBLE, ())
         timemgr_rst_step_sec[:] = self.unit_hydrograph_dt
         for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_step_sec, key, val)
 
-        timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd', NC_DOUBLE, ())
-        timemgr_rst_start_ymd[:] = self._start_date.year*10000+self._start_date.month*100+self._start_date.day
+        timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd',
+                                                 NC_DOUBLE, ())
+        timemgr_rst_start_ymd[:] = self._start_date.year*10000 \
+            + self._start_date.month*100 + self._start_date.day
         for key, val in share.timemgr_rst_start_ymd.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_start_ymd, key, val)
 
-        timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod', NC_DOUBLE, ())
-        timemgr_rst_start_tod[:] = (self._start_ord%1)*SECSPERDAY
+        timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod',
+                                                 NC_DOUBLE, ())
+        timemgr_rst_start_tod[:] = (self._start_ord % 1) * SECSPERDAY
         for key, val in share.timemgr_rst_start_tod.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_start_tod, key, val)
 
-        timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd', NC_DOUBLE, ())
+        timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd',
+                                               NC_DOUBLE, ())
         timemgr_rst_ref_ymd[:] = REFERENCE_DATE
         for key, val in share.timemgr_rst_ref_ymd.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_ref_ymd, key, val)
 
-        timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod', NC_DOUBLE, ())
+        timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod',
+                                               NC_DOUBLE, ())
         timemgr_rst_ref_tod[:] = REFERENCE_TIME
         for key, val in share.timemgr_rst_ref_tod.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_ref_tod, key, val)
 
-        timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd', NC_DOUBLE, ())
-        timemgr_rst_curr_ymd[:] = self.timestamp.year*10000+self.timestamp.month*100+self.timestamp.day
+        timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd',
+                                                NC_DOUBLE, ())
+        timemgr_rst_curr_ymd[:] = self.timestamp.year*10000 + \
+            self.timestamp.month*100+self.timestamp.day
         for key, val in share.timemgr_rst_curr_ymd.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_curr_ymd, key, val)
 
-        timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod', NC_DOUBLE, ())
-        timemgr_rst_curr_tod[:] = (self.time_ord%1)*SECSPERDAY
+        timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod',
+                                                NC_DOUBLE, ())
+        timemgr_rst_curr_tod[:] = (self.time_ord % 1)*SECSPERDAY
         for key, val in share.timemgr_rst_curr_tod.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_curr_tod, key, val)
-
 
         # ------------------------------------------------------------ #
         # Setup Tape Dimensions
@@ -346,21 +379,20 @@ class Rvar(object):
         ntapes = f.createDimension(coords[0], len(history_restart_files))
         ntapes = f.createDimension(coords[1], MAX_NC_CHARS)
         # ------------------------------------------------------------ #
-        
-	# ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
         # Write Fields
         locfnh = f.createVariable('locfnh', NC_CHAR, coords)
         for i, string in enumerate(current_history_files):
-	    locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
+            locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
         locfnh.long_name = 'History filename'
         locfnh.comment = 'This variable NOT needed for startup or branch simulations'
 
         locfnhr = f.createVariable('locfnhr', NC_CHAR, coords)
         for i, string in enumerate(history_restart_files):
             locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
-	locfnhr.long_name = 'History restart filename'
+        locfnhr.long_name = 'History restart filename'
         locfnhr.comment = 'This variable NOT needed for startup or branch simulations'
-
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -393,7 +425,7 @@ class Rvar(object):
         tcoords = ('timesteps', ) + coords
 
         for i, tracer in enumerate(RVIC_TRACERS):
-	    ring = f.createVariable(tracer+'_ring', NC_DOUBLE, tcoords)
+            ring = f.createVariable(tracer+'_ring', NC_DOUBLE, tcoords)
             ring[:, :] = self.ring[:, :, i]
 
         for key, val in share.ring.__dict__.iteritems():

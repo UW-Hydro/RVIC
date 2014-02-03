@@ -10,9 +10,9 @@ from collections import OrderedDict
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
-from rvic.utilities import read_config, make_directories, copy_inputs
+from rvic.utilities import make_directories, copy_inputs
 from rvic.utilities import read_netcdf, tar_inputs, latlon2yx
-from rvic.utilities import check_ncvars, remap, clean_file, read_domain
+from rvic.utilities import check_ncvars, clean_file, read_domain
 from rvic.aggregate import make_agg_pairs, aggregate
 from rvic.make_uh import rout
 from rvic.share import NcGlobals
@@ -64,7 +64,8 @@ def main():
 
         outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
     else:
-        for outlet in outlets:
+        print(outlets)
+        for name, outlet in outlets.iteritems():
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
@@ -89,7 +90,8 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Import optional modules
     if config_dict['OPTIONS']['REMAP'] and not remap_available:
-	raise ValueError('Problem importing remap module (check to make sure cdo.py is available)')
+        raise ValueError('Problem importing remap module \
+                     (check to make sure cdo.py is available)')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -175,7 +177,7 @@ def gen_uh_init(config_file):
 
         # ---------------------------------------------------------------- #
         # Add velocity and/or diffusion grids if not present yet
-        if not type(fdr_var) == str:
+        if not type(fdr_vel) == str:
             fdr_data['velocity'] = np.zeros(fdr_shape) + fdr_vel
             config_dict['ROUTING']['VELOCITY'] = 'velocity'
             log.info('Added velocity grid to fdr_data')
@@ -201,7 +203,8 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Read domain file
     dom_data, _, _ = read_domain(config_dict['DOMAIN'])
-    log.info('Opened Domain File: {0}'.format(config_dict['DOMAIN']['FILE_NAME']))
+    log.info('Opened Domain File: '
+             '{0}'.format(config_dict['DOMAIN']['FILE_NAME']))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -238,7 +241,7 @@ def gen_uh_init(config_file):
             if 'names' in pour_points.keys():
                 name = pour_points['names'].values[i]
             else:
-                name = 'name-{0}'.format(i)
+                name = 'p-{0}'.format(i)
 
             outlets[i] = Point(lat=pour_points['lats'].values[i],
                                lon=pour_points['lons'].values[i],
@@ -247,7 +250,8 @@ def gen_uh_init(config_file):
                                routx=routxs[i],
                                routy=routys[i],
                                name=name,
-                               cell_id=dom_data['cell_ids'][gridys[i], gridxs[i]])
+                               cell_id=dom_data['cell_ids'][gridys[i],
+                                                            gridxs[i]])
 
             outlets[i].pour_points = [outlets[i]]
     # ---------------------------------------------------------------- #
@@ -255,7 +259,8 @@ def gen_uh_init(config_file):
     log.info('Finished with gen_uh_init')
     log.info('------------------------------------------------------------\n')
 
-    return uh_box, fdr_data, fdr_vatts, dom_data, outlets, config_dict, directories
+    return (uh_box, fdr_data, fdr_vatts, dom_data, outlets,
+            config_dict, directories)
 # -------------------------------------------------------------------- #
 
 
@@ -266,7 +271,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     """
     log = getLogger(LOG_NAME)
 
-    log.info('Running outlet cell id  %i', outlet.cell_id)
+    log.info('Running outlet cell id  {0}'.format(outlet.cell_id))
 
     agg_data = {}
     # ------------------------------------------------------------ #
@@ -285,6 +290,9 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         log.debug('rout_data: {0}, '
                   '{1}'.format(rout_data['unit_hydrograph'].min(),
                                rout_data['unit_hydrograph'].max()))
+        log.debug('rout_data sum: {0}, '
+                  '{1}'.format(rout_data['unit_hydrograph'].sum(),
+                               rout_data['fraction'].sum()))
 
         # -------------------------------------------------------- #
 
@@ -331,9 +339,9 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
         # -------------------------------------------------------- #
         # Read temporary file #2
-        final_data, fva, fga = read_netcdf(temp_file_2,
-                                           variables=['unit_hydrograph',
-                                                      'fraction'])
+        final_data, _, _ = read_netcdf(temp_file_2,
+                                       variables=['unit_hydrograph',
+                                                  'fraction'])
         # -------------------------------------------------------- #
 
         # -------------------------------------------------------- #
@@ -349,7 +357,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
     # ------------------------------------------------------------ #
     # Add to adjust fractions Structure
-    y, x = np.nonzero((final_data['fraction'] > 0.0) * (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
+    y, x = np.nonzero((final_data['fraction'] > 0.0) *
+                      (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
 
     outlet.fractions = final_data['fraction'][y, x]
     outlet.unit_hydrograph = final_data['unit_hydrograph'][:, y, x]

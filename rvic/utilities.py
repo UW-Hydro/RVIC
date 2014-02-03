@@ -10,7 +10,8 @@ from ConfigParser import SafeConfigParser
 from netCDF4 import Dataset
 from logging import getLogger
 from log import LOG_NAME
-from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE, METERS2PERACRE, METERSPERKM
+from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
+from share import METERS2PERACRE, METERSPERKM
 from config import read_config
 
 # -------------------------------------------------------------------- #
@@ -24,7 +25,8 @@ log = getLogger(LOG_NAME)
 def latlon2yx(plats, plons, glats, glons):
     """find y x coordinates """
 
-    # use astronomical conventions for longitude (i.e. negative longitudes to the east of 0)
+    # use astronomical conventions for longitude
+    # (i.e. negative longitudes to the east of 0)
     if (glons.max() > 180):
         posinds = np.nonzero(glons > 180)
         glons[posinds] -= 360
@@ -55,7 +57,7 @@ def write_rpointer(restart_dir, restart_file, timestamp):
     rpointer_file = os.path.join(restart_dir, RPOINTER)
 
     config = SafeConfigParser()
-    config.optionxform=str
+    config.optionxform = str
 
     time_str = timestamp.strftime(TIMESTAMPFORM)
 
@@ -75,7 +77,8 @@ def read_netcdf(nc_file, variables=None, coords=None):
     """
     Read data from input netCDF. Will read all variables if none provided.
     Will also return all variable attributes.
-    Both variables (data and attributes) are returned as dictionaries named by variable
+    Both variables (data and attributes) are returned as dictionaries named
+    by variable
     """
 
     f = Dataset(nc_file, 'r')
@@ -85,7 +88,8 @@ def read_netcdf(nc_file, variables=None, coords=None):
     if not coords:
         coords = slice(None)
 
-    log.debug('Reading input data variables: %s, from file: %s' % (variables, nc_file))
+    log.debug('Reading input data variables: %s, from file: %s', variables,
+              nc_file)
 
     d = {}
     a = {}
@@ -107,12 +111,16 @@ def read_netcdf(nc_file, variables=None, coords=None):
 # -------------------------------------------------------------------- #
 # Check to make sure all the expected variables are present in the dictionary
 def check_ncvars(config_section, nckeys):
-    """Make sure the variables listed in the config file are present in the netcdf"""
+    """
+    Make sure the variables listed in the config file are present in the netcdf
+    """
     for key, value in config_section.iteritems():
         if key.endswith('var'):
             if value not in nckeys:
-                log.error('%s (%s) not in %s' % (value, key, config_section['FILE_NAME']))
-                raise NameError('Check netcdf that netcdf variable names match those in the configuration file')
+                log.error('%s (%s) not in %s', value, key,
+                          config_section['FILE_NAME'])
+                raise NameError('Check netcdf that netcdf variable names match'
+                                ' those in the configuration file')
     return
 # -------------------------------------------------------------------- #
 
@@ -221,12 +229,13 @@ def tar_inputs(inputs, suffix='', tar_type='tar'):
         end = '.tgz'
         mode = 'w:'
     else:
-        log.warning('Unknown tar_type: {}, proceeding with gunzipped mode'.format('tar_type'))
+        log.warning('Unknown tar_type: %s, proceeding with gunzipped mode',
+                    tar_type)
         end = '.tgz'
         mode = 'w:'
 
     tar_file = inputs + suffix + end
-    log.info('tarfile: %s' %tar_file)
+    log.info('tarfile: %s', tar_file)
 
     if os.path.isdir(inputs):
         arcname = os.path.basename(os.path.normpath(inputs))
@@ -247,7 +256,7 @@ def tar_inputs(inputs, suffix='', tar_type='tar'):
             os.unlink(inputs)
         # ------------------------------------------------------------ #
     else:
-        log.error('Problem removing inputs: %s' % inputs)
+        log.error('Problem removing inputs: %s', inputs)
     # ---------------------------------------------------------------- #
     return tar_file
 # -------------------------------------------------------------------- #

@@ -35,7 +35,8 @@ class Dtime(object):
 
         # Setup Current Time
         self.timestamp = self.start_date
-        self.time_ord = date2num(self.timestamp, TIMEUNITS, calendar=self.calendar)
+        self.time_ord = date2num(self.timestamp, TIMEUNITS,
+                                 calendar=self.calendar)
 
         # Stop option
         self.stop_option = stop_option
@@ -65,16 +66,17 @@ class Dtime(object):
 
     def advance_timestep(self):
         self.time_ord += self.dt
-        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS, calendar=self.calendar)
+        self.timestamp = ord_to_datetime(self.time_ord, TIMEUNITS,
+                                         calendar=self.calendar)
         self.timesteps += 1
         self.stop_flag = self.__stop()
         self.rest_flag = self.__rest()
         log.debug('-------advancing timestep-------')
-        log.debug('time_ord = %s' %self.time_ord)
-        log.debug('timestamp = %s' %self.timestamp)
-        log.debug('timesteps = %s' %self.timesteps)
-        log.debug('stop_flag = %s' %self.stop_flag)
-        log.debug('rest_flag = %s' %self.rest_flag)
+        log.debug('time_ord = %s', self.time_ord)
+        log.debug('timestamp = %s', self.timestamp)
+        log.debug('timesteps = %s', self.timesteps)
+        log.debug('stop_flag = %s', self.stop_flag)
+        log.debug('rest_flag = %s', self.rest_flag)
         log.debug('-------advanced timestep-------')
         return self.timestamp, self.time_ord, self.stop_flag, self.rest_flag
     # ---------------------------------------------------------------- #
@@ -92,10 +94,10 @@ class Dtime(object):
         elif self.stop_option == 'nsecond':
             if (self.timesteps * self.dt / SECSPERDAY) >= self.stop_n:
                 flag = True
-        elif self.stop_option  == 'nminutes':
+        elif self.stop_option == 'nminutes':
             if (self.timesteps * self.dt / MINSPERDAY) % self.stop_n == 0.0:
                 flag = True
-        elif self.stop_option  == 'nminute':
+        elif self.stop_option == 'nminute':
             if (self.timesteps * self.dt / MINSPERDAY) >= self.stop_n:
                 flag = True
         elif self.stop_option == 'nhours':
@@ -111,19 +113,23 @@ class Dtime(object):
             if (self.timesteps * self.dt) >= self.stop_n:
                 flag = True
         elif self.stop_option == 'nmonths':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).months % self.stop_n == 0.0:
                 flag = True
         elif self.stop_option == 'nmonth':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).months >= self.stop_n:
                 flag = True
         elif self.stop_option == 'nyears':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).years % self.stop_n == 0.0:
                 flag = True
         elif self.stop_option == 'nyear':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).years >= self.stop_n:
                 flag = True
         elif self.stop_option == 'date':
@@ -133,7 +139,8 @@ class Dtime(object):
             if self.timestamp >= self.end:
                 flag = True
         else:
-            raise ValueError('unknown stop_option %s' %self.stop_option)
+            raise ValueError('unknown stop_option '
+                             '{0}'.format(self.stop_option))
         return flag
     # ---------------------------------------------------------------- #
 
@@ -150,10 +157,10 @@ class Dtime(object):
         elif self.rest_option == 'nsecond':
             if (self.timesteps * self.dt / SECSPERDAY) >= self.rest_n:
                 flag = True
-        elif self.rest_option  == 'nminutes':
+        elif self.rest_option == 'nminutes':
             if (self.timesteps * self.dt / MINSPERDAY) % self.rest_n == 0.0:
                 flag = True
-        elif self.rest_option  == 'nminute':
+        elif self.rest_option == 'nminute':
             if (self.timesteps * self.dt / MINSPERDAY) >= self.rest_n:
                 flag = True
         elif self.rest_option == 'nhours':
@@ -169,19 +176,23 @@ class Dtime(object):
             if (self.timesteps * self.dt) >= self.rest_n:
                 flag = True
         elif self.rest_option == 'nmonths':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).months % self.rest_n == 0.0:
                 flag = True
         elif self.rest_option == 'nmonth':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).months >= self.rest_n:
                 flag = True
         elif self.rest_option == 'nyears':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).years % self.rest_n == 0.0:
                 flag = True
         elif self.rest_option == 'nyear':
-            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS, calendar=self.calendar)
+            temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
+                                   calendar=self.calendar)
             if relativedelta(temp, self.start_date).years >= self.rest_n:
                 flag = True
         elif self.rest_option == 'date':
@@ -191,10 +202,12 @@ class Dtime(object):
             if self.timestamp >= self.end:
                 flag = True
         else:
-            raise ValueError('unknown rest_option %s' %self.rest_option)
+            raise ValueError('unknown rest_option '
+                             '{0}'.format(self.rest_option))
         return flag
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 def ord_to_datetime(time, units, calendar='standard'):

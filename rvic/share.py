@@ -22,9 +22,9 @@ METERS2PERACRE = 4046.856
 # time
 # reference time
 REFERENCE_STRING = '0001-1-1 0:0:0'
-REFERENCE_DATE = 10101                           # i.e. REFERENCE_STRING
-REFERENCE_TIME = 0                               # i.e. REFERENCE_STRING
-TIMEUNITS = 'days since ' + REFERENCE_STRING     # do not change (MUST BE DAYS)!
+REFERENCE_DATE = 10101                        # i.e. REFERENCE_STRING
+REFERENCE_TIME = 0                            # i.e. REFERENCE_STRING
+TIMEUNITS = 'days since ' + REFERENCE_STRING  # do not change (MUST BE DAYS)!
 TIMESTAMPFORM = '%Y-%m-%d-%H'
 CALENDAR = 'noleap'
 HOURSPERDAY = 24.
@@ -56,13 +56,14 @@ RPOINTER = 'rpointer'
 RVIC_TRACERS = ('LIQ',)
 
 # Calendar key number for linking with CESM
-CALENDAR_KEYS = {0:['None'],
-                 1:['noleap', '365_day'],
-                 2:['gregorian', 'standard'],
-                 3:['proleptic_gregorian'],
-                 4:['all_leap', '366_day'],
-                 5:['360_day'],
-                 6:['julian']}
+CALENDAR_KEYS = {0: ['None'],
+                 1: ['noleap', '365_day'],
+                 2: ['gregorian', 'standard'],
+                 3: ['proleptic_gregorian'],
+                 4: ['all_leap', '366_day'],
+                 5: ['360_day'],
+                 6: ['julian']}
+
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #
 class NcGlobals:
@@ -73,7 +74,8 @@ class NcGlobals:
                  history='Created: {}'.format(time_mod.ctime(time_mod.time())),
                  institution='University of Washington',
                  source=sys.argv[0],
-                 references='Based on the initial model of Lohmann, et al., 1996, Tellus, 48(A), 708-721',
+                 references='Based on the initial model of Lohmann, et al., '
+                            '1996, Tellus, 48(A), 708-721',
                  comment='Output from the RVIC Streamflow Routing Model.',
                  Conventions='CF-1.6',
                  RvicPourPointsFile=None,
@@ -85,7 +87,6 @@ class NcGlobals:
                  username=None):
 
         self.atts = OrderedDict()
-
 
         if title:
             self.atts['title'] = title
@@ -125,7 +126,8 @@ class NcGlobals:
             self.atts['version'] = version
         else:
             try:
-                self.atts['version'] = subprocess.check_output(["git", "describe"]).rstrip()
+                cmd = ["git", "describe"]
+                self.atts['version'] = subprocess.check_output(cmd).rstrip()
             except:
                 self.atts['version'] = 'unknown'
 
@@ -142,7 +144,7 @@ class NcGlobals:
             self.atts['RvicDomainFile'] = RvicDomainFile
 
     def update(self):
-        self.atts['history'] = 'Created: {}'.format(time_mod.ctime(time_mod.time()))
+        self.atts['history'] = 'Created: {0}'.format(time_mod.ctime(time_mod.time()))
 
 
 class NcVar:
@@ -173,10 +175,10 @@ yc = NcVar(long_name='latitude',
 
 # Data Variables
 fraction = NcVar(long_name='fraction of grid cell that is active',
-                  units='unitless')
+                 units='unitless')
 
 unit_hydrograph = NcVar(long_name='Unit Hydrograph',
-                         units='unitless')
+                        units='unitless')
 
 avg_velocity = NcVar(long_name='Flow Velocity Parameter',
                      units='m s-1')
@@ -241,7 +243,7 @@ source2outlet_ind = NcVar(long_name='source to outlet index mapping',
                           units='unitless')
 
 ring = NcVar(long_name='Convolution Ring',
-                   units='kg m-2 s-1')
+             units='kg m-2 s-1')
 
 streamflow = NcVar(long_name='Streamflow at outlet grid cell',
                    units='kg m-2 s-1')
@@ -277,8 +279,8 @@ timemgr_rst_curr_ymd = NcVar(long_name='current date',
                              units='YYYYMMDD')
 
 timemgr_rst_curr_tod = NcVar(long_name='current time of day',
-                            units='sec',
-                            valid_range='0, 86400')
+                             units='sec',
+                             valid_range='0, 86400')
 
 nhtfrq = NcVar(long_name='Frequency of history writes',
                units='absolute value of negative is in hours, 0=monthly, positive is time-steps',
@@ -295,13 +297,13 @@ ncprec = NcVar(long_name='Flag for data precision',
                valid_range='1, 2')
 
 fincl = NcVar(long_name='Fieldnames to include',
-               comment='Namelist item')
+              comment='Namelist item')
 
 fexcl = NcVar(long_name='Fieldnames to exclude',
-               comment='Namelist item')
+              comment='Namelist item')
 
 nflds = NcVar(long_name='Number of fields on file',
-               units='unitless')
+              units='unitless')
 
 ntimes = NcVar(long_name='Number of time steps on file',
                units='time-step')

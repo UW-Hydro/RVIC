@@ -11,13 +11,13 @@ Summary:
 """
 import os
 import numpy as np
-from collections import OrderedDict
 from netCDF4 import Dataset, date2num, num2date
 from datetime import datetime
 from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_DOUBLE, NC_CHAR, WATERDENSITY
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT
+from share import NC_DOUBLE, NC_CHAR, WATERDENSITY
 import share
 
 # -------------------------------------------------------------------- #
@@ -33,10 +33,12 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     # Init
-    def __init__(self, time_ord, caseid, Rvar, tape_num=0, fincl=['streamflow'],
-                 mfilt=1, ndens=2, nhtfrq=0, avgflag='A', units='kg m-2 s-1',
-                 file_format='NETCDF4_CLASSIC', outtype='grid', grid_lons=False,
-                 grid_lats=False, grid_area=None, out_dir='.', calendar=None, glob_ats=None):
+    def __init__(self, time_ord, caseid, Rvar, tape_num=0,
+                 fincl=['streamflow'],  mfilt=1, ndens=2, nhtfrq=0,
+                 avgflag='A', units='kg m-2 s-1',
+                 file_format='NETCDF4_CLASSIC', outtype='grid',
+                 grid_lons=False, grid_lats=False, grid_area=None, out_dir='.',
+                 calendar=None, glob_ats=None):
         self._tape_num = tape_num
         self._time_ord = time_ord        # Days since basetime
         self._caseid = caseid            # Case ID and prefix for outfiles
@@ -58,8 +60,8 @@ class Tape(object):
         self._glob_ats = glob_ats
 
         self._out_data_i = 0            # position counter for out_data array
-        self._out_times = np.zeros(self._mfilt)
-        self._out_time_bnds = np.zeros((self._mfilt, 2))
+        self._out_times = np.zeros(self._mfilt, type=np.float64)
+        self._out_time_bnds = np.zeros((self._mfilt, 2), type=np.float64)
 
         self.__get_rvar(Rvar)           # Get the initial Rvar fields
         self._grid_shape = grid_area.shape
@@ -76,35 +78,40 @@ class Tape(object):
                         shape = (self._mfilt,) + self._grid_shape
                     else:
                         shape = (self._mfilt,) + self._grid_shape
-                    self._out_data[field] = np.zeros(shape)
+                    self._out_data[field] = np.zeros(shape, dtype=np.float64)
             else:
-                raise ValueError('Must include grid lons / lats if outtype == grid')
+                raise ValueError('Must include grid lons / lats if '
+                                 'outtype == grid')
         else:
             for field in self._fincl:
-                self._out_data[field] = np.zeros((self._mfilt, self._num_outlets))
+                self._out_data[field] = np.zeros((self._mfilt,
+                                                 self._num_outlets))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Get units multiplier
         self._units = units
-        if units in ['kg/m2/s', 'kg m-2 s-1', 'kg m^-2 s^-1', 'kg*m-2*s-1', 'kg s-1 m-2']:
+        if units in ['kg/m2/s', 'kg m-2 s-1', 'kg m^-2 s^-1',
+                     'kg*m-2*s-1', 'kg s-1 m-2']:
             self._units_mult = 1.0
         elif units in ['m3/s', 'm^3/s', 'm3 s-1']:
             self._units_mult = grid_area / WATERDENSITY
         else:
-            raise ValueError('%s is not a valid units string' %units)
+            raise ValueError('{0} is not a valid units string'.format(units))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # get current timestamp
-        self._timestamp = ord_to_datetime(self._time_ord, TIMEUNITS, self._calendar)
+        self._timestamp = ord_to_datetime(self._time_ord, TIMEUNITS,
+                                          self._calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Initialize the temporary history fields
         self._temp_data = {}
         for field in self._fincl:
-            self._temp_data[field] = np.zeros(self._num_outlets)
+            self._temp_data[field] = np.zeros(self._num_outlets,
+                                              dtype=np.float64)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -135,24 +142,24 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Write a summary
     def __str__(self):
-        parts = ['------- Summary of History Tape Settings -------',
-        '\t# caseid:       %s' %self._caseid,
-        '\t# fincl:        %s' %','.join(self._fincl),
-        '\t# nhtfrq:       %s' %self._nhtfrq,
-        '\t# mfilt:        %s' %self._mfilt,
-        '\t# ncprec:       %s' %self._ncprec,
-        '\t# avgflag:      %s' %self._avgflag,
-        '\t# fname_format: %s' %self._fname_format,
-        '\t# file_format:  %s' %self._file_format,
-        '\t# outtype:      %s' %self._outtype,
-        '\t# out_dir:      %s' %self._out_dir,
-        '\t# calendar:     %s' %self._calendar,
-        '\t# units:        %s' %self._units,
-        '  ------- End of History Tape Settings -------']
-        return '\n'.join(parts)
+        return 'History Tape - {0}'.format(self.filename)
 
     def __repr__(self):
-        return '__repr__'
+        parts = ['------- Summary of History Tape Settings -------',
+                 '\t# caseid:       {0}s'.format(self._caseid),
+                 '\t# fincl:        {0}s'.format(','.join(self._fincl)),
+                 '\t# nhtfrq:       {0}s'.format(self._nhtfrq),
+                 '\t# mfilt:        {0}s'.format(self._mfilt),
+                 '\t# ncprec:       {0}s'.format(self._ncprec),
+                 '\t# avgflag:      {0}s'.format(self._avgflag),
+                 '\t# fname_format: {0}s'.format(self._fname_format),
+                 '\t# file_format:  {0}s'.format(self._file_format),
+                 '\t# outtype:      {0}s'.format(self._outtype),
+                 '\t# out_dir:      {0}s'.format(self._out_dir),
+                 '\t# calendar:     {0}s'.format(self._calendar),
+                 '\t# units:        {0}s'.format(self._units),
+                 '  ------- End of History Tape Settings -------']
+        return '\n'.join(parts)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -163,13 +170,15 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Check that the time_ord is in sync
         if self._time_ord != time_ord:
-            raise ValueError('rout_var.time_ord does not match the time_ord passed in by the convolution call')
+            raise ValueError('rout_var.time_ord does not match the time_ord '
+                             'passed in by the convolution call')
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Get the next timestamp
         self._time_ord += self._dt / SECSPERDAY
-        self._timestamp = ord_to_datetime(self._time_ord, TIMEUNITS, calendar=self._calendar)
+        self._timestamp = ord_to_datetime(self._time_ord, TIMEUNITS,
+                                          calendar=self._calendar)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -180,7 +189,7 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Update the fields
         for field in self._fincl:
-            log.debug('updating %s' %field)
+            log.debug('updating {0}'.format(field))
             fdata = data2tape[field]
             if self._avgflag == 'A':
                 self._temp_data[field] += fdata
@@ -188,11 +197,14 @@ class Tape(object):
                 if self._count == self._update_count:
                     self._temp_data[field] = fdata[:]
             elif self._avgflag == 'X':
-                self._temp_data[field] = np.maximum(self._temp_data[field], fdata)
+                self._temp_data[field] = np.maximum(self._temp_data[field],
+                                                    fdata)
             elif self._avgflag == 'M':
-                self._temp_data[field] = np.minimum(self._temp_data[field], fdata)
+                self._temp_data[field] = np.minimum(self._temp_data[field],
+                                                    fdata)
             else:
-                raise ValueError('Average flag (%s) does not match any of (A,I,X,M)' %self._avgflag)
+                raise ValueError('Average flag ({0}) does not match any of'
+                                 ' (A,I,X,M)'.format(self._avgflag))
 
         # ------------------------------------------------------------ #
         # If count == _update_count, add to _out_data
@@ -280,8 +292,9 @@ class Tape(object):
                 b1 = date2num(datetime(self._timestamp.year + 1, 2, 1),
                               TIMEUNITS, calendar=self._calendar)
             else:
-                b1 = date2num(datetime(self._timestamp.year, self._timestamp.month + 1, 1),
-                                       TIMEUNITS, calendar=self._calendar)
+                b1 = date2num(datetime(self._timestamp.year,
+                                       self._timestamp.month + 1, 1),
+                              TIMEUNITS, calendar=self._calendar)
 
         # If some hours in the future
         elif self._nhtfrq < 0:
@@ -353,7 +366,8 @@ class Tape(object):
 
             time.bounds = 'time_bnds'
 
-            time_bnds = f.createVariable('time_bnds', self._ncprec, ('time', 'nv',))
+            time_bnds = f.createVariable('time_bnds', self._ncprec,
+                                         ('time', 'nv',))
             time_bnds[:, :] = self._out_time_bnds
         # ------------------------------------------------------------ #
 
@@ -452,7 +466,8 @@ class Tape(object):
 
             time.bounds = 'time_bnds'
 
-            time_bnds = f.createVariable('time_bnds', self._ncprec, ('time', 'nv',))
+            time_bnds = f.createVariable('time_bnds', self._ncprec,
+                                         ('time', 'nv',))
             time_bnds[:, :] = self._out_time_bnds
         # ------------------------------------------------------------ #
 
@@ -466,7 +481,8 @@ class Tape(object):
         outlet_lat = f.createVariable('lat', self._ncprec, coords)
         outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
         outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
-        outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT, coords)
+        outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT,
+                                             coords)
         outlet_lon[:] = self._outlet_lon
         outlet_lat[:] = self._outlet_lat
         outlet_x_ind[:] = self._outlet_x_ind

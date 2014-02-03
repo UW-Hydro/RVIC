@@ -27,7 +27,7 @@ def read_station_file(file_name, dom_data, config_dict):
     i = -1
     while True:
         i += 1
-        line1 = re.sub(' +',' ',f.readline())
+        line1 = re.sub(' +', ' ', f.readline())
         if not line1:
             break
         active, name, x, y, area = line1.split(' ')
@@ -42,10 +42,13 @@ def read_station_file(file_name, dom_data, config_dict):
         if active == '1':
             if os.path.isfile(uhs_file):
                 active = True
-            elif os.path.isfile(os.path.join(config_dict['UHS_FILES']['ROUT_DIR'], name+'.uh_s2')):
-                uhs_file = os.path.join(config_dict['UHS_FILES']['ROUT_DIR'], name+'.uh_s2')
+            elif os.path.isfile(os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
+                                name+'.uh_s2')):
+                uhs_file = os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
+                                        name+'.uh_s2')
             else:
-                raise ValueError('missing uhs_file: (%s or %s)' %(uhs_file, os.path.join(config_dict['UHS_FILES']['ROUT_DIR'], name+'.uh_s2')))
+                raise ValueError('missing uhs_file: (%s or %s)' %(uhs_file, os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
+                                 name+'.uh_s2')))
         else:
             active = False
 
@@ -94,7 +97,7 @@ def read_uhs_files(outlets, dom_data, config_dict):
 
             # loop over the source points
             for j in xrange(num_sources):
-                line = re.sub(' +',' ',f.readline())
+                line = re.sub(' +', ' ', f.readline())
                 lon, lat, fracs, x, y = line.split()
                 # move to zero based index
                 y = int(y)-1
@@ -107,7 +110,9 @@ def read_uhs_files(outlets, dom_data, config_dict):
                 line = re.sub(' +',' ',f.readline())
                 uh.append(map(float, line.split()))
 
-            outlets[cell_id].unit_hydrograph = np.rot90(np.array(uh), k=-1)
+            outlets[cell_id].unit_hydrograph = np.rot90(np.array(uh,
+                                                                 dtype=np.float64),
+                                                        k=-1)
             outlets[cell_id].source_decomp_ind = dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
             f.close()
 
@@ -161,11 +166,13 @@ def move_domain(dom_data, new_dom_data, outlets):
     # ---------------------------------------------------------------- #
     # Create lookup arrays (size of dom_data but contains mapping to new_dom)
     if dom_data['cord_lons'].ndim == 1:
-        new_y = np.zeros(len(dom_data['cord_lats']), dtype=np.int) - FILLVALUE_I
-        new_x = np.zeros(len(dom_data['cord_lons']), dtype=np.int) - FILLVALUE_I
+        new_y = np.zeros(len(dom_data['cord_lats']),
+                         dtype=np.int16) - FILLVALUE_I
+        new_x = np.zeros(len(dom_data['cord_lons']),
+                         dtype=np.int16) - FILLVALUE_I
     else:
-        raise ValueError('Grids must be regular and coordinate variables must have\
-                          only 1 dimension to move domain to smaller size')
+        raise ValueError('Grids must be regular and coordinate variables must \
+                         have only 1 dimension to move domain to smaller size')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -176,8 +183,8 @@ def move_domain(dom_data, new_dom_data, outlets):
 
     # ---------------------------------------------------------------- #
     # Fill in the lookup arrays with the correct value
-    new_y[yi] = np.arange(len(yi), dtype=np.int)
-    new_x[xi] = np.arange(len(xi), dtype=np.int)
+    new_y[yi] = np.arange(len(yi), dtype=np.int16)
+    new_x[xi] = np.arange(len(xi), dtype=np.int16)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -186,7 +193,7 @@ def move_domain(dom_data, new_dom_data, outlets):
 
         outlets[cell_id].gridy = new_y[outlet.gridy]
         outlets[cell_id].gridx = new_x[outlet.gridx]
-	
+
         outlets[cell_id].y_source = new_y[outlet.y_source]
         outlets[cell_id].x_source = new_x[outlet.x_source]
 

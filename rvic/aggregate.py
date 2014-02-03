@@ -142,8 +142,8 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
     lats = np.arange((lat_min-res*pad), (lat_max+res*(pad+1)), res)[::-1]
     lons = np.arange((lon_min-res*pad), (lon_max+res*(pad+1)), res)
 
-    fraction = np.zeros((len(lats), len(lons)))
-    unit_hydrograph = np.zeros((tshape, len(lats), len(lons)))
+    fraction = np.zeros((len(lats), len(lons)), dtype=np.float64)
+    unit_hydrograph = np.zeros((tshape, len(lats), len(lons)), dtype=np.float64)
     log.debug('fraction shape %s' % str(fraction.shape))
     log.debug('unit_hydrograph shape %s' % str(unit_hydrograph.shape))
     # ---------------------------------------------------------------- #

@@ -5,7 +5,7 @@ import numpy as np
 import logging
 from log import LOG_NAME
 from write import write_param_file
-from share import NcGlobals, PRECISION, SECSPERDAY
+from share import NcGlobals, SECSPERDAY
 import os
 from datetime import date
 import matplotlib
@@ -28,19 +28,22 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
-    if options['SUBSET_DAYS'] and options['SUBSET_DAYS']<config_dict['ROUTING']['BASIN_FLOWDAYS']:
+    if options['SUBSET_DAYS'] and options['SUBSET_DAYS'] < config_dict['ROUTING']['BASIN_FLOWDAYS']:
         subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
         outlets, full_time_length, before, after = subset(outlets,
-                                           subset_length=subset_length)
+                                                          subset_length=subset_length)
 
-        log.debug('plotting unit hydrograph timeseries now for before / after subseting')
+        log.debug('plotting unit hydrograph timeseries now for before'
+                  ' / after subseting')
 
         title = 'UHS before subset'
-        pfname = plot_uhs(before, title, options['CASEID'], directories['plots'])
+        pfname = plot_uhs(before, title, options['CASEID'],
+                          directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
 
         title = 'UHS after subset'
-        pfname = plot_uhs(after, title, options['CASEID'], directories['plots'])
+        pfname = plot_uhs(after, title, options['CASEID'],
+                          directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     else:
         subset_length = config_dict['ROUTING']['BASIN_FLOWDAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
@@ -50,10 +53,11 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # adjust fractions
     if options['CONSTRAIN_FRACTIONS']:
-        adjust=True
-        log.info('Adjusting Fractions to be less than or equal to domain fractions')
+        adjust = True
+        log.info('Adjusting Fractions to be less than or equal to '
+                 'domain fractions')
     else:
-        adjust=False
+        adjust = False
     outlets, plot_dict = adjust_fractions(outlets,
                                           dom_data[config_dict['DOMAIN']['FRACTION_VAR']],
                                           adjust=adjust)
@@ -83,18 +87,23 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Adjust Unit Hydrographs for differences in source/outlet areas and fractions
+    # Adjust Unit Hydrographs for differences in source/outlet areas and
+    # fractions
     area = dom_data[config_dict['DOMAIN']['AREA_VAR']]
 
     for source, outlet in enumerate(source2outlet_ind):
-	if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim==0:
-	    unit_hydrograph[:, source] *= area[source_y_ind[source], source_x_ind[source]]
-	    unit_hydrograph[:, source] /= area[outlet_y_ind[()], outlet_x_ind[()]]
-	    unit_hydrograph[:, source] *= frac_sources[source]
-	else:	
-	    unit_hydrograph[:, source] *= area[source_y_ind[source], source_x_ind[source]]
-	    unit_hydrograph[:, source] /= area[outlet_y_ind[outlet], outlet_x_ind[outlet]]
-	    unit_hydrograph[:, source] *= frac_sources[source]
+        if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim == 0:
+            unit_hydrograph[:, source] *= area[source_y_ind[source],
+                                               source_x_ind[source]]
+            unit_hydrograph[:, source] /= area[outlet_y_ind[()],
+                                               outlet_x_ind[()]]
+            unit_hydrograph[:, source] *= frac_sources[source]
+        else:
+            unit_hydrograph[:, source] *= area[source_y_ind[source],
+                                               source_x_ind[source]]
+            unit_hydrograph[:, source] /= area[outlet_y_ind[outlet],
+                                               outlet_x_ind[outlet]]
+            unit_hydrograph[:, source] *= frac_sources[source]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -106,18 +115,19 @@ def finish_params(outlets, dom_data, config_dict, directories):
     plot_dict['Sum UH Final'] = sum_after
 
     for title, data in plot_dict.iteritems():
-        pfname = plot_fractions(data, title, options['CASEID'], directories['plots'])
+        pfname = plot_fractions(data, title, options['CASEID'],
+                                directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # fill in some misc arrays
     if outlet_y_ind.ndim == 0:
-	numoutlets = 1
+        numoutlets = 1
     else:
-	numoutlets = len(outlet_lon)
+        numoutlets = len(outlet_lon)
     outlet_mask = np.zeros(numoutlets)
-    newshape = unit_hydrograph.shape + (1,)
+    newshape = unit_hydrograph.shape + (1, )
     unit_hydrograph = unit_hydrograph.reshape(newshape)
     # ---------------------------------------------------------------- #
 
@@ -125,21 +135,24 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # Write parameter file
     today = date.today().strftime('%Y%m%d')
     param_file = os.path.join(directories['params'],
-                             '%s.rvic.prm.%s.%s.nc' % (options['CASEID'],
-                                                       options['GRIDID'], today))
+                              '%s.rvic.prm.%s.%s.nc' % (options['CASEID'],
+                                                        options['GRIDID'],
+                                                        today))
 
     if 'NEW_DOMAIN' in config_dict.keys():
         dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
     else:
         dom_file_name = config_dict['DOMAIN']['FILE_NAME']
 
+    glob_atts = NcGlobals(title='RVIC parameter file',
+                          RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
+                          RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
+                          RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
+                          RvicDomainFile=os.path.split(dom_file_name)[1])
+
     write_param_file(param_file,
                      nc_format=options['NETCDF_FORMAT'],
-                     glob_atts=NcGlobals(title='RVIC parameter file',
-                                         RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
-                                         RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
-                                         RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
-                                         RvicDomainFile=os.path.split(dom_file_name)[1]),
+                     glob_atts=glob_atts,
                      full_time_length=full_time_length,
                      subset_length=subset_length,
                      unit_hydrograph_dt=config_dict['ROUTING']['OUTPUT_INTERVAL'],
@@ -181,10 +194,10 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     log.info('Adjusting fractions now')
 
-    fractions = np.zeros(dom_fractions.shape)
-    ratio_fraction = np.ones(fractions.shape)
-    adjusted_fractions = np.zeros(dom_fractions.shape)
-    sum_uh_fractions = np.zeros(dom_fractions.shape)
+    fractions = np.zeros(dom_fractions.shape, dtype=np.float64)
+    ratio_fraction = np.ones(fractions.shape, dtype=np.float64)
+    adjusted_fractions = np.zeros(dom_fractions.shape, dtype=np.float64)
+    sum_uh_fractions = np.zeros(dom_fractions.shape, dtype=np.float64)
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
@@ -202,7 +215,8 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Only adjust fractions where the aggregated fractions are gt the domain fractions
+    # Only adjust fractions where the aggregated fractions are gt the domain
+    # fractions
     yi, xi = np.nonzero(fractions > dom_fractions)
     log.info('Adjust fractions for %s grid cells', len(yi))
     ratio_fraction[yi, xi] = dom_fractions[yi, xi]/fractions[yi, xi]
@@ -222,15 +236,17 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     # ---------------------------------------------------------------- #
     # Make Fractions Dict for plotting
-    plot_dict= {'Domain Fractions':dom_fractions,
-                'Aggregated Fractions':fractions,
-                'Ratio Fractions':ratio_fraction,
-                'Adjusted Fractions':adjusted_fractions,
-                'Sum UH Before':sum_uh_fractions}
+    plot_dict = {'Domain Fractions': dom_fractions,
+                 'Aggregated Fractions': fractions,
+                 'Ratio Fractions': ratio_fraction,
+                 'Adjusted Fractions': adjusted_fractions,
+                 'Sum UH Before': sum_uh_fractions}
     # ---------------------------------------------------------------- #
-
     return outlets, plot_dict
+# -------------------------------------------------------------------- #
 
+
+# -------------------------------------------------------------------- #
 def plot_uhs(data, title, case_id, plot_dir):
     """
     Plot diagnostic plot showing all unit hydrographs
@@ -249,7 +265,10 @@ def plot_uhs(data, title, case_id, plot_dir):
     fig.savefig(pfname)
 
     return pfname
+# -------------------------------------------------------------------- #
 
+
+# -------------------------------------------------------------------- #
 def plot_fractions(data, title, case_id, plot_dir):
     """
     Plot diagnostic plots of fraction variables
@@ -271,9 +290,9 @@ def plot_fractions(data, title, case_id, plot_dir):
     plt.xlabel('x')
     plt.ylabel('y')
     fig.savefig(pfname)
-
-    return pfname
     # ---------------------------------------------------------------- #
+    return pfname
+# -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
@@ -293,14 +312,16 @@ def subset(outlets, subset_length=None):
                 log.debug('No subset_length provided, using full_time_length')
             before = outlets[cell_id].unit_hydrograph
         else:
-            before = np.append(before, outlets[cell_id].unit_hydrograph, axis=1)
+            before = np.append(before, outlets[cell_id].unit_hydrograph,
+                               axis=1)
 
-        outlets[cell_id].offset = np.empty(outlet.unit_hydrograph.shape[1], dtype=int)
-        out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]))
+        outlets[cell_id].offset = np.empty(outlet.unit_hydrograph.shape[1],
+                                           dtype=np.int16)
+        out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
+                          dtype=np.float64)
 
         d_left = -1*subset_length/2
         d_right = subset_length/2
-
 
         for j in xrange(outlet.unit_hydrograph.shape[1]):
             # find index position of maximum
@@ -310,7 +331,8 @@ def subset(outlets, subset_length=None):
             left = maxind + d_left
             right = maxind + d_right
 
-            # make sure left and right fit in unit hydrograph array, if not adjust
+            # make sure left and right fit in unit hydrograph array,
+            # if not adjust
             if left < 0:
                 left = 0
                 right = subset_length
@@ -318,19 +340,24 @@ def subset(outlets, subset_length=None):
                 right = full_time_length
                 left = full_time_length - subset_length
 
-                log.warning('Subset centered on UH max extends beyond length of unit hydrograph.')
+                log.warning('Subset centered on UH max extends beyond length '
+                            'of unit hydrograph.')
                 log.warning('--> Outlet %s' % outlet)
                 log.warning('----> Max Index is %s' % maxind)
-                log.warning('----> Last value in subset is %s' % outlet.unit_hydrograph[-1, j])
+                log.warning('----> Last value in subset '
+                            'is %s' % outlet.unit_hydrograph[-1, j])
                 if maxind == full_time_length:
-                    log.warning('maxind == full_time_length, not able to resolve unithydrograph')
+                    log.warning('maxind == full_time_length, not able to '
+                                'resolve unithydrograph')
             if left < 0 or right > full_time_length:
-                raise ValueError('Subsetting failed left: %s or right %s does not fit inside bounds' %(left, right))
+                raise ValueError('Subsetting failed left:{0} or right {1} does'
+                                 ' not fit inside bounds'.format(left, right))
 
             outlets[cell_id].offset[j] = left
 
             # clip and normalize
-            out_uh[:, j] = outlet.unit_hydrograph[left:right, j] / outlet.unit_hydrograph[left:right, j].sum()
+            tot = outlet.unit_hydrograph[left:right, j].sum()
+            out_uh[:, j] = outlet.unit_hydrograph[left:right, j] / tot
 
         outlets[cell_id].unit_hydrograph = out_uh
 
@@ -372,25 +399,28 @@ def group(outlets):
 
             # -------------------------------------------------------- #
             # outlet specific inputs
-            outlet_lon = np.array(outlet.lon)
-            outlet_lat = np.array(outlet.lat)
-            outlet_x_ind = np.array(outlet.gridx)
-            outlet_y_ind = np.array(outlet.gridy)
-            outlet_decomp_ind = np.array(cell_id)
-            outlet_number = np.array(i)
+            outlet_lon = np.array(outlet.lon, dtype=np.float64)
+            outlet_lat = np.array(outlet.lat, dtype=np.float64)
+            outlet_x_ind = np.array(outlet.gridx, dtype=np.int16)
+            outlet_y_ind = np.array(outlet.gridy, dtype=np.int16)
+            outlet_decomp_ind = np.array(cell_id, dtype=np.int16)
+            outlet_number = np.array(i, dtype=np.int16)
             outlet_name = np.array(outlet.name)
         else:
             # -------------------------------------------------------- #
             # Point specific values
-            unit_hydrograph = np.append(unit_hydrograph, outlet.unit_hydrograph, axis=1)
+            unit_hydrograph = np.append(unit_hydrograph,
+                                        outlet.unit_hydrograph, axis=1)
             frac_sources = np.append(frac_sources, outlet.fractions)
             source_lon = np.append(source_lon, outlet.lon_source)
             source_lat = np.append(source_lat, outlet.lat_source)
             source_x_ind = np.append(source_x_ind, x)
             source_y_ind = np.append(source_y_ind, y)
-            source_decomp_ind = np.append(source_decomp_ind, outlet.cell_id_source)
+            source_decomp_ind = np.append(source_decomp_ind,
+                                          outlet.cell_id_source)
             source_time_offset = np.append(source_time_offset, outlet.offset)
-            source2outlet_ind = np.append(source2outlet_ind, np.zeros_like(outlet.offset) + i)
+            source2outlet_ind = np.append(source2outlet_ind,
+                                          np.zeros_like(outlet.offset) + i)
             # -------------------------------------------------------- #
 
             # -------------------------------------------------------- #
