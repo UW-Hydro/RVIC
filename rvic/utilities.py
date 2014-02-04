@@ -275,41 +275,59 @@ def read_domain(domain_dict):
 
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
-    dom_data['cell_ids'] = np.arange(dom_data[domain_dict['LAND_MASK_VAR']].size).reshape(dom_data[domain_dict['LAND_MASK_VAR']].shape)
+    dom_mask = domain_dict['LAND_MASK_VAR']
+    temp = np.arange(dom_data[dom_mask].size)
+    dom_data['cell_ids'] = temp.reshape(dom_data[dom_mask].shape)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Make sure the longitude / latitude vars are 2d
-    dom_data['cord_lons'] = dom_data[domain_dict['LONGITUDE_VAR']]
-    dom_data['cord_lats'] = dom_data[domain_dict['LATITUDE_VAR']]
-    if dom_data[domain_dict['LONGITUDE_VAR']].ndim == 1:
-        dom_data[domain_dict['LONGITUDE_VAR']], \
-        dom_data[domain_dict['LATITUDE_VAR']] = np.meshgrid(dom_data[domain_dict['LONGITUDE_VAR']],
-                                                            dom_data[domain_dict['LATITUDE_VAR']])
+    dom_lat = domain_dict['LATITUDE_VAR']
+    dom_lon = domain_dict['LONGITUDE_VAR']
+    if dom_data[dom_lon].ndim == 1:
+        # ------------------------------------------------------------- #
+        # Check latitude order, flip if necessary.
+        if dom_data[dom_lat][-1] < dom_data[dom_lat][0]:
+            log.debug('Inputs came in upside down, flipping everything now.')
+            var_list = dom_data.keys()
+            var_list.remove(dom_lon)
+            for var in var_list:
+                dom_data[var] = np.flipud(dom_data[var])
+        # ------------------------------------------------------------ #
 
+        # ------------------------------------------------------------- #
+        # Make 2d coordinate vars
+        dom_data[dom_lon], dom_data[dom_lat] = np.meshgrid(dom_data[dom_lon],
+                                                           dom_data[dom_lat])
+        # ------------------------------------------------------------- #
+    dom_data['cord_lons'] = dom_data[dom_lon]
+    dom_data['cord_lats'] = dom_data[dom_lat]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Make sure the area is in m2
-    area_units = dom_vatts[domain_dict['AREA_VAR']]['units']
+    dom_area = domain_dict['AREA_VAR']
+    area_units = dom_vatts[dom_area]['units']
 
     if area_units in ["rad2", "radians2", "radian2", "radian^2", "rad^2",
-                      "radians^2", "rads^2", "radians squared", "square-radians"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*EARTHRADIUS*EARTHRADIUS
+                      "radians^2", "rads^2", "radians squared",
+                      "square-radians"]:
+        dom_data[dom_area] = dom_data[dom_area]*EARTHRADIUS*EARTHRADIUS
     elif area_units in ["m2", "m^2", "meters^2", "meters2", "square-meters",
                         "meters squared"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]
+        dom_data[dom_area] = dom_data[dom_area]
     elif area_units in ["km2", "km^2", "kilometers^2", "kilometers2",
                         "square-kilometers", "kilometers squared"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*METERSPERKM*METERSPERKM
+        dom_data[dom_area] = dom_data[dom_area]*METERSPERKM*METERSPERKM
     elif area_units in ["mi2", "mi^2", "miles^2", "miles", "square-miles",
                         "miles squared"]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*METERSPERMILE*METERSPERMILE
+        dom_data[dom_area] = dom_data[dom_area]*METERSPERMILE*METERSPERMILE
     elif area_units in ["acres", "ac", "ac."]:
-        dom_data[domain_dict['AREA_VAR']] = dom_data[domain_dict['AREA_VAR']]*METERS2PERACRE
+        dom_data[dom_area] = dom_data[dom_area]*METERS2PERACRE
     else:
         log.warning("WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN "
-                    "SQUARE METERS" % dom_data[domain_dict['AREA_VAR']]['units'])
+                    "SQUARE METERS",
+                    dom_data[domain_dict['AREA_VAR']]['units'])
     # ---------------------------------------------------------------- #
     return dom_data, dom_vatts, dom_gatts
 # -------------------------------------------------------------------- #

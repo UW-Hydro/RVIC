@@ -64,7 +64,6 @@ def main():
 
         outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
     else:
-        print(outlets)
         for name, outlet in outlets.iteritems():
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
@@ -167,7 +166,7 @@ def gen_uh_init(config_file):
 
         # ---------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
-        if fdr_data[fdr_lat][-1] > fdr_data[fdr_lat][0]:
+        if fdr_data[fdr_lat][-1] < fdr_data[fdr_lat][0]:
             log.debug('Inputs came in upside down, flipping everything now.')
             var_list = fdr_data.keys()
             var_list.remove(fdr_lon)
@@ -210,9 +209,9 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # If remap is False, domain coordinates needs to be in the fdr coordinates
     # We can move the unit hydrographs to the domain grid later
-    if not options['REMAP']:
-        log.error('RVIC parameter generation requires REMAP option to be True')
-        log.error('In theory, this is possible but it has not been tested.')
+    if options['AGGREGATE'] and not options['REMAP']:
+        log.error('RVIC parameter generation requires REMAP option to be True'
+                  ' if AGGREGATE is True')
         raise ValueError('Invalid option')
     # ---------------------------------------------------------------- #
 
@@ -257,7 +256,7 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
 
     log.info('Finished with gen_uh_init')
-    log.info('------------------------------------------------------------\n')
+    log.info('-------------------------------------------------------------\n')
 
     return (uh_box, fdr_data, fdr_vatts, dom_data, outlets,
             config_dict, directories)
@@ -351,17 +350,38 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
             clean_file(temp_file_2)
         # -------------------------------------------------------- #
 
+        # -------------------------------------------------------- #
+        # Set the domain index offest to zero and use the remapped fraction
+        # as the final fractions
+        y0, x0 = 0, 0
+        final_fracs = final_data['fraction']
+        # -------------------------------------------------------- #
     else:
+        # -------------------------------------------------------- #
+        # Put the agg data back onto the original grid
         final_data = agg_data
+        final_fracs = np.zeros_like(fdr_data['velocity'],
+                                    dtype=np.float64)
+        x0 = final_data['dom_x_min']
+        x1 = final_data['dom_x_max']
+        y0 = final_data['dom_y_min']
+        y1 = final_data['dom_y_max']
+        final_fracs[y0:y1, x0:x1] = final_data['fraction']
+        # -------------------------------------------------------- #
     # ------------------------------------------------------------ #
 
     # ------------------------------------------------------------ #
-    # Add to adjust fractions Structure
-    y, x = np.nonzero((final_data['fraction'] > 0.0) *
+    # Add to "adjust fractions structure"
+    y, x = np.nonzero((final_fracs > 0.0) *
                       (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
+    yi = y - y0
+    xi = x - x0
 
-    outlet.fractions = final_data['fraction'][y, x]
-    outlet.unit_hydrograph = final_data['unit_hydrograph'][:, y, x]
+    # From final data
+    outlet.fractions = final_data['fraction'][yi, xi]
+    outlet.unit_hydrograph = final_data['unit_hydrograph'][:, yi, xi]
+
+    # From domain data
     outlet.time = np.arange(final_data['unit_hydrograph'].shape[0])
     outlet.lon_source = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
     outlet.lat_source = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]

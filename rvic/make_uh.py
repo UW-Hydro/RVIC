@@ -40,9 +40,9 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # Find Basin Dims and ID
     basin_id = fdr_data[rout_dict['BASIN_ID_VAR']][pour_point.routy, pour_point.routx]
 
-    log.info('Input Latitude: %f' % pour_point.lat)
-    log.info('Input Longitude: %f' % pour_point.lon)
-    log.info('Global Basid ID: %i' % basin_id)
+    log.info('Input Latitude: %f', pour_point.lat)
+    log.info('Input Longitude: %f', pour_point.lon)
+    log.info('Global Basid ID: %i', basin_id)
 
     y_inds, x_inds = np.nonzero(fdr_data[rout_dict['BASIN_ID_VAR']] == basin_id)
     y = np.arange(len(fdr_data[rout_dict['LATITUDE_VAR']]))
@@ -65,7 +65,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     basin['velocity'] = fdr_data['velocity'][y_min:y_max, x_min:x_max]
     basin['diffusion'] = fdr_data['diffusion'][y_min:y_max, x_min:x_max]
 
-    log.debug('Grid cells in subset: %i' % basin['velocity'].size)
+    log.debug('Grid cells in subset: %i', basin['velocity'].size)
 
     pour_point.basiny, pour_point.basinx = latlon2yx(plats=pour_point.lat,
                                                      plons=pour_point.lon,
@@ -75,8 +75,14 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Create the rout_data Dictionary
-    rout_data = {'lat': basin['lat'], 'lon': basin['lon']}
-
+    rout_data = {'lat': basin['lat'], 'lon': basin['lon'],
+                 'dom_x_min': x_min, 'dom_y_min': y_min,
+                 'dom_x_max': x_max, 'dom_y_max': y_max}
+    log.debug('Clipping indicies:')
+    log.debug('dom_x_min: %s', rout_data['dom_x_min'])
+    log.debug('dom_x_max: %s', rout_data['dom_x_max'])
+    log.debug('dom_y_min: %s', rout_data['dom_y_min'])
+    log.debug('dom_y_max: %s', rout_data['dom_y_max'])
     # ---------------------------------------------------------------- #
     # Determine low direction syntax
     if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']]:
@@ -132,12 +138,12 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Agregate to output timestep
-    rout_data['unit_hydrograph'], rout_data['timesteps'] = adjust_uh_timestep(uh_s, t_uh,
-                                                                              input_interval,
-                                                                              rout_dict['OUTPUT_INTERVAL'],
-                                                                              catchment['x_inds'],
-                                                                              catchment['y_inds'])
-    print ">>>>>>>>unit_hydrograph", rout_data['unit_hydrograph'].sum()
+    rout_data['unit_hydrograph'], \
+        rout_data['timesteps'] = adjust_uh_timestep(uh_s, t_uh,
+                                                    input_interval,
+                                                    rout_dict['OUTPUT_INTERVAL'],
+                                                    catchment['x_inds'],
+                                                    catchment['y_inds'])
     # ---------------------------------------------------------------- #
     return rout_data
 # -------------------------------------------------------------------- #
@@ -150,7 +156,7 @@ def find_ts(uh_t):
     Determines the (input_interval) based on the timestep given in uhfile
     """
     input_interval = uh_t[1]-uh_t[0]
-    log.debug('Input Timestep = %i seconds' % input_interval)
+    log.debug('Input Timestep = %i seconds', input_interval)
     return input_interval
 # -------------------------------------------------------------------- #
 
@@ -170,8 +176,8 @@ def read_direction(fdr, dy, dx):
 
     for (y, x), d in np.ndenumerate(fdr):
         try:
-            to_y[y, x] = y+dy[d]
-            to_x[y, x] = x+dx[d]
+            to_y[y, x] = y - dy[d]
+            to_x[y, x] = x + dx[d]
         except KeyError as e:
             if (d == 0) or (d == -9999):
                 to_y[y, x] = -9999

@@ -14,6 +14,7 @@ from share import FILLVALUE_I
 log = logging.getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 
+
 # -------------------------------------------------------------------- #
 # read station file
 def read_station_file(file_name, dom_data, config_dict):
@@ -38,17 +39,17 @@ def read_station_file(file_name, dom_data, config_dict):
         x = int(x)-1
 
         # make sure files exist
-        log.info('On station: %s, active: %s' %(name, active))
+        log.info('On station: %s, active: %s', name, active)
+        uhs2_file = os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
+                                 name+'.uh_s2')
         if active == '1':
             if os.path.isfile(uhs_file):
                 active = True
-            elif os.path.isfile(os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
-                                name+'.uh_s2')):
-                uhs_file = os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
-                                        name+'.uh_s2')
+            elif os.path.isfile(uhs2_file):
+                active = True
             else:
-                raise ValueError('missing uhs_file: (%s or %s)' %(uhs_file, os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
-                                 name+'.uh_s2')))
+                raise ValueError('missing uhs_file: (%s or %s)', uhs_file,
+                                 uhs2_file)
         else:
             active = False
 
@@ -62,10 +63,11 @@ def read_station_file(file_name, dom_data, config_dict):
             outlets[i].lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
             outlets[i].lat = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
         else:
-            log.info('%s not active... skipping' %name)
+            log.info('%s not active... skipping', name)
     f.close()
     return outlets
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 # Read uhs files
@@ -81,17 +83,17 @@ def read_uhs_files(outlets, dom_data, config_dict):
     """
     if config_dict['UHS_FILES']['ROUT_PROGRAM'] == 'C':
         for cell_id, outlet in outlets.iteritems():
-            log.info('Reading outlet %i: %s' %(cell_id, outlet.name))
+            log.info('Reading outlet %i: %s', cell_id, outlet.name)
             log.debug(outlet.uhs_file)
             f = open(outlet.uhs_file, 'r')
             num_sources = int(f.readline())
-            log.debug('Number of sources in file: %i' %num_sources)
+            log.debug('Number of sources in file: %i', num_sources)
             # setup some empty arrays
             outlets[cell_id].lon_source = np.empty(num_sources)
             outlets[cell_id].lat_source = np.empty(num_sources)
             outlets[cell_id].fractions = np.empty(num_sources)
-            outlets[cell_id].x_source = np.empty(num_sources, dtype=int)
-            outlets[cell_id].y_source = np.empty(num_sources, dtype=int)
+            outlets[cell_id].x_source = np.empty(num_sources, dtype=np.int16)
+            outlets[cell_id].y_source = np.empty(num_sources, dtype=np.int16)
 
             uh = []
 
@@ -107,7 +109,7 @@ def read_uhs_files(outlets, dom_data, config_dict):
                 outlets[cell_id].fractions[j] = float(fracs)
                 outlets[cell_id].x_source[j] = int(x)
                 outlets[cell_id].y_source[j] = int(y)
-                line = re.sub(' +',' ',f.readline())
+                line = re.sub(' +', ' ', f.readline())
                 uh.append(map(float, line.split()))
 
             outlets[cell_id].unit_hydrograph = np.rot90(np.array(uh,
@@ -158,6 +160,7 @@ def read_uhs_files(outlets, dom_data, config_dict):
 
     return outlets
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 # Adjust Domain Bounds
