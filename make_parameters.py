@@ -239,6 +239,7 @@ def gen_uh_init(config_file):
         for i in xrange(len(pour_points['lats'])):
             if 'names' in pour_points.keys():
                 name = pour_points['names'].values[i]
+                name = name.replace("'", "").replace(" ", "_")
             else:
                 name = 'p-{0}'.format(i)
 
