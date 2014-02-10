@@ -30,13 +30,7 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
         //2d-->1d indexing goes like this:  ind = y*x_size + x
         xyind = y*x_size + x;
 
-        runin = &aggrunin[xyind];
-
-        // if (*runin > 10000.0) {
-        //     printf("runin is big: %f\n", *runin);
-        //     printf("xyind: %i\n", xyind);
-        //     printf("y: %i\n", y);
-        //     printf("x: %i\n", x);
+        runin = aggrunin[xyind];
 
         /* Do the convolution */
         for (i = 0; i < subset_length; i++) {
@@ -46,7 +40,7 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
             rind = j * noutlets + outlet;
             uhind = i * nsources + s;
 
-            ring[rind] += unit_hydrograph[uhind] * *runin;
+            ring[rind] += unit_hydrograph[uhind] * runin;
         }
     }
 }
