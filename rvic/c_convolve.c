@@ -13,7 +13,7 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
                 const double* aggrunin,         /*2d array[ysize][xsize] - vic runoff flux*/
                 double* ring)                   /*2d array[times][outlets] - convolution ring*/
 {
-    const double* runin;                      /*pointer to sources runoff flux*/
+    double runin;                      /*pointer to sources runoff flux*/
     int s, i, j;                              /*counters*/
     int y, x, offset, outlet;                 /*2d indicies*/
     int xyind, rind, uhind;                   /*1d indicies*/
