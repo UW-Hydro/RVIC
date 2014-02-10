@@ -118,7 +118,8 @@ def rvic_mod_init(config_file):
     rout_var = Rvar(config_dict['PARAM_FILE']['FILE_NAME'], options['CASEID'],
                     options['CALENDAR'], directories['restarts'],
                     options['REST_NCFORM'])
-    rout_var.check_grid_file(domain['FILE_NAME'])
+
+    rout_var.set_domain(dom_data, domain)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -236,8 +237,8 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
     data2tape = {}
     aggrunin = {}
-    for t in RVIC_TRACERS:
-        aggrunin[t] = 0.0
+    for tracer in RVIC_TRACERS:
+        aggrunin[tracer] = 0.0
     aggcounter = 0
 
     # ---------------------------------------------------------------- #
@@ -261,15 +262,20 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         # Get this time_handlesteps forcing
         runin = data_model.read(timestamp)
 
-        for t in RVIC_TRACERS:
-            aggrunin[t] += runin[t]
+        for tracer in RVIC_TRACERS:
+            aggrunin[tracer] += runin[tracer]
         aggcounter += 1
+
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # Do the Convolution
         # (end_timestamp is the timestamp at the end of the convolution period)
-        end_timestamp = rout_var.convolve(aggrunin, time_ord)
+        if aggcounter == rout_var.agg_tsteps:
+            end_timestamp = rout_var.convolve(aggrunin, time_ord)
+            for tracer in RVIC_TRACERS:
+                aggrunin[tracer][:] = 0.0
+                aggcounter = 0
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -279,7 +285,7 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
         # Update the history Tape(s)
         for tapename, tape in hist_tapes.iteritems():
-            log.debug('Updating Tape:%s' % tapename)
+            log.debug('Updating Tape: %s', tapename)
             tape.update(data2tape, time_ord)
         # ------------------------------------------------------------ #
 
@@ -290,8 +296,8 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
             history_files = []
             history_restart_files = []
             for tapename, tape in hist_tapes.iteritems():
-                log.debug('Writing Restart File for Tape:%s' % tapename)
-                hist_fname, rest_fname = tape.write_restart()
+                log.debug('Writing Restart File for Tape: %s', tapename)
+                # hist_fname, rest_fname = tape.write_restart()
                 history_files.append(tape.filename)
                 history_restart_files.append(tape.rest_filename)
 

@@ -53,7 +53,7 @@ FILLVALUE_I = default_fillvals[NC_INT]
 RPOINTER = 'rpointer'
 
 # tracers
-RVIC_TRACERS = ('LIQ',)
+RVIC_TRACERS = ('LIQ',)  # Before changing, update history module
 
 # Calendar key number for linking with CESM
 CALENDAR_KEYS = {0: ['None'],

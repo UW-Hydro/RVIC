@@ -249,17 +249,20 @@ class DataModel(object):
             if i == 0:
                 forcing['LIQ'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
-                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld].astype(np.float64)
 
         for i, fld in enumerate(self.ice_flds):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
-                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld].astype(np.float64)
             else:
-                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld].astype(np.float64)
 
         # move forward one step
         self.current_tind += 1
+
+        for field in forcing:
+            forcing[field] = forcing[field].astype(np.float64)
 
         return forcing
         # ------------------------------------------------------------ #

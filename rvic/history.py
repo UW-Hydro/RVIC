@@ -3,10 +3,12 @@ history.py
 
 Summary:
     This is the core history file module for the rvic model.
-    The core of the module is the Tape class.  The basic procedure is as follows:
+    The core of the module is the Tape class.  The basic procedure is as
+    follows:
         - initialization:  sets tape options, determines filenames, etc.
         - update: method that incorporates new fluxes into the history tape.
-        - __next_update_out_data: method to determine when to update the outdata container
+        - __next_update_out_data: method to determine when to update the
+        outdata container
 
 """
 import os
@@ -17,8 +19,10 @@ from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
 from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT
-from share import NC_DOUBLE, NC_CHAR, WATERDENSITY
+from share import NC_DOUBLE, WATERDENSITY
+# from share import NC_CHAR, RVIC_TRACERS
 import share
+
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -60,8 +64,8 @@ class Tape(object):
         self._glob_ats = glob_ats
 
         self._out_data_i = 0            # position counter for out_data array
-        self._out_times = np.zeros(self._mfilt, type=np.float64)
-        self._out_time_bnds = np.zeros((self._mfilt, 2), type=np.float64)
+        self._out_times = np.zeros(self._mfilt, dtype=np.float64)
+        self._out_time_bnds = np.zeros((self._mfilt, 2), dtype=np.float64)
 
         self.__get_rvar(Rvar)           # Get the initial Rvar fields
         self._grid_shape = grid_area.shape
@@ -189,8 +193,9 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Update the fields
         for field in self._fincl:
+            tracer = 'LIQ'
             log.debug('updating {0}'.format(field))
-            fdata = data2tape[field]
+            fdata = data2tape[field][tracer]
             if self._avgflag == 'A':
                 self._temp_data[field] += fdata
             elif self._avgflag == 'I':
@@ -237,7 +242,9 @@ class Tape(object):
             if self._outtype == 'grid':
                 # ---------------------------------------------------- #
                 # Grid the fields
-                self._out_data[field][self._out_data_i, self._outlet_y_ind, self._outlet_x_ind] = self._temp_data[field][:]
+                self._out_data[field][self._out_data_i,
+                                      self._outlet_y_ind,
+                                      self._outlet_x_ind] = self._temp_data[field][:]
                 # ---------------------------------------------------- #
             else:
                 self._out_data[field][self._out_data_i, :] = self._temp_data[field]
@@ -265,7 +272,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Get import rvar fields
     def __get_rvar(self, rvar):
-        """ Get the rvar Fields that are useful in writing output """
+        """ Get the rvar Fields that are useful for writing output """
         self._dt = rvar.unit_hydrograph_dt
         self._num_outlets = rvar.n_outlets
         self._outlet_decomp_ind = rvar.outlet_decomp_ind

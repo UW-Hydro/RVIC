@@ -10,6 +10,7 @@ from time_utility import ord_to_datetime
 from share import TIMEUNITS, NC_INT, NC_DOUBLE, NC_CHAR
 from share import RVIC_TRACERS, NcGlobals, SECSPERDAY, MAX_NC_CHARS
 from share import CALENDAR_KEYS, REFERENCE_DATE, REFERENCE_TIME
+from convolution_wrapper import rvic_convolve
 import share
 
 # -------------------------------------------------------------------- #
@@ -42,12 +43,14 @@ class Point(object):
             self.name = 'outlet_{:3.4f}_{:3.4f}'.format(self.lat, self.lon)
 
     def __str__(self):
-        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon,
-                                                                      self.gridy, self.gridx)
+        return ("Point({}, {:3.4f}, {:3.4f}, {:3.4f}, "
+                "{:3.4f})".format(self.name, self.lat, self.lon, self.gridy,
+                                  self.gridx))
 
     def __repr__(self):
-        return "Point({}, {:3.4f}, {:3.4f}, {:3.4f}, {:3.4f})".format(self.name, self.lat, self.lon,
-                                                                      self.gridy, self.gridx)
+        return ("Point({}, {:3.4f}, {:3.4f}, {:3.4f}, "
+                "{:3.4f})".format(self.name, self.lat, self.lon, self.gridy,
+                                  self.gridx))
 # -------------------------------------------------------------------- #
 
 
@@ -78,7 +81,17 @@ class Rvar(object):
         self.outlet_lat = f.variables['outlet_lat'][:]
         self.outlet_mask = f.variables['outlet_mask'][:]
         self.outlet_decomp_ind = f.variables['outlet_decomp_ind'][:]
-        self.unit_hydrograph = f.variables['unit_hydrograph'][:]
+        self.unit_hydrograph = {}
+        for tracer in RVIC_TRACERS:
+            tname = 'unit_hydrograph_{0}'.format(tracer)
+            try:
+                self.unit_hydrograph[tracer] = f.variables[tname][:]
+            except KeyError:
+                log.warning('Could not find unit hydrograph var %s', tname)
+                log.warning('trying var name unit_hydrograph')
+                self.unit_hydrograph[tracer] = f.variables['unit_hydrograph'][:]
+            except:
+                raise ValueError('Cant find Unit Hydrograph Variable')
         self.outlet_name = f.variables['outlet_name'][:]
         self.RvicDomainFile = f.RvicDomainFile
         self.RvicPourPointsFile = f.RvicPourPointsFile
@@ -91,13 +104,17 @@ class Rvar(object):
                                    RvicFdrFile=f.RvicFdrFile,
                                    RvicDomainFile=f.RvicDomainFile,
                                    casename=case_name)
+
         f.close()
 
         # ------------------------------------------------------------ #
         # Initialize state variables
-        self.ring = np.zeros((self.full_time_length,
-                             self.n_outlets,
-                             len(RVIC_TRACERS)), dtype=np.float64)
+        self.ring = {}
+        for tracer in RVIC_TRACERS:
+
+            self.ring[tracer] = np.zeros((self.full_time_length,
+                                          self.n_outlets,),
+                                         dtype=np.float64)
         # ------------------------------------------------------------ #
 
         self._calendar = calendar
@@ -113,13 +130,13 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     # Check that grid file matches
-    def check_grid_file(self, domain_file):
+    def _check_domain_file(self, domain_file):
         """
         Confirm that the grid files match in the parameter and domain files
         """
         input_file = os.path.split(domain_file)[1]
-        log.info('domain_file: %s' % input_file)
-        log.info('Parameter RvicDomainFile: %s' % self.RvicDomainFile)
+        log.info('domain_file: %s', input_file)
+        log.info('Parameter RvicDomainFile: %s', self.RvicDomainFile)
 
         if input_file == self.RvicDomainFile:
             log.info('Grid files match in parameter and domain file')
@@ -128,13 +145,32 @@ class Rvar(object):
                              'domain file')
     # ---------------------------------------------------------------- #
 
+    def set_domain(self, dom_data, domain):
+        """ Set the domain size """
+        self._check_domain_file(domain['FILE_NAME'])
+
+        self.domain_shape = dom_data[domain['LAND_MASK_VAR']].shape
+
+        self.ysize = self.domain_shape[0]
+        self.xsize = self.domain_shape[1]
+
+        if self.source_y_ind.max() >= self.ysize:
+            raise ValueError('source_y_ind.max() ({0}) > domain ysize'
+                             ' ({1})'.format(self.source_y_ind, self.ysize))
+        if self.source_x_ind.max() >= self.xsize:
+            raise ValueError('source_x_ind.max() ({0}) > domain xsize'
+                             ' ({1})'.format(self.source_x_ind, self.xsize))
+        log.info('set domain')
+
     # ---------------------------------------------------------------- #
     # Initilize State
     def init_state(self, state_file, run_type, timestamp):
         if run_type in ['startup', 'restart']:
             log.info('reading state_file: %s', state_file)
             f = Dataset(state_file, 'r')
-            self.ring = f.variables['ring'][:]
+            for tracer in RVIC_TRACERS:
+                self.ring[tracer] = f.variables['{0}_ring'.format(tracer)][:]
+
             file_timestamp = ord_to_datetime(f.variables['time'][:],
                                              f.variables['time'].units,
                                              calendar=f.variables['time'].calendar)
@@ -200,28 +236,35 @@ class Rvar(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # First update the ring
-        log.debug('rolling the ring')
-        # Zero out current ring
-        self.ring[0, :, 0] = 0
-        # Equivalent to Fortran 90 cshift function
-        self.ring = np.roll(self.ring, -1, axis=0)
-        # ------------------------------------------------------------ #
-
-        # ------------------------------------------------------------ #
         # Do the convolution
         log.debug('convolving')
-        # this matches the fortran implementation, it may be faster to use
-        # np.convolve but testing can be done later
-        # also this is where the parallelization could happen
-        # loop over all source points
-        for nt, tracer in enumerate(RVIC_TRACERS):
-            for s, outlet in enumerate(self.source2outlet_ind):
-                y = self.source_y_ind[s]
-                x = self.source_x_ind[s]
-                for i in xrange(self.subset_length):
-                    j = i + self.source_time_offset[s]
-                    self.ring[j, outlet, nt] += (self.unit_hydrograph[i, s, nt] * aggrunin[tracer][y, x])
+
+        for tracer in RVIC_TRACERS:
+            # -------------------------------------------------------- #
+            # First update the ring
+            log.debug('rolling the ring')
+
+            # Zero out current ring
+            self.ring[tracer][0, :] = 0.
+
+            # Equivalent to Fortran 90 cshift function
+            self.ring[tracer] = np.roll(self.ring[tracer], -1, axis=0)
+            # -------------------------------------------------------- #
+
+            # -------------------------------------------------------- #
+            # C convolution call
+            rvic_convolve(self.n_sources,
+                          self.n_outlets,
+                          self.subset_length,
+                          self.xsize,
+                          self.source2outlet_ind,
+                          self.source_y_ind,
+                          self.source_x_ind,
+                          self.source_time_offset,
+                          self.unit_hydrograph[tracer][:, :],
+                          aggrunin[tracer],
+                          self.ring[tracer][:, :])
+            # -------------------------------------------------------- #
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -260,13 +303,19 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
     def get_rof(self):
         """Extract the current rof"""
-        return self.ring[0, :, 0]  # Current timestep flux (units=kg m-2 s-1)
+        rof = {}
+        for tracer in RVIC_TRACERS:
+            rof[tracer] = self.ring[tracer][0, :]
+        return rof  # Current timestep flux (units=kg m-2 s-1)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     def get_storage(self):
         """Extract the current storage"""
-        return self.ring.sum(axis=1)
+        storage = {}
+        for tracer in RVIC_TRACERS:
+            storage[tracer] = self.ring[tracer].sum(axis=1)
+        return storage
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -424,13 +473,14 @@ class Rvar(object):
 
         tcoords = ('timesteps', ) + coords
 
-        for i, tracer in enumerate(RVIC_TRACERS):
-            ring = f.createVariable(tracer+'_ring', NC_DOUBLE, tcoords)
-            ring[:, :] = self.ring[:, :, i]
+        for tracer in RVIC_TRACERS:
+            ring = f.createVariable('{0}_ring'.format(tracer),
+                                    NC_DOUBLE, tcoords)
+            ring[:, :] = self.ring[tracer][:, :]
 
-        for key, val in share.ring.__dict__.iteritems():
-            if val:
-                setattr(ring, key, val)
+            for key, val in share.ring.__dict__.iteritems():
+                if val:
+                    setattr(ring, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -443,7 +493,7 @@ class Rvar(object):
         # ------------------------------------------------------------ #
 
         f.close()
-        log.info('Finished writing %s' % filename)
+        log.info('Finished writing %s', filename)
 
         return filename
     # ---------------------------------------------------------------- #
