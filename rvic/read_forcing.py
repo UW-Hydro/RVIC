@@ -103,7 +103,7 @@ class DataModel(object):
         # find time bounds and timestep for input files
         for i, fname in enumerate(self.files):
             log.info('reading forcing file: %s' % fname)
-            f = Dataset(fname, 'r+')
+            f = Dataset(fname, 'r')
             self.start_dates.append(f.variables[self.time_fld][0])
             self.end_ords.append(f.variables[self.time_fld][-1])
 
@@ -161,7 +161,7 @@ class DataModel(object):
         log.debug('Filenum %s', self.current_filenum)
 
         self.current_file = self.files[self.current_filenum]
-        self.current_fhdl = Dataset(self.current_file, 'r+')
+        self.current_fhdl = Dataset(self.current_file, 'r')
 
         try:
             self.current_tind = date2index(timestamp,
@@ -205,7 +205,7 @@ class DataModel(object):
             self.current_fhdl.close()
             self.current_filenum += 1
             self.current_file = self.files[self.current_filenum]
-            self.current_fhdl = Dataset(self.current_file, 'r+')
+            self.current_fhdl = Dataset(self.current_file, 'r')
             self.current_tind = 0
         # ------------------------------------------------------------ #
 
@@ -234,7 +234,7 @@ class DataModel(object):
                 # close the current file and open a new one
                 self.current_fhdl.close()
                 self.current_file = self.files[new_filenum]
-                self.current_fhdl = Dataset(self.current_file, 'r+')
+                self.current_fhdl = Dataset(self.current_file, 'r')
 
             self.current_tind = date2index(timestamp,
                                            self.current_fhdl.variables[self.time_fld])
