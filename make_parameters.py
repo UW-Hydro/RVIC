@@ -89,8 +89,8 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Import optional modules
     if config_dict['OPTIONS']['REMAP'] and not remap_available:
-        raise ValueError('Problem importing remap module \
-                     (check to make sure cdo.py is available)')
+        raise ValueError('Problem importing remap module '
+                         'check to make sure cdo.py is available)')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -113,7 +113,7 @@ def gen_uh_init(config_file):
                       options['VERBOSE'])
 
     for direc in directories:
-        log.info('%s directory is %s' % (direc, directories[direc]))
+        log.info('%s directory is %s', direc, directories[direc])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -166,8 +166,9 @@ def gen_uh_init(config_file):
 
         # ---------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
-        if fdr_data[fdr_lat][-1] < fdr_data[fdr_lat][0]:
-            log.debug('Inputs came in upside down, flipping everything now.')
+        if fdr_data[fdr_lat][-1] > fdr_data[fdr_lat][0]:
+            log.debug('Flow Direction inputs came in upside down, flipping '
+                      'everything now.')
             var_list = fdr_data.keys()
             var_list.remove(fdr_lon)
             for var in var_list:

@@ -287,8 +287,9 @@ def read_domain(domain_dict):
     if dom_data[dom_lon].ndim == 1:
         # ------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
-        if dom_data[dom_lat][-1] < dom_data[dom_lat][0]:
-            log.debug('Inputs came in upside down, flipping everything now.')
+        if dom_data[dom_lat][-1] > dom_data[dom_lat][0]:
+            log.debug('Domain Inputs came in upside down, flipping everything '
+                      'now.')
             var_list = dom_data.keys()
             var_list.remove(dom_lon)
             for var in var_list:

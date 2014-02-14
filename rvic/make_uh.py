@@ -88,7 +88,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     log.debug('dom_y_min: %s', rout_data['dom_y_min'])
     log.debug('dom_y_max: %s', rout_data['dom_y_max'])
     # ---------------------------------------------------------------- #
-    # Determine low direction syntax
+    # Determine flow direction syntax
     if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']]:
         # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/\
         # VIC/Documentation/Routing/FlowDirection.shtml
@@ -184,7 +184,7 @@ def read_direction(fdr, dy, dx):
 
     for (y, x), d in np.ndenumerate(fdr):
         if d in valid_dirs:
-            to_y[y, x] = y - dy[d]
+            to_y[y, x] = y + dy[d]
             to_x[y, x] = x + dx[d]
         else:
             to_y[y, x] = -9999
