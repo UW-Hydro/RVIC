@@ -8,9 +8,8 @@ from write import write_param_file
 from share import NcGlobals, SECSPERDAY
 import os
 from datetime import date
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import plots
+
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -25,11 +24,14 @@ def finish_params(outlets, dom_data, config_dict, directories):
     Adjust the unit hydrographs and pack for parameter file
     """
     options = config_dict['OPTIONS']
+    routing = config_dict['ROUTING']
+    domain = config_dict['DOMAIN']
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
-    if options['SUBSET_DAYS'] and options['SUBSET_DAYS'] < config_dict['ROUTING']['BASIN_FLOWDAYS']:
-        subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
+    if options['SUBSET_DAYS'] and \
+            options['SUBSET_DAYS'] < routing['BASIN_FLOWDAYS']:
+        subset_length = options['SUBSET_DAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
         outlets, full_time_length, before, after = subset(outlets,
                                                           subset_length=subset_length)
 
@@ -37,17 +39,18 @@ def finish_params(outlets, dom_data, config_dict, directories):
                   ' / after subseting')
 
         title = 'UHS before subset'
-        pfname = plot_uhs(before, title, options['CASEID'],
+        pfname = plots.uhs(before, title, options['CASEID'],
                           directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
 
         title = 'UHS after subset'
-        pfname = plot_uhs(after, title, options['CASEID'],
+        pfname = plots.uhs(after, title, options['CASEID'],
                           directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     else:
-        subset_length = config_dict['ROUTING']['BASIN_FLOWDAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
-        log.info('Not subsetting because either SUBSET_DAYS is null or SUBSET_DAYS<BASIN_FLOWDAYS')
+        subset_length = routing['BASIN_FLOWDAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
+        log.info('Not subsetting because either SUBSET_DAYS is null or '
+                 'SUBSET_DAYS<BASIN_FLOWDAYS')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -59,7 +62,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     else:
         adjust = False
     outlets, plot_dict = adjust_fractions(outlets,
-                                          dom_data[config_dict['DOMAIN']['FRACTION_VAR']],
+                                          dom_data[domain['FRACTION_VAR']],
                                           adjust=adjust)
     # ---------------------------------------------------------------- #
 
@@ -89,7 +92,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # Adjust Unit Hydrographs for differences in source/outlet areas and
     # fractions
-    area = dom_data[config_dict['DOMAIN']['AREA_VAR']]
+    area = dom_data[domain['AREA_VAR']]
 
     for source, outlet in enumerate(source2outlet_ind):
         if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim == 0:
@@ -108,14 +111,17 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # Make diagnostic plots
-    sum_after = np.zeros(dom_data[config_dict['DOMAIN']['FRACTION_VAR']].shape)
+    sum_after = np.zeros(dom_data[domain['FRACTION_VAR']].shape)
     for i, (y, x) in enumerate(zip(source_y_ind, source_x_ind)):
         sum_after[y, x] += unit_hydrograph[:, i].sum()
 
     plot_dict['Sum UH Final'] = sum_after
 
+    dom_y = dom_data[domain['LATITUDE_VAR']]
+    dom_x = dom_data[domain['LONGITUDE_VAR']]
+
     for title, data in plot_dict.iteritems():
-        pfname = plot_fractions(data, title, options['CASEID'],
+        pfname = plots.fractions(data, dom_x, dom_y, title, options['CASEID'],
                                 directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     # ---------------------------------------------------------------- #
@@ -135,9 +141,10 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # Write parameter file
     today = date.today().strftime('%Y%m%d')
     param_file = os.path.join(directories['params'],
-                              '%s.rvic.prm.%s.%s.nc' % (options['CASEID'],
-                                                        options['GRIDID'],
-                                                        today))
+                              '{0}.rvic.prm.{1}.{2}.'
+                              'nc'.format(options['CASEID'],
+                                          options['GRIDID'],
+                                          today))
 
     if 'NEW_DOMAIN' in config_dict.keys():
         dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
@@ -147,7 +154,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     glob_atts = NcGlobals(title='RVIC parameter file',
                           RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
                           RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
-                          RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
+                          RvicFdrFile=os.path.split(routing['FILE_NAME'])[1],
                           RvicDomainFile=os.path.split(dom_file_name)[1])
 
     write_param_file(param_file,
@@ -155,7 +162,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
                      glob_atts=glob_atts,
                      full_time_length=full_time_length,
                      subset_length=subset_length,
-                     unit_hydrograph_dt=config_dict['ROUTING']['OUTPUT_INTERVAL'],
+                     unit_hydrograph_dt=routing['OUTPUT_INTERVAL'],
                      outlet_lon=outlet_lon,
                      outlet_lat=outlet_lat,
                      outlet_x_ind=outlet_x_ind,
@@ -176,8 +183,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # write a summary of what was done to the log file.
-    log.info('Parameter file includes %i outlets' % (len(outlets)))
-    log.info('Parameter file includes %i Source Points' % (len(source_lon)))
+    log.info('Parameter file includes %i outlets', len(outlets))
+    log.info('Parameter file includes %i Source Points', len(source_lon))
     # ---------------------------------------------------------------- #
 
     return param_file, today
@@ -247,55 +254,6 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
 
 # -------------------------------------------------------------------- #
-def plot_uhs(data, title, case_id, plot_dir):
-    """
-    Plot diagnostic plot showing all unit hydrographs
-    """
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
-    pfname = os.path.join(plot_dir, file_name)
-
-    fig = plt.figure()
-    plt.plot(data)
-    plt.title(title)
-    plt.xlabel('timesteps')
-    plt.ylabel('unit-hydrograph')
-    fig.savefig(pfname)
-
-    return pfname
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
-def plot_fractions(data, title, case_id, plot_dir):
-    """
-    Plot diagnostic plots of fraction variables
-    """
-    # ---------------------------------------------------------------- #
-    # Plot Fractions
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
-    pfname = os.path.join(plot_dir, file_name)
-
-    fig = plt.figure()
-    plt.pcolormesh(data)
-    plt.autoscale(tight=True)
-    plt.axis('tight')
-    plt.colorbar()
-    plt.title(title)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    fig.savefig(pfname)
-    # ---------------------------------------------------------------- #
-    return pfname
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
 # Shorten the unit hydrograph
 def subset(outlets, subset_length=None):
     """ Shorten the Unit Hydrograph"""
@@ -342,10 +300,10 @@ def subset(outlets, subset_length=None):
 
                 log.warning('Subset centered on UH max extends beyond length '
                             'of unit hydrograph.')
-                log.warning('--> Outlet %s' % outlet)
-                log.warning('----> Max Index is %s' % maxind)
+                log.warning('--> Outlet %s', outlet)
+                log.warning('----> Max Index is %s', maxind)
                 log.warning('----> Last value in subset '
-                            'is %s' % outlet.unit_hydrograph[-1, j])
+                            'is %s', outlet.unit_hydrograph[-1, j])
                 if maxind == full_time_length:
                     log.warning('maxind == full_time_length, not able to '
                                 'resolve unithydrograph')
