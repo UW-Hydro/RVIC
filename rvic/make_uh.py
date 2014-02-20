@@ -88,18 +88,25 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     log.debug('dom_y_min: %s', rout_data['dom_y_min'])
     log.debug('dom_y_max: %s', rout_data['dom_y_max'])
     # ---------------------------------------------------------------- #
-    # Determine flow direction syntax
-    if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']]:
+    # Determine/Set flow direction syntax
+    # Flow directions {north, northeast, east, southeast,
+    # south, southwest, west, northwest}
+    if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']] or \
+            fdr_data[rout_dict['FLOW_DIRECTION_VAR']].max() < 10:
         # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/\
         # VIC/Documentation/Routing/FlowDirection.shtml
-        dy = {1: -1, 2: -1, 3: 0, 4: 1, 5: 1, 6: 1, 7: 0, 8: -1}
-        dx = {1: 0, 2: 1, 3: 1, 4: 1, 5: 0, 6: -1, 7: -1, 8: - 1}
+        dy = {1: -1, 2: -1, 3: 0, 4: 1,
+              5: 1, 6: 1, 7: 0, 8: -1}
+        dx = {1: 0, 2: 1, 3: 1, 4: 1,
+              5: 0, 6: -1, 7: -1, 8: - 1}
         log.debug('Using VIC flow directions (1-8).')
     else:
         # ARCMAP Directions: http://webhelp.esri.com/arcgisdesktop/9.2/\
         # index.cfm?TopicName=flow_direction
-        dy = {1: 0, 2: 1, 4: 1, 8: 1, 16: 0, 32: -1, 64: -1, 128: -1}
-        dx = {1: 1, 2: 1, 4: 0, 8: -1, 16: -1, 32: -1, 64: 0, 128: 1}
+        dy = {64: -1, 128: -1, 1: 0, 2: 1,
+              4: 1, 8: 1, 16: 0, 32: -1}
+        dx = {64: 0, 128: 1, 1: 1, 2: 1,
+              4: 0, 8: -1, 16: -1, 32: -1}
         log.debug('Using ARCMAP flow directions (1-128).')
     # ---------------------------------------------------------------- #
 

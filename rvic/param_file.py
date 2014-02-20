@@ -26,26 +26,28 @@ def finish_params(outlets, dom_data, config_dict, directories):
     options = config_dict['OPTIONS']
     routing = config_dict['ROUTING']
     domain = config_dict['DOMAIN']
+    dom_area = domain['AREA_VAR']
+    dom_frac = domain['FRACTION_VAR']
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
     if options['SUBSET_DAYS'] and \
             options['SUBSET_DAYS'] < routing['BASIN_FLOWDAYS']:
         subset_length = options['SUBSET_DAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
-        outlets, full_time_length, before, after = subset(outlets,
-                                                          subset_length=subset_length)
+        outlets, full_time_length, \
+            before, after = subset(outlets, subset_length=subset_length)
 
         log.debug('plotting unit hydrograph timeseries now for before'
                   ' / after subseting')
 
         title = 'UHS before subset'
         pfname = plots.uhs(before, title, options['CASEID'],
-                          directories['plots'])
+                           directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
 
         title = 'UHS after subset'
         pfname = plots.uhs(after, title, options['CASEID'],
-                          directories['plots'])
+                           directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     else:
         subset_length = routing['BASIN_FLOWDAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
@@ -64,6 +66,15 @@ def finish_params(outlets, dom_data, config_dict, directories):
     outlets, plot_dict = adjust_fractions(outlets,
                                           dom_data[domain['FRACTION_VAR']],
                                           adjust=adjust)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Calculate the upstream area and upstream grid cells
+    # The upstream_area must be calculated after adjust_fractions
+    for i, outlet in outlets.iteritems():
+        outlet.upstream_gridcells = len(outlet.y_source)
+        outlet.upstream_area = np.sum(dom_data[dom_area][outlet.y_source, outlet.x_source] *
+                                      dom_data[dom_frac][outlet.y_source, outlet.x_source])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -87,6 +98,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
     outlet_decomp_ind = grouped_data['outlet_decomp_ind']
     outlet_number = grouped_data['outlet_number']
     outlet_name = grouped_data['outlet_name']
+    outlet_upstream_area = grouped_data['outlet_upstream_area']
+    outlet_upstream_gridcells = grouped_data['outlet_upstream_gridcells']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -122,8 +135,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     for title, data in plot_dict.iteritems():
         pfname = plots.fractions(data, dom_x, dom_y, title, options['CASEID'],
-                                directories['plots'])
-        log.info('%s Plot:  %s', title, pfname)
+                                 directories['plots'])
+        log.info('%s Plot: %s', title, pfname)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -171,6 +184,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
                      outlet_number=outlet_number,
                      outlet_mask=outlet_mask,
                      outlet_name=outlet_name,
+                     outlet_upstream_gridcells=outlet_upstream_gridcells,
+                     outlet_upstream_area=outlet_upstream_area,
                      source_lon=source_lon,
                      source_lat=source_lat,
                      source_x_ind=source_x_ind,
@@ -359,11 +374,15 @@ def group(outlets):
             # outlet specific inputs
             outlet_lon = np.array(outlet.lon, dtype=np.float64)
             outlet_lat = np.array(outlet.lat, dtype=np.float64)
-            outlet_x_ind = np.array(outlet.gridx, dtype=np.int16)
-            outlet_y_ind = np.array(outlet.gridy, dtype=np.int16)
+            outlet_x_ind = np.array(outlet.domx, dtype=np.int16)
+            outlet_y_ind = np.array(outlet.domy, dtype=np.int16)
             outlet_decomp_ind = np.array(cell_id, dtype=np.int16)
             outlet_number = np.array(i, dtype=np.int16)
             outlet_name = np.array(outlet.name)
+            outlet_upstream_gridcells = np.array(outlet.upstream_gridcells,
+                                                 dtype=np.int16)
+            outlet_upstream_area = np.array(outlet.upstream_area,
+                                            dtype=np.float64)
         else:
             # -------------------------------------------------------- #
             # Point specific values
@@ -385,11 +404,15 @@ def group(outlets):
             # outlet specific inputs
             outlet_lon = np.append(outlet_lon, outlet.lon)
             outlet_lat = np.append(outlet_lat, outlet.lat)
-            outlet_x_ind = np.append(outlet_x_ind, outlet.gridx)
-            outlet_y_ind = np.append(outlet_y_ind, outlet.gridy)
+            outlet_x_ind = np.append(outlet_x_ind, outlet.domx)
+            outlet_y_ind = np.append(outlet_y_ind, outlet.domy)
             outlet_decomp_ind = np.append(outlet_decomp_ind, cell_id)
             outlet_number = np.append(outlet_number, i)
             outlet_name = np.append(outlet_name, outlet.name)
+            outlet_upstream_gridcells = np.append(outlet_upstream_gridcells,
+                                                  outlet.upstream_gridcells)
+            outlet_upstream_area = np.append(outlet_upstream_area,
+                                             outlet.upstream_area)
             # -------------------------------------------------------- #
 
     grouped_data = {'unit_hydrograph': unit_hydrograph,
@@ -407,7 +430,9 @@ def group(outlets):
                     'outlet_y_ind': outlet_y_ind,
                     'outlet_decomp_ind': outlet_decomp_ind,
                     'outlet_number': outlet_number,
-                    'outlet_name': outlet_name}
+                    'outlet_name': outlet_name,
+                    'outlet_upstream_gridcells': outlet_upstream_gridcells,
+                    'outlet_upstream_area': outlet_upstream_area}
 
     return grouped_data
 # -------------------------------------------------------------------- #
