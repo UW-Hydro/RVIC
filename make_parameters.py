@@ -10,7 +10,7 @@ from collections import OrderedDict
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
-from rvic.utilities import make_directories, copy_inputs
+from rvic.utilities import make_directories, copy_inputs, strip_non_ascii
 from rvic.utilities import read_netcdf, tar_inputs, latlon2yx
 from rvic.utilities import check_ncvars, clean_file, read_domain
 from rvic.aggregate import make_agg_pairs, aggregate
@@ -129,6 +129,8 @@ def gen_uh_init(config_file):
                              'variables (lons, lats) or (x, y)')
         if 'names' in pour_points:
             pour_points.fillna(inplace=True, value='unknown')
+            for i, name in enumerate(pour_points.names):
+                pour_points.names[i] = strip_non_ascii(name)
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna(inplace=True)
     except Exception as e:
