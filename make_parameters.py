@@ -132,7 +132,8 @@ def gen_uh_init(config_file):
             for i, name in enumerate(pour_points.names):
                 pour_points.names[i] = strip_non_ascii(name)
         pour_points.drop_duplicates(inplace=True)
-        pour_points.dropna(inplace=True)
+        pour_points.dropna()
+	#pour_points.dropna(inplace=True)
     except Exception as e:
         log.error('Error opening pour points file: '
                   '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
