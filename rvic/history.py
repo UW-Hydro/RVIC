@@ -13,14 +13,13 @@ Summary:
 """
 import os
 import numpy as np
-from netCDF4 import Dataset, date2num, num2date
+from netCDF4 import Dataset, date2num, num2date, stringtochar
 from datetime import datetime
 from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_CHAR
 from share import NC_DOUBLE, WATERDENSITY
-# from share import NC_CHAR, RVIC_TRACERS
 import share
 
 
@@ -280,6 +279,7 @@ class Tape(object):
         self._outlet_y_ind = rvar.outlet_y_ind
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
+        self._outlet_name = rvar.outlet_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -484,17 +484,27 @@ class Tape(object):
 
         outlets = f.createDimension('outlets', self._num_outlets)
 
+        nocoords = coords + ('nc_chars',)
+        char_names = stringtochar(self._outlet_name)
+        chars = f.createDimension(nocoords[1], char_names.shape[1])
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Variables
         outlet_lon = f.createVariable('lon', self._ncprec, coords)
         outlet_lat = f.createVariable('lat', self._ncprec, coords)
         outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
         outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
         outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT,
                                              coords)
+        onm = f.createVariable('outlet_name', NC_CHAR, nocoords)
+
         outlet_lon[:] = self._outlet_lon
         outlet_lat[:] = self._outlet_lat
         outlet_x_ind[:] = self._outlet_x_ind
         outlet_y_ind[:] = self._outlet_y_ind
         outlet_decomp_ind[:] = self._outlet_decomp_ind
+        onm[:, :] = char_names
 
         for key, val in share.outlet_lon.__dict__.iteritems():
             if val:
@@ -515,6 +525,10 @@ class Tape(object):
         for key, val in share.outlet_decomp_ind.__dict__.iteritems():
             if val:
                 setattr(outlet_decomp_ind, key, val)
+
+        for key, val in share.outlet_name.__dict__.iteritems():
+            if val:
+                setattr(onm, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -540,7 +554,7 @@ class Tape(object):
         f.featureType = "timeSeries"
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % self.filename)
+        log.info('Finished writing %s', self.filename)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

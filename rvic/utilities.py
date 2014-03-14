@@ -30,11 +30,11 @@ def latlon2yx(plats, plons, glats, glons):
     if (glons.max() > 180):
         posinds = np.nonzero(glons > 180)
         glons[posinds] -= 360
-        log.info('adjusted grid lon to ')
+        log.info('adjusted grid lon to astronomical conventions')
     if (plons.max() > 180):
         posinds = np.nonzero(plons > 180)
         plons[posinds] -= 360
-        log.info('adjusted points lon minimum')
+        log.info('adjusted point lon to astronomical conventions')
 
     if glons.ndim == 1 or glats.ndim == 1:
         glons, glats = np.meshgrid(glons, glats)
@@ -285,10 +285,13 @@ def read_domain(domain_dict):
     dom_lat = domain_dict['LATITUDE_VAR']
     dom_lon = domain_dict['LONGITUDE_VAR']
     if dom_data[dom_lon].ndim == 1:
+        dom_data['cord_lons'] = dom_data[dom_lon][:]
+        dom_data['cord_lats'] = dom_data[dom_lat][:]
         # ------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
-        if dom_data[dom_lat][-1] < dom_data[dom_lat][0]:
-            log.debug('Inputs came in upside down, flipping everything now.')
+        if dom_data[dom_lat][-1] > dom_data[dom_lat][0]:
+            log.debug('Domain Inputs came in upside down, flipping everything '
+                      'now.')
             var_list = dom_data.keys()
             var_list.remove(dom_lon)
             for var in var_list:
@@ -300,8 +303,6 @@ def read_domain(domain_dict):
         dom_data[dom_lon], dom_data[dom_lat] = np.meshgrid(dom_data[dom_lon],
                                                            dom_data[dom_lat])
         # ------------------------------------------------------------- #
-    dom_data['cord_lons'] = dom_data[dom_lon]
-    dom_data['cord_lats'] = dom_data[dom_lat]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -330,4 +331,12 @@ def read_domain(domain_dict):
                     dom_data[domain_dict['AREA_VAR']]['units'])
     # ---------------------------------------------------------------- #
     return dom_data, dom_vatts, dom_gatts
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def strip_non_ascii(string):
+    ''' Returns the string without non ASCII characters'''
+    stripped = (c for c in string if 0 < ord(c) < 127)
+    return ''.join(stripped)
 # -------------------------------------------------------------------- #

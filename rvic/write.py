@@ -108,6 +108,8 @@ def write_param_file(file_name,
                      outlet_number=None,
                      outlet_mask=None,
                      outlet_name=None,
+                     outlet_upstream_gridcells=None,
+                     outlet_upstream_area=None,
                      source_lon=None,
                      source_lat=None,
                      source_x_ind=None,
@@ -239,6 +241,20 @@ def write_param_file(file_name,
     for key, val in share.outlet_mask.__dict__.iteritems():
         if val:
             setattr(om, key, val)
+
+    # Outlet Upstream area
+    oua = f.createVariable('outlet_upstream_area', NC_DOUBLE, ocoords)
+    oua[:] = outlet_upstream_area
+    for key, val in share.outlet_upstream_area.__dict__.iteritems():
+        if val:
+            setattr(oua, key, val)
+
+    # Outlet Upstream grid cells
+    oug = f.createVariable('outlet_upstream_gridcells', NC_INT, ocoords)
+    oug[:] = outlet_upstream_gridcells
+    for key, val in share.outlet_upstream_gridcells.__dict__.iteritems():
+        if val:
+            setattr(oug, key, val)
 
     # Outlet Names
     onm = f.createVariable('outlet_name', NC_CHAR, nocoords)

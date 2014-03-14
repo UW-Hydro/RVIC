@@ -102,7 +102,7 @@ class DataModel(object):
         # ------------------------------------------------------------ #
         # find time bounds and timestep for input files
         for i, fname in enumerate(self.files):
-            log.info('reading forcing file: %s' % fname)
+            log.info('reading forcing file: %s', fname)
             f = Dataset(fname, 'r')
             self.start_dates.append(f.variables[self.time_fld][0])
             self.end_ords.append(f.variables[self.time_fld][-1])
@@ -184,11 +184,11 @@ class DataModel(object):
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
             elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
-                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / MMPERMETER
+                self.fld_mult[fld] = WATERDENSITY / MMPERMETER / self.secs_per_step
             elif units in ['m', 'M', 'meters', 'Meters']:
-                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY
+                self.fld_mult[fld] = WATERDENSITY / self.secs_per_step
             elif units in ['cm', 'CM', 'centimeters', 'Centimeters']:
-                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / CMPERMETER
+                self.fld_mult[fld] = WATERDENSITY / CMPERMETER / self.secs_per_step
             else:
                 raise ValueError('unknown forcing units')
         # ------------------------------------------------------------ #

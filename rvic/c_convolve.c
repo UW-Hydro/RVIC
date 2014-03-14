@@ -13,7 +13,6 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
                 const double* aggrunin,         /*2d array[ysize][xsize] - vic runoff flux*/
                 double* ring)                   /*2d array[times][outlets] - convolution ring*/
 {
-    double runin;                      /*pointer to sources runoff flux*/
     int s, i, j;                              /*counters*/
     int y, x, offset, outlet;                 /*2d indicies*/
     int xyind, rind, uhind;                   /*1d indicies*/
@@ -30,9 +29,9 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
         //2d-->1d indexing goes like this:  ind = y*x_size + x
         xyind = y*x_size + x;
 
-        runin = aggrunin[xyind];
-
         /* Do the convolution */
+        // i is the position in the unit hydrograph
+        // j is the position in the ring
         for (i = 0; i < subset_length; i++) {
             j = i + offset;
 
@@ -40,7 +39,7 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
             rind = j * noutlets + outlet;
             uhind = i * nsources + s;
 
-            ring[rind] += unit_hydrograph[uhind] * runin;
+            ring[rind] += unit_hydrograph[uhind] * aggrunin[xyind];
         }
     }
 }

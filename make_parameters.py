@@ -10,7 +10,7 @@ from collections import OrderedDict
 from logging import getLogger
 from rvic.log import init_logger, LOG_NAME
 from rvic.mpi import LoggingPool
-from rvic.utilities import make_directories, copy_inputs
+from rvic.utilities import make_directories, copy_inputs, strip_non_ascii
 from rvic.utilities import read_netcdf, tar_inputs, latlon2yx
 from rvic.utilities import check_ncvars, clean_file, read_domain
 from rvic.aggregate import make_agg_pairs, aggregate
@@ -89,8 +89,8 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Import optional modules
     if config_dict['OPTIONS']['REMAP'] and not remap_available:
-        raise ValueError('Problem importing remap module \
-                     (check to make sure cdo.py is available)')
+        raise ValueError('Problem importing remap module '
+                         'check to make sure cdo.py is available)')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -113,7 +113,7 @@ def gen_uh_init(config_file):
                       options['VERBOSE'])
 
     for direc in directories:
-        log.info('%s directory is %s' % (direc, directories[direc]))
+        log.info('%s directory is %s', direc, directories[direc])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -123,10 +123,16 @@ def gen_uh_init(config_file):
                                   comment='#')
         log.info('Opened Pour Points File: '
                  '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
-        if not all(x in pour_points.keys() for x in ['lons', 'lats']):
+        if not (all(x in pour_points.keys() for x in ['lons', 'lats']) or
+                all(x in pour_points.keys() for x in ['x', 'y'])):
             raise ValueError('Pour Points File must include '
-                             'variables (lons, lats)')
-        pour_points = pour_points.drop_duplicates().dropna()
+                             'variables (lons, lats) or (x, y)')
+        if 'names' in pour_points:
+            pour_points.fillna(inplace=True, value='unknown')
+            for i, name in enumerate(pour_points.names):
+                pour_points.names[i] = strip_non_ascii(name)
+        pour_points.drop_duplicates(inplace=True)
+        pour_points.dropna(inplace=True)
     except Exception as e:
         log.error('Error opening pour points file: '
                   '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
@@ -166,8 +172,9 @@ def gen_uh_init(config_file):
 
         # ---------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
-        if fdr_data[fdr_lat][-1] < fdr_data[fdr_lat][0]:
-            log.debug('Inputs came in upside down, flipping everything now.')
+        if fdr_data[fdr_lat][-1] > fdr_data[fdr_lat][0]:
+            log.debug('Flow Direction inputs came in upside down, flipping '
+                      'everything now.')
             var_list = fdr_data.keys()
             var_list.remove(fdr_lon)
             for var in var_list:
@@ -201,9 +208,10 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Read domain file
-    dom_data, _, _ = read_domain(config_dict['DOMAIN'])
+    domain = config_dict['DOMAIN']
+    dom_data, _, _ = read_domain(domain)
     log.info('Opened Domain File: '
-             '{0}'.format(config_dict['DOMAIN']['FILE_NAME']))
+             '{0}'.format(domain['FILE_NAME']))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -225,37 +233,57 @@ def gen_uh_init(config_file):
 
     else:
         outlets = {}
+        if all(x in pour_points.keys() for x in ['x', 'y', 'lons', 'lats']):
+            lats = pour_points['lats'].values
+            lons = pour_points['lons'].values
+            routys = pour_points['y'].values
+            routxs = pour_points['x'].values
+        elif all(x in pour_points.keys() for x in ['x', 'y']):
+            # use x and y (assume from routing inputs grid)
+            # find lons and lats from xs and ys
+            routys = pour_points['y'].values
+            routxs = pour_points['x'].values
+            lats = fdr_data[fdr_lat][routys]
+            lons = fdr_data[fdr_lon][routxs]
+        else:
+            # use lons and lats to find xs and ys
+            lats = pour_points['lats'].values
+            lons = pour_points['lons'].values
 
-        gridys, gridxs = latlon2yx(plats=pour_points['lats'],
-                                   plons=pour_points['lons'],
-                                   glats=dom_data[config_dict['DOMAIN']['LATITUDE_VAR']],
-                                   glons=dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']])
+            # find x and y on routing grid
+            routys, routxs = latlon2yx(plats=lats,
+                                       plons=lons,
+                                       glats=fdr_data[fdr_lat],
+                                       glons=fdr_data[fdr_lon])
 
-        routys, routxs = latlon2yx(plats=pour_points['lats'],
-                                   plons=pour_points['lons'],
-                                   glats=fdr_data[config_dict['ROUTING']['LATITUDE_VAR']],
-                                   glons=fdr_data[config_dict['ROUTING']['LONGITUDE_VAR']])
+        # Find location on domain grid
+        domys, domxs = latlon2yx(plats=lats,
+                                 plons=lons,
+                                 glats=dom_data[domain['LATITUDE_VAR']],
+                                 glons=dom_data[domain['LONGITUDE_VAR']])
 
-        for i in xrange(len(pour_points['lats'])):
+        for i in xrange(len(lats)):
             if 'names' in pour_points.keys():
                 name = pour_points['names'].values[i]
                 name = name.replace("'", "").replace(" ", "_")
             else:
+                # fill name filed with p-outlet_num
                 name = 'p-{0}'.format(i)
 
-            outlets[i] = Point(lat=pour_points['lats'].values[i],
-                               lon=pour_points['lons'].values[i],
-                               gridx=gridxs[i],
-                               gridy=gridys[i],
+            outlets[i] = Point(lat=lats[i],
+                               lon=lons[i],
+                               domx=domxs[i],
+                               domy=domys[i],
                                routx=routxs[i],
                                routy=routys[i],
                                name=name,
-                               cell_id=dom_data['cell_ids'][gridys[i],
-                                                            gridxs[i]])
+                               cell_id=dom_data['cell_ids'][domys[i],
+                                                            domxs[i]])
 
             outlets[i].pour_points = [outlets[i]]
     # ---------------------------------------------------------------- #
 
+    log.debug(outlets)
     log.info('Finished with gen_uh_init')
     log.info('-------------------------------------------------------------\n')
 
@@ -274,6 +302,11 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     log.info('Running outlet cell id  {0}'.format(outlet.cell_id))
 
     agg_data = {}
+    domain = config_dict['DOMAIN']
+    dom_lat = domain['LATITUDE_VAR']
+    dom_lon = domain['LONGITUDE_VAR']
+    dom_mask = domain['LAND_MASK_VAR']
+
     # ------------------------------------------------------------ #
     # Loop over pour points
     for j, pour_point in enumerate(outlet.pour_points):
@@ -322,7 +355,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                               RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
                               RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
                               RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
-                              RvicDomainFile=os.path.split(config_dict['DOMAIN']['FILE_NAME'])[1])
+                              RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
 
         temp_file_1 = os.path.join(directories['aggregated'],
                                    'aggUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
@@ -335,13 +368,29 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         temp_file_2 = os.path.join(directories['remapped'],
                                    'remapUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
 
-        remap(config_dict['DOMAIN']['FILE_NAME'], temp_file_1, temp_file_2)
+        remap(domain['FILE_NAME'], temp_file_1, temp_file_2)
 
         # -------------------------------------------------------- #
         # Read temporary file #2
         final_data, _, _ = read_netcdf(temp_file_2,
                                        variables=['unit_hydrograph',
-                                                  'fraction'])
+                                                  'fraction',
+                                                  dom_lat])
+
+        # -------------------------------------------------------- #
+        # Check latitude order, flip if necessary.
+        if final_data[dom_lat].ndim == 1:
+            if final_data[dom_lat][-1] > final_data[dom_lat][0]:
+                var_list = final_data.keys()
+
+                log.debug('Remapped inputs came in upside down, flipping {0}'
+                          ' now.'.format(", ".join(var_list)))
+                # flip lattiutude and fraction along y axis (axis 0)
+                final_data[dom_lat] = final_data[dom_lat][::-1]
+                final_data['fraction'] = final_data['fraction'][::-1, :]
+                # flip unit hydrograph along y axis (axis 1)
+                final_data['unit_hydrograph'] = final_data['unit_hydrograph'][:, ::-1, :]
+            assert dom_data['cord_lats'][0] == final_data[dom_lat][0]
         # -------------------------------------------------------- #
 
         # -------------------------------------------------------- #
@@ -373,19 +422,18 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
     # ------------------------------------------------------------ #
     # Add to "adjust fractions structure"
-    y, x = np.nonzero((final_fracs > 0.0) *
-                      (dom_data[config_dict['DOMAIN']['LAND_MASK_VAR']] == 1))
+    y, x = np.nonzero((final_fracs > 0.0) * (dom_data[dom_mask] == 1))
     yi = y - y0
     xi = x - x0
 
     # From final data
+    outlet.time = np.arange(final_data['unit_hydrograph'].shape[0])
     outlet.fractions = final_data['fraction'][yi, xi]
     outlet.unit_hydrograph = final_data['unit_hydrograph'][:, yi, xi]
 
     # From domain data
-    outlet.time = np.arange(final_data['unit_hydrograph'].shape[0])
-    outlet.lon_source = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
-    outlet.lat_source = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
+    outlet.lon_source = dom_data[dom_lon][y, x]
+    outlet.lat_source = dom_data[dom_lat][y, x]
     outlet.cell_id_source = dom_data['cell_ids'][y, x]
     outlet.x_source = x
     outlet.y_source = y
@@ -414,9 +462,9 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
     log_tar = tar_inputs(log.filename)
 
     log.info('Done with RvicGenParam.')
-    log.info('Location of Inputs: %s' % inputs_tar)
-    log.info('Location of Log: %s' % log_tar)
-    log.info('Location of Parmeter File %s' % param_file)
+    log.info('Location of Inputs: %s', inputs_tar)
+    log.info('Location of Log: %s', log_tar)
+    log.info('Location of Parmeter File %s', param_file)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
@@ -428,7 +476,8 @@ def process_command_line():
     Get the path to the config_file
     """
     # Parse arguments
-    parser = argparse.ArgumentParser(description='Generate RVIC parameter files.')
+    parser = argparse.ArgumentParser(description='Generate RVIC '
+                                                 'parameter files.')
     parser.add_argument("config_file", type=str,
                         help="Input configuration file")
     parser.add_argument("-np", "--numofproc", type=int,
@@ -442,12 +491,12 @@ def process_command_line():
 
 # -------------------------------------------------------------------- #
 # store_result helper function
-results = {}
 def store_result(result):
     # This is called whenever foo_pool(i) returns a result.
     # result_list is modified only by the main process, not the pool workers.
     results[result.cell_id] = result
 # -------------------------------------------------------------------- #
+results = {}
 
 
 # -------------------------------------------------------------------- #
