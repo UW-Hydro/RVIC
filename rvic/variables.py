@@ -154,7 +154,8 @@ class Rvar(object):
                              'domain file')
     # ---------------------------------------------------------------- #
 
-    def set_domain(self, dom_data, domain):
+    # ---------------------------------------------------------------- #
+    def set_domain(self, dom_data, domain, lat0_is_min):
         """ Set the domain size """
         self._check_domain_file(domain['FILE_NAME'])
 
@@ -170,6 +171,21 @@ class Rvar(object):
             raise ValueError('source_x_ind.max() ({0}) > domain xsize'
                              ' ({1})'.format(self.source_x_ind, self.xsize))
         log.info('set domain')
+
+        if lat0_is_min:
+            log.info('Flipping Parameter File Y inds...')
+            self._flip_y_inds()
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Flip the y index order
+    def _flip_y_inds(self):
+        """
+        Flip the y index order
+        """
+        self.source_y_ind = self.ysize - self.source_y_ind - 1
+        self.outlet_y_ind = self.ysize - self.outlet_y_ind - 1
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initilize State

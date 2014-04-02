@@ -89,7 +89,7 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
     directories = make_directories(config_dict['OPTIONS']['CASE_DIR'],
-                                   ['hist', 'logs', 'restarts'])  # 'params',
+                                   ['hist', 'logs', 'restarts'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -105,9 +105,22 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
+    # Initialize the data model
+    forcings = config_dict['INPUT_FORCINGS']
+    data_model = DataModel(forcings['DATL_PATH'],
+                           forcings['DATL_FILE'],
+                           forcings['TIME_VAR'],
+                           forcings['LATITUDE_VAR'],
+                           forcings['DATL_LIQ_FLDS'],
+                           forcings['START'],
+                           forcings['END'])
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
     # Read Domain File
     domain = config_dict['DOMAIN']
-    dom_data, dom_vatts, dom_gatts = read_domain(domain)
+    dom_data, dom_vatts, dom_gatts = read_domain(domain,
+                                                 lat0_is_min=data_model.lat0_is_min)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -119,7 +132,7 @@ def rvic_mod_init(config_file):
                     options['CALENDAR'], directories['restarts'],
                     options['REST_NCFORM'])
 
-    rout_var.set_domain(dom_data, domain)
+    rout_var.set_domain(dom_data, domain, data_model.lat0_is_min)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -139,17 +152,6 @@ def rvic_mod_init(config_file):
     else:
         raise ValueError('RUN_TYPE option {0} is none of these: (restart, '
                          'startup, drystart)'.format(options['RUN_TYPE']))
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Initialize the data model
-    forcings = config_dict['INPUT_FORCINGS']
-    data_model = DataModel(forcings['DATL_PATH'],
-                           forcings['DATL_FILE'],
-                           forcings['TIME_VAR'],
-                           forcings['DATL_LIQ_FLDS'],
-                           forcings['START'],
-                           forcings['END'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -350,7 +352,7 @@ def rvic_mod_final(time_handle, hist_tapes):
     log_tar = tar_inputs(log.filename)
 
     log.info('Done with rvic_model.')
-    log.info('Location of Log: %s' % log_tar)
+    log.info('Location of Log: %s', log_tar)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #

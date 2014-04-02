@@ -264,7 +264,7 @@ def tar_inputs(inputs, suffix='', tar_type='tar'):
 
 # -------------------------------------------------------------------- #
 # Read the domain
-def read_domain(domain_dict):
+def read_domain(domain_dict, lat0_is_min=False):
     """
     Read the domain file and return all the variables and attributes.
     Area is returned in m2
@@ -289,7 +289,7 @@ def read_domain(domain_dict):
         dom_data['cord_lats'] = dom_data[dom_lat][:]
         # ------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
-        if dom_data[dom_lat][-1] > dom_data[dom_lat][0]:
+        if (dom_data[dom_lat][-1] > dom_data[dom_lat][0]) != lat0_is_min:
             log.debug('Domain Inputs came in upside down, flipping everything '
                       'now.')
             var_list = dom_data.keys()

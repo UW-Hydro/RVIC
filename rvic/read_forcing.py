@@ -25,11 +25,12 @@ class DataModel(object):
 
     # ---------------------------------------------------------------- #
     # Initialize
-    def __init__(self, path, file_str, time_fld, liq_flds,
+    def __init__(self, path, file_str, time_fld, lat_fld, liq_flds,
                  start, end):
 
         self.path = path
         self.time_fld = time_fld
+        self.lat_fld = lat_fld
         if isinstance(liq_flds, list):
             self.liq_flds = liq_flds
         else:
@@ -112,6 +113,15 @@ class DataModel(object):
                 self.calendar = f.variables[self.time_fld].calendar
                 self.time_units = f.variables[self.time_fld].units
                 time_series = f.variables[self.time_fld][:]
+
+                # determine the latitude order
+                lats = f.variables[self.lat_fld][:]
+                if lats[-1] > lats[0]:
+                    log.debug('Input fluxes came in upside down, flipping '
+                              'params and maybe domain.')
+                    self.lat0_is_min = True
+                else:
+                    self.lat0_is_min = False
             else:
                 # check that the units match the first file
                 if f.variables[self.time_fld].units != self.time_units:
