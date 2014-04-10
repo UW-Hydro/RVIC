@@ -1,28 +1,26 @@
-#!/usr/bin/env python2.7
 """
 RVIC parameter file development driver
 """
 import os
 import numpy as np
 import pandas as pd
-import argparse
 from collections import OrderedDict
 from logging import getLogger
-from rvic.log import init_logger, LOG_NAME
-from rvic.mpi import LoggingPool
-from rvic.utilities import make_directories, copy_inputs, strip_non_ascii
-from rvic.utilities import read_netcdf, tar_inputs, latlon2yx
-from rvic.utilities import check_ncvars, clean_file, read_domain
-from rvic.aggregate import make_agg_pairs, aggregate
-from rvic.make_uh import rout
-from rvic.share import NcGlobals
-from rvic.write import write_agg_netcdf
-from rvic.variables import Point
-from rvic.param_file import finish_params
-from rvic.config import read_config
+from core.log import init_logger, LOG_NAME
+from core.mpi import LoggingPool
+from core.utilities import make_directories, copy_inputs, strip_non_ascii
+from core.utilities import read_netcdf, tar_inputs, latlon2yx
+from core.utilities import check_ncvars, clean_file, read_domain
+from core.aggregate import make_agg_pairs, aggregate
+from core.make_uh import rout
+from core.share import NcGlobals
+from core.write import write_agg_netcdf
+from core.variables import Point
+from core.param_file import finish_params
+from core.config import read_config
 
 try:
-    from rvic.remap import remap
+    from core.remap import remap
     remap_available = True
 except:
     remap_available = False
@@ -30,12 +28,7 @@ except:
 
 # -------------------------------------------------------------------- #
 # Top level driver
-def main():
-
-    # ---------------------------------------------------------------- #
-    # Read command Line
-    config_file, numofproc = process_command_line()
-    # ---------------------------------------------------------------- #
+def parameters(config_file, numofproc=1):
 
     # ---------------------------------------------------------------- #
     # Initilize
@@ -472,25 +465,6 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 
 
 # -------------------------------------------------------------------- #
-def process_command_line():
-    """
-    Get the path to the config_file
-    """
-    # Parse arguments
-    parser = argparse.ArgumentParser(description='Generate RVIC '
-                                                 'parameter files.')
-    parser.add_argument("config_file", type=str,
-                        help="Input configuration file")
-    parser.add_argument("-np", "--numofproc", type=int,
-                        help="Number of processors used to run job", default=1)
-
-    args = parser.parse_args()
-
-    return args.config_file, args.numofproc
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
 # store_result helper function
 def store_result(result):
     # This is called whenever foo_pool(i) returns a result.
@@ -498,9 +472,3 @@ def store_result(result):
     results[result.cell_id] = result
 # -------------------------------------------------------------------- #
 results = {}
-
-
-# -------------------------------------------------------------------- #
-if __name__ == "__main__":
-    main()
-# -------------------------------------------------------------------- #

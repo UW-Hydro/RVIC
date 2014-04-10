@@ -1,7 +1,6 @@
-#include <stdio.h>
 #include <stdlib.h>
 
-void c_convolve(const int nsources,             /*scalar - number of sources*/
+void convolve(const int nsources,               /*scalar - number of sources*/
                 const int noutlets,             /*scalar - length of subset*/
                 const int subset_length,        /*scalar - length of subset*/
                 const int x_size,
@@ -13,9 +12,9 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
                 const double* aggrunin,         /*2d array[ysize][xsize] - vic runoff flux*/
                 double* ring)                   /*2d array[times][outlets] - convolution ring*/
 {
-    int s, i, j;                              /*counters*/
-    int y, x, offset, outlet;                 /*2d indicies*/
-    int xyind, rind, uhind;                   /*1d indicies*/
+    int s, i, j;                                /*counters*/
+    int y, x, offset, outlet;                   /*2d indicies*/
+    int xyind, rind, uhind;                     /*1d indicies*/
 
     /*Loop through all sources*/
     for (s = 0; s < nsources; s++) {

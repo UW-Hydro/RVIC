@@ -22,11 +22,13 @@ def test_pylint_uhs2paramfile():
     except:
         assert traceback.format_exc() == None
 
+
 def test_pylint_make_parameters():
     try:
         pyc.compile('../make_parameters.py')
     except:
         assert traceback.format_exc() == None
+
 
 def test_pylint_rvic_model():
     try:

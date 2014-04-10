@@ -126,8 +126,8 @@ class NcGlobals:
             self.atts['version'] = version
         else:
             try:
-                cmd = ["git", "describe"]
-                self.atts['version'] = subprocess.check_output(cmd).rstrip()
+                from rvic import version
+                self.atts['version'] = version.short_version
             except:
                 self.atts['version'] = 'unknown'
 

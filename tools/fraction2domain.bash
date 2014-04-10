@@ -1,5 +1,7 @@
 #!/bin/bash -x 
 
+set -e
+
 # This script uses gdal, nco and cdo to make a CESM type domain file from a ascii fraction file
 # gdal --> http://www.gdal.org/
 # nco ---> http://nco.sourceforge.net/
