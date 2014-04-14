@@ -29,6 +29,17 @@ def finish_params(outlets, dom_data, config_dict, directories):
     dom_area = domain['AREA_VAR']
     dom_frac = domain['FRACTION_VAR']
 
+    # ------------------------------------------------------------ #
+    # netCDF variable options
+    ncvaropts = {}
+    if 'NETCDF_ZLIB' in options:
+        ncvaropts['zlib'] = options['NETCDF_ZLIB']
+    if 'NETCDF_COMPLEVEL' in options:
+        ncvaropts['complevel'] = options['NETCDF_COMPLEVEL']
+    if 'NETCDF_SIGFIGS' in options:
+        ncvaropts['least_significant_digit'] = options['NETCDF_SIGFIGS']
+    # ------------------------------------------------------------ #
+
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
     if options['SUBSET_DAYS'] and \
@@ -193,7 +204,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
                      source_decomp_ind=source_decomp_ind,
                      source_time_offset=source_time_offset,
                      source2outlet_ind=source2outlet_ind,
-                     unit_hydrograph=unit_hydrograph)
+                     unit_hydrograph=unit_hydrograph,
+                     **ncvaropts)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

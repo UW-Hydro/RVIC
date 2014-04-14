@@ -6,6 +6,23 @@ config.py
 from ConfigParser import SafeConfigParser
 
 
+class Config(object):
+    def __init__(self, **kwargs):
+        pass
+
+
+class ConvertConfig(Config):
+    pass
+
+
+class ConvolutionConfig(Config):
+    pass
+
+
+class ParametersConfig(Config):
+    pass
+
+
 # -------------------------------------------------------------------- #
 # Read the Configuration File
 def read_config(config_file):
