@@ -126,7 +126,6 @@ def gen_uh_init(config_file):
                 pour_points.names[i] = strip_non_ascii(name)
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna()
-	#pour_points.dropna(inplace=True)
     except Exception as e:
         log.error('Error opening pour points file: '
                   '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
@@ -301,6 +300,19 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     dom_lon = domain['LONGITUDE_VAR']
     dom_mask = domain['LAND_MASK_VAR']
 
+    options = config_dict['OPTIONS']
+
+    # ------------------------------------------------------------ #
+    # netCDF variable options
+    ncvaropts = {}
+    if 'NETCDF_ZLIB' in options:
+        ncvaropts['zlib'] = options['NETCDF_ZLIB']
+    if 'NETCDF_COMPLEVEL' in options:
+        ncvaropts['complevel'] = options['NETCDF_COMPLEVEL']
+    if 'NETCDF_SIGFIGS' in options:
+        ncvaropts['least_significant_digit'] = options['NETCDF_SIGFIGS']
+    # ------------------------------------------------------------ #
+
     # ------------------------------------------------------------ #
     # Loop over pour points
     for j, pour_point in enumerate(outlet.pour_points):
@@ -325,14 +337,14 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
         # -------------------------------------------------------- #
         # aggregate
-        if config_dict['OPTIONS']['AGGREGATE']:
+        if options['AGGREGATE']:
             if j != len(outlet.pour_points)-1:
                 agg_data = aggregate(rout_data, agg_data,
                                      res=fdr_data['resolution'])
             else:
                 agg_data = aggregate(rout_data, agg_data,
                                      res=fdr_data['resolution'],
-                                     pad=config_dict['OPTIONS']['AGG_PAD'],
+                                     pad=options['AGG_PAD'],
                                      maskandnorm=True)
 
                 log.debug('agg_data: {0}, '
@@ -344,7 +356,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
     # ------------------------------------------------------------ #
     # write temporary file #1
-    if config_dict['OPTIONS']['REMAP']:
+    if options['REMAP']:
         glob_atts = NcGlobals(title='RVIC Unit Hydrograph Grid File',
                               RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
                               RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
@@ -354,8 +366,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         temp_file_1 = os.path.join(directories['aggregated'],
                                    'aggUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
 
-        write_agg_netcdf(temp_file_1, agg_data, glob_atts,
-                         config_dict['OPTIONS']['NETCDF_FORMAT'])
+        write_agg_netcdf(temp_file_1, agg_data, glob_atts, 
+                         options['NETCDF_FORMAT'], **ncvaropts)
 
         # -------------------------------------------------------- #
         # Remap temporary file #1 to temporary file #2

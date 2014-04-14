@@ -82,7 +82,7 @@ def uhs2param_init(config_file):
         new_dom_data, new_DomVats, \
             new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
         log.info('Opened New Domain File: %s',
-                  config_dict['NEW_DOMAIN']['FILE_NAME'])
+                 config_dict['NEW_DOMAIN']['FILE_NAME'])
     else:
         new_dom_data = None
     # ---------------------------------------------------------------- #
