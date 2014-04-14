@@ -1,212 +1,148 @@
 """
-convert.py
+Read a set of uhs files and write an RVIC parameter file
 """
-import os
-import re
-import numpy as np
-import logging
-from log import LOG_NAME
-from variables import Point
-from share import FILLVALUE_I
 
-# -------------------------------------------------------------------- #
-# create logger
-log = logging.getLogger(LOG_NAME)
-# -------------------------------------------------------------------- #
+from logging import getLogger
+from core.log import init_logger, LOG_NAME
+from core.utilities import make_directories, copy_inputs, read_domain
+from core.utilities import tar_inputs
+from core.convert import read_station_file, read_uhs_files, move_domain
+from core.param_file import finish_params
+from core.config import read_config
 
 
 # -------------------------------------------------------------------- #
-# read station file
-def read_station_file(file_name, dom_data, config_dict):
-    """
-    Read a standard routing station file
-    http://www.hydro.washington.edu/Lettenmaier/Models/VIC/Documentation/Routing/StationLocation.shtml
-    """
-    outlets = {}
+# Top level driver
+def convert(config_file, numofproc):
 
-    f = open(file_name, 'r')
-    i = -1
-    while True:
-        i += 1
-        line1 = re.sub(' +', ' ', f.readline())
-        if not line1:
-            break
-        active, name, x, y, area = line1.split(' ')
-        uhs_file = f.readline().strip()
+    # ---------------------------------------------------------------- #
+    # Initilize
+    dom_data, new_dom_data, outlets, config_dict, \
+        directories = uhs2param_init(config_file)
+    # ---------------------------------------------------------------- #
 
-        # move to zero based index
-        y = int(y)-1
-        x = int(x)-1
+    # ---------------------------------------------------------------- #
+    # Get main logger
+    log = getLogger(LOG_NAME)
+    # ---------------------------------------------------------------- #
 
-        # make sure files exist
-        log.info('On station: %s, active: %s', name, active)
-        uhs2_file = os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
-                                 name+'.uh_s2')
-        if active == '1':
-            if os.path.isfile(uhs_file):
-                active = True
-            elif os.path.isfile(uhs2_file):
-                active = True
-            else:
-                raise ValueError('missing uhs_file: (%s or %s)', uhs_file,
-                                 uhs2_file)
-        else:
-            active = False
+    # ---------------------------------------------------------------- #
+    # Run
+    log.info('getting outlets now')
+    outlets = uhs2param_run(dom_data, outlets, config_dict, directories)
+    # ---------------------------------------------------------------- #
 
-        if active:
-            outlets[i] = Point(gridx=x, gridy=y)
-            outlets[i].name = name
-            outlets[i].area = float(area)
-            outlets[i].uhs_file = uhs_file
-            outlets[i].cell_id = i
-            outlets[i].outlet_decomp_ind = dom_data['cell_ids'][y, x]
-            outlets[i].lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
-            outlets[i].lat = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
-        else:
-            log.info('%s not active... skipping', name)
-    f.close()
-    return outlets
+    # ---------------------------------------------------------------- #
+    # Finally, make the parameter file
+    uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories)
+    # ---------------------------------------------------------------- #
+    return
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
-# Read uhs files
-def read_uhs_files(outlets, dom_data, config_dict):
-    """
-    Read a standard routing uh_s file
-    Format:
-    line0: num_sources
-    line1: active lon lat fraction x y
-    line2: unit_hydrograph_time_series
-    line1: ...
-    line2: ...
-    """
-    if config_dict['UHS_FILES']['ROUT_PROGRAM'] == 'C':
-        for cell_id, outlet in outlets.iteritems():
-            log.info('Reading outlet %i: %s', cell_id, outlet.name)
-            log.debug(outlet.uhs_file)
-            f = open(outlet.uhs_file, 'r')
-            num_sources = int(f.readline())
-            log.debug('Number of sources in file: %i', num_sources)
-            # setup some empty arrays
-            outlets[cell_id].lon_source = np.empty(num_sources)
-            outlets[cell_id].lat_source = np.empty(num_sources)
-            outlets[cell_id].fractions = np.empty(num_sources)
-            outlets[cell_id].x_source = np.empty(num_sources, dtype=np.int16)
-            outlets[cell_id].y_source = np.empty(num_sources, dtype=np.int16)
+# Init
+def uhs2param_init(config_file):
 
-            uh = []
+    # ---------------------------------------------------------------- #
+    # Read Configuration files
+    config_dict = read_config(config_file)
+    # ---------------------------------------------------------------- #
 
-            # loop over the source points
-            for j in xrange(num_sources):
-                line = re.sub(' +', ' ', f.readline())
-                lon, lat, fracs, x, y = line.split()
-                # move to zero based index
-                y = int(y)-1
-                x = int(x)-1
-                outlets[cell_id].lon_source[j] = float(lon)
-                outlets[cell_id].lat_source[j] = float(lat)
-                outlets[cell_id].fractions[j] = float(fracs)
-                outlets[cell_id].x_source[j] = int(x)
-                outlets[cell_id].y_source[j] = int(y)
-                line = re.sub(' +', ' ', f.readline())
-                uh.append(map(float, line.split()))
+    # ---------------------------------------------------------------- #
+    # Setup Directory Structures
+    directories = make_directories(config_dict['OPTIONS']['CASE_DIR'],
+                                   ['plots', 'logs', 'params', 'inputs'])
+    # ---------------------------------------------------------------- #
 
-            outlets[cell_id].unit_hydrograph = np.rot90(np.array(uh,
-                                                                 dtype=np.float64),
-                                                        k=-1)
-            outlets[cell_id].source_decomp_ind = dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
-            f.close()
+    # ---------------------------------------------------------------- #
+    # copy inputs to $case_dir/inputs and update configuration
+    config_dict = copy_inputs(config_file, directories['inputs'])
+    options = config_dict['OPTIONS']
+    config_dict['POUR_POINTS'] = {'FILE_NAME': config_dict['UHS_FILES']['STATION_FILE']}
+    config_dict['ROUTING']['FILE_NAME'] = 'unknown'
+    config_dict['UH_BOX'] = {'FILE_NAME': 'unknown'}
+    # ---------------------------------------------------------------- #
 
-            outlets[cell_id].cell_id_source = dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
+    # ---------------------------------------------------------------- #
+    # Start Logging
+    log = init_logger(directories['logs'], options['LOG_LEVEL'],
+                      options['VERBOSE'])
 
-    elif config_dict['UHS_FILES']['ROUT_PROGRAM'] == 'Fortran':
-        raise ValueError('Fortran conversion not working...')
-        # log.info('parsing fortran uhs files')
-        # # setup for finding x, y inds
-        # dom_lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']]
-        # dom_lat = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']]
-        # combined = np.dstack(([dom_lat.ravel(), dom_lon.ravel()]))[0]
-        # mytree = cKDTree(combined)
+    for direc in directories:
+        log.info('%s directory is %s' % (direc, directories[direc]))
+    # ---------------------------------------------------------------- #
 
-        # for cell_id, outlet in outlets.iteritems():
-        #     # read lons, lats, and unit hydrographs
-        #     log.debug('reading %s' %outlet.ll_file)
-        #     lons, lats = np.genfromtxt(outlet.ll_file, dtype="f8", unpack=True)
+    # ---------------------------------------------------------------- #
+    # Read domain file (if applicable)
+    dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
+    log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
 
-        #     log.debug('reading %s' %outlet.uhs_file)
-        #     uh = np.genfromtxt(outlet.uhs_file, dtype="f8")
-        #     outlets[cell_id].unit_hydrograph = np.rot90(uh, k=-1)
-        #     if len(lons) != uh.shape[0]:
-        #         raise ValueError('length mismatch in ll file and uhs file %s %s' %(lons.shape, uh.shape))
-
-        #     # now find the y_source and x_sources
-        #     points = list(np.vstack((np.array(lats), np.array(lons))).transpose())
-        #     dist, indexes = mytree.query(points, k=1)
-        #     yinds, xinds = np.unravel_index(np.array(indexes), dom_lat.shape)
-
-        #     # finally, get the fractions and the source_decomp_ind from the domain data
-        #     outlets[cell_id].cell_id_source = dom_data['cell_ids'][yinds, xinds]
-        #     outlets[cell_id].fractions = dom_data[config_dict['DOMAIN']['FRACTION_VAR']][yinds, xinds]
-        #     print 'fractions', outlets[cell_id].fractions
-
-        #     # now store all the data
-        #     outlets[cell_id].lat_source = lats
-        #     outlets[cell_id].lon_source = lons
-        #     outlets[cell_id].y_source = yinds
-        #     outlets[cell_id].x_source = xinds
+    if 'NEW_DOMAIN' in config_dict:
+        new_dom_data, new_DomVats, \
+            new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
+        log.info('Opened New Domain File: %s',
+                  config_dict['NEW_DOMAIN']['FILE_NAME'])
     else:
-        raise ValueError('UHS_FILES[ROUT_PROGRAM] must be either C or Fortran')
+        new_dom_data = None
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Read station file
+    outlets = read_station_file(config_dict['UHS_FILES']['STATION_FILE'],
+                                dom_data, config_dict)
+    # ---------------------------------------------------------------- #
+
+    return dom_data, new_dom_data, outlets, config_dict, directories
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+# run
+def uhs2param_run(dom_data, outlets, config_dict, directories):
+
+    # ---------------------------------------------------------------- #
+    # Read uhs files
+    outlets = read_uhs_files(outlets, dom_data, config_dict)
+    # ---------------------------------------------------------------- #
 
     return outlets
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
-# Adjust Domain Bounds
-def move_domain(dom_data, new_dom_data, outlets):
+#
+def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
+    """
+    Make the RVIC Parameter File
+    """
+
+    log = getLogger(LOG_NAME)
+
+    log.info('In gen_uh_final')
 
     # ---------------------------------------------------------------- #
-    # Create lookup arrays (size of dom_data but contains mapping to new_dom)
-    if dom_data['cord_lons'].ndim == 1:
-        new_y = np.zeros(len(dom_data['cord_lats']),
-                         dtype=np.int16) - FILLVALUE_I
-        new_x = np.zeros(len(dom_data['cord_lons']),
-                         dtype=np.int16) - FILLVALUE_I
-    else:
-        raise ValueError('Grids must be regular and coordinate variables must \
-                         have only 1 dimension to move domain to smaller size')
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Check that lons/lats in new_domain match those in original_domain
-    xi = np.searchsorted(dom_data['cord_lons'], new_dom_data['cord_lons'])
-    yi = np.searchsorted(dom_data['cord_lats'], new_dom_data['cord_lats'])
+    # Move to smaller domain
+    if new_dom_data:
+        outlets = move_domain(dom_data, new_dom_data, outlets)
+        dom_data = new_dom_data
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Fill in the lookup arrays with the correct value
-    new_y[yi] = np.arange(len(yi), dtype=np.int16)
-    new_x[xi] = np.arange(len(xi), dtype=np.int16)
+    # Write the parameter file
+    param_file, today = finish_params(outlets, dom_data, config_dict,
+                                      directories)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Adjust locations
-    for cell_id, outlet in outlets.iteritems():
+    # tar the inputs directory / log file
+    inputs_tar = tar_inputs(directories['inputs'], suffix=today)
+    log_tar = tar_inputs(log.filename)
 
-        outlets[cell_id].gridy = new_y[outlet.gridy]
-        outlets[cell_id].gridx = new_x[outlet.gridx]
-
-        outlets[cell_id].y_source = new_y[outlet.y_source]
-        outlets[cell_id].x_source = new_x[outlet.x_source]
-
-        outlets[cell_id].outlet_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].gridy, outlets[cell_id].gridx]
-        outlets[cell_id].source_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
+    log.info('Done with RvicGenParam.')
+    log.info('Location of Inputs: %s', inputs_tar)
+    log.info('Location of Log: %s', log_tar)
+    log.info('Location of Parmeter File %s', param_file)
     # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Return outles
-    log.info('Finished moving indicies to new domain')
-    return outlets
-    # ---------------------------------------------------------------- #
+    return
 # -------------------------------------------------------------------- #

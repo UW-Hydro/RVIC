@@ -12,23 +12,29 @@ sys.path.append("../")
 
 # -------------------------------------------------------------------- #
 # Unit tests for utilities.py
-from rvic.utilities import *
-from rvic.config import *
+from rvic.core.utilities import *
+from rvic.core.config import *
+
 
 def test_config_type_int():
     assert config_type('1') == 1
 
+
 def test_config_type_float():
     assert config_type('1.75') == 1.75
 
+
 def test_config_type_bool():
-    assert config_type('True') == True
+    assert config_type('True')
+
 
 def test_find_nearest():
     assert find_nearest(np.array([8, 19, 39, 100, 399]), 20) == 1
 
+
 def test_find_nearest_max():
     assert find_nearest(np.array([8, 19, 39, 100, 399]), 500) == 4
+
 
 def test_find_nearest_min():
     assert find_nearest(np.array([8, 19, 39, 100, 399]), 1) == 0
@@ -36,7 +42,8 @@ def test_find_nearest_min():
 
 # -------------------------------------------------------------------- #
 # Unit tests for make_uh.py
-from rvic.make_uh import *
+from rvic.core.make_uh import *
+
 
 def test_find_ts():
     assert find_ts(np.array([0, 86400, 172800])) == 86400
@@ -44,10 +51,11 @@ def test_find_ts():
 
 # -------------------------------------------------------------------- #
 # Unit tests for make_uh.py
-from rvic.time_utility import *
-from rvic.share import TIMEUNITS
+from rvic.core.time_utility import *
+from rvic.core.share import TIMEUNITS
 from netCDF4 import date2num
 from datetime import datetime
+
 
 def test_ord_to_datetime():
     # Independence day

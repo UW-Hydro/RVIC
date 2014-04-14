@@ -126,8 +126,8 @@ class NcGlobals:
             self.atts['version'] = version
         else:
             try:
-                cmd = ["git", "describe"]
-                self.atts['version'] = subprocess.check_output(cmd).rstrip()
+                from rvic import version
+                self.atts['version'] = version.short_version
             except:
                 self.atts['version'] = 'unknown'
 
@@ -222,6 +222,14 @@ outlet_mask = NcVar(long_name='type of outlet point',
 outlet_name = NcVar(long_name='Outlet guage name',
                     units='unitless')
 
+outlet_upstream_area = NcVar(long_name='Upstream catchment area contributing '
+                                       'to outlet',
+                             units='m2')
+
+outlet_upstream_gridcells = NcVar(long_name='Number of upstream grid cells '
+                                            'contributing to outlet',
+                                  units='number of grid cells')
+
 source_x_ind = NcVar(long_name='x grid coordinate of source grid cell',
                      units='unitless')
 
@@ -255,7 +263,9 @@ storage = NcVar(long_name='Mass storage in stream upstream of outlet grid cell',
 timemgr_rst_type = NcVar(long_name='calendar type',
                          units='unitless',
                          flag_values='0, 1, 2, 3, 4, 5, 6',
-                         flag_meanings='NONE, NO_LEAP_C, GREGORIAN, PROLEPTIC_GREGORIAN, ALL_LEAP, 360_DAY, JULIAN')
+                         flag_meanings='NONE, NO_LEAP_C, GREGORIAN, '
+                                       'PROLEPTIC_GREGORIAN, ALL_LEAP, '
+                                       '360_DAY, JULIAN')
 
 timemgr_rst_step_sec = NcVar(long_name='seconds component of timestep size',
                              units='sec',

@@ -3,6 +3,10 @@ make_uh.py
 
 PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
 Routing algorithm developed by D. Lohmann.
+
+Terminology:
+- basin refers to the basin mask given in the RVIC parameter file
+- catachment refers to the set of points upstream from the outlet
 __________________________________
 REVISION HISTORY
 --------
@@ -84,16 +88,25 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     log.debug('dom_y_min: %s', rout_data['dom_y_min'])
     log.debug('dom_y_max: %s', rout_data['dom_y_max'])
     # ---------------------------------------------------------------- #
-    # Determine low direction syntax
-    if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']]:
-        # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/VIC/Documentation/Routing/FlowDirection.shtml
-        dy = {1: -1, 2: -1, 3: 0, 4: 1, 5: 1, 6: 1, 7: 0, 8: -1}
-        dx = {1: 0, 2: 1, 3: 1, 4: 1, 5: 0, 6: -1, 7: -1, 8: - 1}
+    # Determine/Set flow direction syntax
+    # Flow directions {north, northeast, east, southeast,
+    # south, southwest, west, northwest}
+    if 'VIC' in fdr_atts[rout_dict['FLOW_DIRECTION_VAR']] or \
+            fdr_data[rout_dict['FLOW_DIRECTION_VAR']].max() < 10:
+        # VIC Directions: http://www.hydro.washington.edu/Lettenmaier/Models/\
+        # VIC/Documentation/Routing/FlowDirection.shtml
+        dy = {1: -1, 2: -1, 3: 0, 4: 1,
+              5: 1, 6: 1, 7: 0, 8: -1}
+        dx = {1: 0, 2: 1, 3: 1, 4: 1,
+              5: 0, 6: -1, 7: -1, 8: - 1}
         log.debug('Using VIC flow directions (1-8).')
     else:
-        # ARCMAP Directions: http://webhelp.esri.com/arcgisdesktop/9.2/index.cfm?TopicName=flow_direction
-        dy = {1: 0, 2: 1, 4: 1, 8: 1, 16: 0, 32: -1, 64: -1, 128: -1}
-        dx = {1: 1, 2: 1, 4: 0, 8: -1, 16: -1, 32: -1, 64: 0, 128: 1}
+        # ARCMAP Directions: http://webhelp.esri.com/arcgisdesktop/9.2/\
+        # index.cfm?TopicName=flow_direction
+        dy = {64: -1, 128: -1, 1: 0, 2: 1,
+              4: 1, 8: 1, 16: 0, 32: -1}
+        dx = {64: 0, 128: 1, 1: 1, 2: 1,
+              4: 0, 8: -1, 16: -1, 32: -1}
         log.debug('Using ARCMAP flow directions (1-128).')
     # ---------------------------------------------------------------- #
 
@@ -171,21 +184,18 @@ def read_direction(fdr, dy, dx):
     """
     log.debug('Reading direction input and finding target row/columns')
 
-    to_y = np.zeros(fdr.shape, dtype=np.int16)
-    to_x = np.zeros(fdr.shape, dtype=np.int16)
+    to_y = np.zeros_like(fdr, dtype=np.int16)
+    to_x = np.zeros_like(fdr, dtype=np.int16)
+
+    valid_dirs = dy.keys()
 
     for (y, x), d in np.ndenumerate(fdr):
-        try:
-            to_y[y, x] = y - dy[d]
+        if d in valid_dirs:
+            to_y[y, x] = y + dy[d]
             to_x[y, x] = x + dx[d]
-        except KeyError as e:
-            if (d == 0) or (d == -9999):
-                to_y[y, x] = -9999
-                to_x[y, x] = -9999
-            else:
-                log.error('got a flow direction key that we dont '
-                          'know: %s', d)
-                raise e
+        else:
+            to_y[y, x] = -9999
+            to_x[y, x] = -9999
 
     return to_y, to_x
 # -------------------------------------------------------------------- #
@@ -205,47 +215,89 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     """
     log.debug('Searching catchment')
 
-    count = 0
     (len_y, len_x) = to_x.shape
 
     byinds, bxinds = np.nonzero(basin_ids == basin_id)
+    bsize = len(byinds)
 
-    cyinds = []
-    cxinds = []
-    count_ds = []
+    # out fractions
+    catch_fracs = np.zeros_like(to_x, dtype=np.float64)
 
-    fractions = np.zeros_like(to_x, dtype=np.float64)
+    # temporary 2d arrays
+    count_ds = np.zeros_like(to_x, dtype=np.uint32)
 
-    for y, x in zip(byinds, bxinds):
-        yy, xx = y, x
-        cells = 0
-        while True:
-            if ((yy == pour_point.basiny) and (xx == pour_point.basinx)):
-                cyinds.append(y)
-                cxinds.append(x)
-                count_ds.append(cells)
-                fractions[y, x] = 1
-                count += 1
-                break
-            else:
-                yy, xx = to_y[yy, xx], to_x[yy, xx]
-                cells += 1
-                if (xx > (len_x - 1)) or (xx < 0) \
-                        or (yy > (len_y - 1)) or (yy < 0):
+    # In catch array (starts as -1)
+    # -1 - not in catchment
+    # 0 - unknown
+    # 1 - in catchment
+    in_catch = np.zeros_like(to_x, dtype=np.int16) - 1
+    in_catch[byinds, bxinds] = 0  # set basin inds as 0
+
+    # temporary variables for tracking flow path
+    path_count = np.zeros(bsize, dtype=np.uint32)
+    pathy = np.zeros(bsize, dtype=np.uint32)
+    pathx = np.zeros(bsize, dtype=np.uint32)
+
+    cells = 0
+
+    for yy, xx in zip(byinds, bxinds):
+        if in_catch[yy, xx] >= 0:
+            # set the old path to zero
+            pathy[:cells+1] = 0
+            pathx[:cells+1] = 0
+
+            # reset the cells counter
+            cells = 0
+
+            while True:
+                pathy[cells] = yy
+                pathx[cells] = xx
+                path_count[cells] = cells
+
+                # stop if you reach the pour point or if you reach a point you
+                # know is in the catchment
+                if ((yy == pour_point.basiny) and (xx == pour_point.basinx)) \
+                        or in_catch[yy, xx] == 1:
+
+                    # get the path inds
+                    py = pathy[:cells+1]
+                    px = pathx[:cells+1]
+
+                    # Add path to in_catch and count_ds
+                    in_catch[py, px] = 1
+
+                    # reverse the path count
+                    temp_path = path_count[:cells+1][::-1]
+                    count_ds[py, px] = (count_ds[yy, xx] + temp_path)
+
                     break
+                else:
+                    # Move downstream
+                    yy, xx = to_y[yy, xx], to_x[yy, xx]
+                    cells += 1
+                    if (xx == len_x) or (xx < 0) or (yy == len_y) or (yy < 0) \
+                            or (in_catch[yy, xx] == -1):
+                        # That path is not in the catchment
+                        py = pathy[:cells]
+                        px = pathx[:cells]
+                        in_catch[py, px] = -1  # set to -1
+                        break
+
+    catchment = {}
+    cyinds, cxinds = np.nonzero(in_catch == 1)
+    catchment['count_ds'] = count_ds[cyinds, cxinds]
+    catch_fracs[cyinds, cxinds] = 1.0
+
+    count = len(cyinds)
+    tempy, tempx = np.nonzero(count_ds)
 
     log.debug("Found %i upstream grid cells from present station", count)
     log.debug("Expected at most %i upstream grid cells from present station",
-              len(byinds))
+              bsize)
 
-    if count > len(byinds):
+    if count > bsize:
         log.exception('Error, too many points found.')
         raise
-
-    catchment = {}
-    cyinds = np.array(cyinds, dtype=np.uint16)
-    cxinds = np.array(cxinds, dtype=np.uint16)
-    catchment['count_ds'] = np.array(count_ds, dtype=np.uint16)
 
     # ---------------------------------------------------------------- #
     # sort catchment
@@ -254,7 +306,7 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     catchment['x_inds'] = cxinds[ii]
     catchment['y_inds'] = cyinds[ii]
     # ---------------------------------------------------------------- #
-    return catchment, fractions
+    return catchment, catch_fracs
 # -------------------------------------------------------------------- #
 
 
@@ -292,7 +344,7 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point, y_inds,
     Calculate impulse response function for river routing.  Starts at
     downstream point incrementally moves upstream.
     """
-    log.debug("Making uh_river grid.... It takes a while...")
+    log.debug("Making uh_river grid....")
     y_ind = pour_point.basiny
     x_ind = pour_point.basinx
 
@@ -341,6 +393,7 @@ def make_grid_uh(t_uh, t_cell, uh_river, uh_box, to_y, to_x, y_inds, x_inds,
         else:
             irf_temp[:len(uh_box)] = uh_box[:]
             unit_hydrograph[:, y, x] = irf_temp[:t_uh]
+
     return unit_hydrograph
 # -------------------------------------------------------------------- #
 

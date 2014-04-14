@@ -1,4 +1,6 @@
-#!/usr/bin/env bash
+#!/bin/bash -x 
+
+set -e
 
 # This script uses gdal, nco and cdo to make a CESM type domain file from a ascii fraction file
 # gdal --> http://www.gdal.org/
@@ -13,8 +15,10 @@ grid_name=$2
 
 # -------------------------------------------------------------------- #
 # Local variables
+temp_frac1=temp_frac1.nc
 temp_frac=temp_frac.nc
 temp_area=temp_area.nc
+temp_mask1=temp_mask1.nc
 temp_mask=temp_mask.nc
 
 outfile="domain.rvic."$grid_name"."`eval date +%Y%m%d`".nc"
@@ -25,7 +29,8 @@ PLANET_RADIUS=6371000
 # -------------------------------------------------------------------- #
 # Make fraction variable
 echo 'making fraction variable'
-gdal_translate -of netCDF $fraction_file $temp_frac
+gdal_translate -of netCDF $fraction_file $temp_frac1
+ncap2 -s 'Band1=double(Band1)' $temp_frac1 $temp_frac
 ncrename -v Band1,frac $temp_frac
 ncatted -O -a long_name,frac,o,c,"fraction of grid cell that is active" $temp_frac
 ncatted -O -a note,frac,a,c,"unitless" $temp_frac
@@ -47,7 +52,8 @@ echo 'done making area variable'
 # -------------------------------------------------------------------- #
 # Make land mask file (1 = land, 0 = not land)
 echo 'making mask variable'
-ncap2 -O -v -s 'mask=frac;where(frac>0) mask=1; elsewhere mask=0;' $temp_frac $temp_mask
+ncap2 -O -v -s 'mask=frac' temp_frac.nc $temp_mask1
+ncap2 -O -v -s 'where(mask>0.0000001) mask=1; elsewhere mask=0;' $temp_mask1 $temp_mask
 ncatted -O -a long_name,mask,a,c,"domain mask" $temp_mask
 ncatted -O -a note,mask,a,c,"unitless" $temp_mask
 ncatted -O -a comment,mask,a,c,"0 value indicates cell is not active" $temp_mask
@@ -65,6 +71,6 @@ ncatted -O -a source,global,o,c,"$0" $outfile
 
 # -------------------------------------------------------------------- #
 # remove temporary files
-rm $temp_frac $temp_mask $temp_area
+rm $temp_frac1 $temp_frac $temp_mask1 $temp_mask $temp_area
 # -------------------------------------------------------------------- #
 
