@@ -13,14 +13,13 @@ Summary:
 """
 import os
 import numpy as np
-from netCDF4 import Dataset, date2num, num2date
+from netCDF4 import Dataset, date2num, num2date, stringtochar
 from datetime import datetime
 from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_CHAR
 from share import NC_DOUBLE, WATERDENSITY
-# from share import NC_CHAR, RVIC_TRACERS
 import share
 
 
@@ -42,7 +41,8 @@ class Tape(object):
                  avgflag='A', units='kg m-2 s-1',
                  file_format='NETCDF4_CLASSIC', outtype='grid',
                  grid_lons=False, grid_lats=False, grid_area=None, out_dir='.',
-                 calendar=None, glob_ats=None):
+                 calendar=None, glob_ats=None, zlib=True, complevel=4, 
+                 least_significant_digit=None):
         self._tape_num = tape_num
         self._time_ord = time_ord        # Days since basetime
         self._caseid = caseid            # Case ID and prefix for outfiles
@@ -102,6 +102,13 @@ class Tape(object):
             self._units_mult = grid_area / WATERDENSITY
         else:
             raise ValueError('{0} is not a valid units string'.format(units))
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # netCDF variable options
+        self.ncvaropts = {'zlib': zlib,
+                          'complevel': complevel,
+                          'least_significant_digit': least_significant_digit}
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -280,6 +287,7 @@ class Tape(object):
         self._outlet_y_ind = rvar.outlet_y_ind
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
+        self._outlet_name = rvar.outlet_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -374,7 +382,7 @@ class Tape(object):
             time.bounds = 'time_bnds'
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
-                                         ('time', 'nv',))
+                                         ('time', 'nv',), **self.ncvaropts)
             time_bnds[:, :] = self._out_time_bnds
         # ------------------------------------------------------------ #
 
@@ -387,8 +395,8 @@ class Tape(object):
             xc = f.createDimension('xc', self._grid_lons.shape[1])
             yc = f.createDimension('yc', self._grid_lons.shape[0])
 
-            xc = f.createVariable('xc', self._ncprec, coords)
-            yc = f.createVariable('yc', self._ncprec, coords)
+            xc = f.createVariable('xc', self._ncprec, coords, **self.ncvaropts)
+            yc = f.createVariable('yc', self._ncprec, coords, **self.ncvaropts)
             xc[:, :] = self._grid_lons
             yc[:, :] = self._grid_lats
 
@@ -406,8 +414,10 @@ class Tape(object):
             lon = f.createDimension('lon', len(self._grid_lons))
             lat = f.createDimension('lat', len(self._grid_lats))
 
-            lon = f.createVariable('lon', self._ncprec, ('lon',))
-            lat = f.createVariable('lat', self._ncprec, ('lat',))
+            lon = f.createVariable('lon', self._ncprec, ('lon',),
+                                   **self.ncvaropts)
+            lat = f.createVariable('lat', self._ncprec, ('lat',),
+                                   **self.ncvaropts)
             lon[:] = self._grid_lons
             lat[:] = self._grid_lats
 
@@ -425,7 +435,8 @@ class Tape(object):
         tcoords = ('time',) + coords
 
         for field in self._fincl:
-            var = f.createVariable(field, self._ncprec, tcoords)
+            var = f.createVariable(field, self._ncprec, tcoords,
+                                   **self.ncvaropts)
             var[:, :] = self._out_data[field] * self._units_mult
 
             for key, val in getattr(share, field).__dict__.iteritems():
@@ -461,7 +472,8 @@ class Tape(object):
         # Time Variable
         time = f.createDimension('time', None)
 
-        time = f.createVariable('time', self._ncprec, ('time',))
+        time = f.createVariable('time', self._ncprec, ('time',),
+                                **self.ncvaropts)
         time[:] = self._out_times
         for key, val in share.time.__dict__.iteritems():
             if val:
@@ -474,7 +486,7 @@ class Tape(object):
             time.bounds = 'time_bnds'
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
-                                         ('time', 'nv',))
+                                         ('time', 'nv',), **self.ncvaropts)
             time_bnds[:, :] = self._out_time_bnds
         # ------------------------------------------------------------ #
 
@@ -484,17 +496,32 @@ class Tape(object):
 
         outlets = f.createDimension('outlets', self._num_outlets)
 
-        outlet_lon = f.createVariable('lon', self._ncprec, coords)
-        outlet_lat = f.createVariable('lat', self._ncprec, coords)
-        outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
-        outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
+        nocoords = coords + ('nc_chars',)
+        char_names = stringtochar(self._outlet_name)
+        chars = f.createDimension(nocoords[1], char_names.shape[1])
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Variables
+        outlet_lon = f.createVariable('lon', self._ncprec, coords,
+                                      **self.ncvaropts)
+        outlet_lat = f.createVariable('lat', self._ncprec, coords,
+                                      **self.ncvaropts)
+        outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords,
+                                        **self.ncvaropts)
+        outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords,
+                                        **self.ncvaropts)
         outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT,
-                                             coords)
+                                             coords, **self.ncvaropts)
+        onm = f.createVariable('outlet_name', NC_CHAR, nocoords,
+                               **self.ncvaropts)
+
         outlet_lon[:] = self._outlet_lon
         outlet_lat[:] = self._outlet_lat
         outlet_x_ind[:] = self._outlet_x_ind
         outlet_y_ind[:] = self._outlet_y_ind
         outlet_decomp_ind[:] = self._outlet_decomp_ind
+        onm[:, :] = char_names
 
         for key, val in share.outlet_lon.__dict__.iteritems():
             if val:
@@ -515,6 +542,10 @@ class Tape(object):
         for key, val in share.outlet_decomp_ind.__dict__.iteritems():
             if val:
                 setattr(outlet_decomp_ind, key, val)
+
+        for key, val in share.outlet_name.__dict__.iteritems():
+            if val:
+                setattr(onm, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -522,7 +553,8 @@ class Tape(object):
         tcoords = ('time',) + coords
 
         for field in self._fincl:
-            var = f.createVariable(field, self._ncprec, tcoords)
+            var = f.createVariable(field, self._ncprec, tcoords,
+                                   **self.ncvaropts)
             var[:, :] = self._out_data[field] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
 
             for key, val in getattr(share, field).__dict__.iteritems():
@@ -540,7 +572,7 @@ class Tape(object):
         f.featureType = "timeSeries"
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % self.filename)
+        log.info('Finished writing %s', self.filename)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

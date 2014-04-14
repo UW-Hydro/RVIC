@@ -43,10 +43,10 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
                                glats=fdr_lats,
                                glons=fdr_lons)
 
-    gridys, gridxs = latlon2yx(plats=lats,
-                               plons=lons,
-                               glats=dom_lat,
-                               glons=dom_lon)
+    domys, domxs = latlon2yx(plats=lats,
+                             plons=lons,
+                             glats=dom_lat,
+                             glons=dom_lon)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -57,25 +57,26 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
         # Define pour point object (on )
         pour_point = Point(lat=lat,
                            lon=lon,
-                           gridx=gridxs[i],
-                           gridy=gridys[i],
+                           domx=domxs[i],
+                           domy=domys[i],
                            routx=routxs[i],
                            routy=routys[i],
                            name=None,
-                           cell_id=dom_ids[gridys[i], gridxs[i]])
-        pour_point.source_area = fdr_srcarea[pour_point.routy, pour_point.routx]
+                           cell_id=dom_ids[domys[i], domxs[i]])
+        pour_point.source_area = fdr_srcarea[pour_point.routy,
+                                             pour_point.routx]
 
-        cell_id = dom_ids[gridys[i], gridxs[i]]
+        cell_id = dom_ids[domys[i], domxs[i]]
 
         if cell_id in outlets:
             outlets[cell_id].pour_points.append(pour_point)
             outlets[cell_id].upstream_area += pour_point.source_area
         else:
             # define outlet grid cell (on domain grid)
-            outlets[cell_id] = Point(gridy=gridys[i],
-                                     gridx=gridxs[i],
-                                     lat=dom_lat[gridys[i], gridxs[i]],
-                                     lon=dom_lon[gridys[i], gridxs[i]])
+            outlets[cell_id] = Point(domy=domys[i],
+                                     domx=domxs[i],
+                                     lat=dom_lat[domys[i], domxs[i]],
+                                     lon=dom_lon[domys[i], domxs[i]])
             outlets[cell_id].pour_points = [pour_point]
             outlets[cell_id].cell_id = cell_id
             outlets[cell_id].upstream_area = pour_point.source_area

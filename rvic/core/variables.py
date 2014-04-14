@@ -26,13 +26,13 @@ class Point(object):
     Creates a point class for intellegently storing coordinate information
     '''
 
-    def __init__(self, lat='', lon='', gridx='', gridy='', routx='',
-                 routy='', name=None, cell_id=None):
+    def __init__(self, lat=-9999.9, lon=-9999.9, domx=-9999, domy=-9999,
+                 routx=-9999, routy=-9999, name='', cell_id=-9999):
         '''Defines x and y variables'''
         self.lat = lat
         self.lon = lon
-        self.gridx = gridx
-        self.gridy = gridy
+        self.domx = domx
+        self.domy = domy
         self.routx = routx
         self.routy = routy
         self.cell_id = cell_id
@@ -40,17 +40,26 @@ class Point(object):
         if name:
             self.name = name
         else:
-            self.name = 'outlet_{:3.4f}_{:3.4f}'.format(self.lat, self.lon)
+            self.name = 'outlet_{0:3.4f}_{1:3.4f}'.format(self.lat, self.lon)
+
+        return
 
     def __str__(self):
-        return ("Point({}, {:3.4f}, {:3.4f}, {:3.4f}, "
-                "{:3.4f})".format(self.name, self.lat, self.lon, self.gridy,
-                                  self.gridx))
+        return ("Point({0}, lat:{1:3.4f}, lon:{2:3.4f}, y:{3:d}, "
+                "x:{4:d})".format(self.name, self.lat, self.lon, self.domy,
+                                  self.domx))
 
     def __repr__(self):
-        return ("Point({}, {:3.4f}, {:3.4f}, {:3.4f}, "
-                "{:3.4f})".format(self.name, self.lat, self.lon, self.gridy,
-                                  self.gridx))
+        return ("    -- Point --    \n"
+                "name:\t{0}\n"
+                "lat:\t{1:3.4f}\n"
+                "lon:\t{2:3.4f}\n"
+                "domy:\t{3:d}\n"
+                "domx:\t{4:d}\n"
+                "routy:\t{5:d}\n"
+                "routx:\t{6:d}\n".format(self.name, self.lat, self.lon,
+                                         self.domy, self.domx,
+                                         self.routy, self.routx))
 # -------------------------------------------------------------------- #
 
 
@@ -61,7 +70,8 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     # Initialize
-    def __init__(self, param_file, case_name, calendar, out_dir, file_format):
+    def __init__(self, param_file, case_name, calendar, out_dir, file_format,
+                 zlib=True, complevel=4, least_significant_digit=None):
         self.param_file = param_file
         f = Dataset(param_file, 'r')
         self.n_sources = len(f.dimensions['sources'])
@@ -120,32 +130,43 @@ class Rvar(object):
         self._calendar = calendar
         self.__fname_format = os.path.join(out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
 
+        # ------------------------------------------------------------ #
         # CESM calendar key (only NO_LEAP_C, GREGORIAN are supported in CESM)
         self._calendar_key = 0
         for key, cals in CALENDAR_KEYS.iteritems():
             if self._calendar in cals:
                 self._calendar_key = key
                 break
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # netCDF variable options
+        self.ncvaropts = {'zlib': zlib,
+                          'complevel': complevel,
+                          'least_significant_digit': least_significant_digit}
+        # ------------------------------------------------------------ #
+
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Check that grid file matches
+    # Check that dom file matches
     def _check_domain_file(self, domain_file):
         """
-        Confirm that the grid files match in the parameter and domain files
+        Confirm that the dom files match in the parameter and domain files
         """
         input_file = os.path.split(domain_file)[1]
         log.info('domain_file: %s', input_file)
         log.info('Parameter RvicDomainFile: %s', self.RvicDomainFile)
 
         if input_file == self.RvicDomainFile:
-            log.info('Grid files match in parameter and domain file')
+            log.info('dom files match in parameter and domain file')
         else:
-            raise ValueError('Grid files do not match in parameter and '
+            raise ValueError('dom files do not match in parameter and '
                              'domain file')
     # ---------------------------------------------------------------- #
 
-    def set_domain(self, dom_data, domain):
+    # ---------------------------------------------------------------- #
+    def set_domain(self, dom_data, domain, lat0_is_min):
         """ Set the domain size """
         self._check_domain_file(domain['FILE_NAME'])
 
@@ -161,6 +182,21 @@ class Rvar(object):
             raise ValueError('source_x_ind.max() ({0}) > domain xsize'
                              ' ({1})'.format(self.source_x_ind, self.xsize))
         log.info('set domain')
+
+        if lat0_is_min:
+            log.info('Flipping Parameter File Y inds...')
+            self._flip_y_inds()
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Flip the y index order
+    def _flip_y_inds(self):
+        """
+        Flip the y index order
+        """
+        self.source_y_ind = self.ysize - self.source_y_ind - 1
+        self.outlet_y_ind = self.ysize - self.outlet_y_ind - 1
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initilize State
@@ -339,7 +375,7 @@ class Rvar(object):
 
         # Current time
         time = f.createDimension('time', 1)
-        time = f.createVariable('time', NC_DOUBLE, ('time',))
+        time = f.createVariable('time', NC_DOUBLE, ('time',), **self.ncvaropts)
         time[:] = date2num(self.timestamp, TIMEUNITS, calendar=self._calendar)
 
         for key, val in share.time.__dict__.iteritems():
@@ -349,7 +385,8 @@ class Rvar(object):
 
         # Timesteps
         timesteps = f.createDimension('timesteps', self.full_time_length)
-        timesteps = f.createVariable('timesteps', NC_DOUBLE, ('timesteps',))
+        timesteps = f.createVariable('timesteps', NC_DOUBLE, ('timesteps',),
+                                     **self.ncvaropts)
         timesteps[:] = np.arange(self.full_time_length)
 
         for key, val in share.timesteps.__dict__.iteritems():
@@ -359,27 +396,30 @@ class Rvar(object):
 
         # UH timestep
         unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt',
-                                              NC_DOUBLE, ())
+                                              NC_DOUBLE, (), **self.ncvaropts)
         unit_hydrograph_dt[:] = self.unit_hydrograph_dt
         for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
             if val:
                 setattr(unit_hydrograph_dt, key, val)
 
-        timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, ())
+        timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, (),
+                                            **self.ncvaropts)
         timemgr_rst_type[:] = self._calendar_key
         for key, val in share.timemgr_rst_type.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_type, key, val)
 
         timemgr_rst_step_sec = f.createVariable('timemgr_rst_step_sec',
-                                                NC_DOUBLE, ())
+                                                NC_DOUBLE, (),
+                                                **self.ncvaropts)
         timemgr_rst_step_sec[:] = self.unit_hydrograph_dt
         for key, val in share.timemgr_rst_step_sec.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_step_sec, key, val)
 
         timemgr_rst_start_ymd = f.createVariable('timemgr_rst_start_ymd',
-                                                 NC_DOUBLE, ())
+                                                 NC_DOUBLE, (),
+                                                 **self.ncvaropts)
         timemgr_rst_start_ymd[:] = self._start_date.year*10000 \
             + self._start_date.month*100 + self._start_date.day
         for key, val in share.timemgr_rst_start_ymd.__dict__.iteritems():
@@ -387,28 +427,32 @@ class Rvar(object):
                 setattr(timemgr_rst_start_ymd, key, val)
 
         timemgr_rst_start_tod = f.createVariable('timemgr_rst_start_tod',
-                                                 NC_DOUBLE, ())
+                                                 NC_DOUBLE, (),
+                                                 **self.ncvaropts)
         timemgr_rst_start_tod[:] = (self._start_ord % 1) * SECSPERDAY
         for key, val in share.timemgr_rst_start_tod.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_start_tod, key, val)
 
         timemgr_rst_ref_ymd = f.createVariable('timemgr_rst_ref_ymd',
-                                               NC_DOUBLE, ())
+                                               NC_DOUBLE, (),
+                                               **self.ncvaropts)
         timemgr_rst_ref_ymd[:] = REFERENCE_DATE
         for key, val in share.timemgr_rst_ref_ymd.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_ref_ymd, key, val)
 
         timemgr_rst_ref_tod = f.createVariable('timemgr_rst_ref_tod',
-                                               NC_DOUBLE, ())
+                                               NC_DOUBLE, (),
+                                               **self.ncvaropts)
         timemgr_rst_ref_tod[:] = REFERENCE_TIME
         for key, val in share.timemgr_rst_ref_tod.__dict__.iteritems():
             if val:
                 setattr(timemgr_rst_ref_tod, key, val)
 
         timemgr_rst_curr_ymd = f.createVariable('timemgr_rst_curr_ymd',
-                                                NC_DOUBLE, ())
+                                                NC_DOUBLE, (),
+                                                **self.ncvaropts)
         timemgr_rst_curr_ymd[:] = self.timestamp.year*10000 + \
             self.timestamp.month*100+self.timestamp.day
         for key, val in share.timemgr_rst_curr_ymd.__dict__.iteritems():
@@ -416,7 +460,8 @@ class Rvar(object):
                 setattr(timemgr_rst_curr_ymd, key, val)
 
         timemgr_rst_curr_tod = f.createVariable('timemgr_rst_curr_tod',
-                                                NC_DOUBLE, ())
+                                                NC_DOUBLE, (),
+                                                **self.ncvaropts)
         timemgr_rst_curr_tod[:] = (self.time_ord % 1)*SECSPERDAY
         for key, val in share.timemgr_rst_curr_tod.__dict__.iteritems():
             if val:
@@ -431,13 +476,14 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Write Fields
-        locfnh = f.createVariable('locfnh', NC_CHAR, coords)
+        locfnh = f.createVariable('locfnh', NC_CHAR, coords, **self.ncvaropts)
         for i, string in enumerate(current_history_files):
             locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
         locfnh.long_name = 'History filename'
-        locfnh.comment = 'This variable NOT needed for startup or branch simulations'
+        locfnh.comment = 'This variable is NOT needed for startup or branch simulations'
 
-        locfnhr = f.createVariable('locfnhr', NC_CHAR, coords)
+        locfnhr = f.createVariable('locfnhr', NC_CHAR, coords,
+                                   **self.ncvaropts)
         for i, string in enumerate(history_restart_files):
             locfnh[i, :] = stringtochar(np.array(string.ljust(MAX_NC_CHARS)))
         locfnhr.long_name = 'History restart filename'
@@ -453,19 +499,22 @@ class Rvar(object):
 
         # ------------------------------------------------------------ #
         # Write Fields
-        oyi = f.createVariable('outlet_y_ind', NC_INT, coords[0])
+        oyi = f.createVariable('outlet_y_ind', NC_INT, coords[0],
+                               **self.ncvaropts)
         oyi[:] = self.outlet_y_ind
         for key, val in share.outlet_y_ind.__dict__.iteritems():
             if val:
                 setattr(oyi, key, val)
 
-        oxi = f.createVariable('outlet_x_ind', NC_INT, coords[0])
+        oxi = f.createVariable('outlet_x_ind', NC_INT, coords[0],
+                               **self.ncvaropts)
         oxi[:] = self.outlet_x_ind
         for key, val in share.outlet_x_ind.__dict__.iteritems():
             if val:
                 setattr(oxi, key, val)
 
-        odi = f.createVariable('outlet_decomp_ind', NC_INT, coords[0])
+        odi = f.createVariable('outlet_decomp_ind', NC_INT, coords[0],
+                               **self.ncvaropts)
         odi[:] = self.outlet_decomp_ind
         for key, val in share.outlet_decomp_ind.__dict__.iteritems():
             if val:
@@ -475,7 +524,7 @@ class Rvar(object):
 
         for tracer in RVIC_TRACERS:
             ring = f.createVariable('{0}_ring'.format(tracer),
-                                    NC_DOUBLE, tcoords)
+                                    NC_DOUBLE, tcoords, **self.ncvaropts)
             ring[:, :] = self.ring[tracer][:, :]
 
             for key, val in share.ring.__dict__.iteritems():
