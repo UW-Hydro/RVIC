@@ -330,15 +330,22 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # if out_data is full, write
         if self._out_data_i == self._out_data_write:
+            self.finish()
+            self._out_data_i = 0
+        else:
+            self._out_data_i += 1
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    def finish(self):
+        """write out_data"""
+        if self._out_data_i > 0:
             if self._outtype == 'grid':
                 self.__write_grid()
             else:
                 self.__write_array()
 
             self.files_count += 1
-            self._out_data_i = 0
-        else:
-            self._out_data_i += 1
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -430,7 +437,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self._ncprec, ('time',))
-        time[:] = self._out_times
+        time[:] = self._out_times[:self._out_data_i+1]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -443,7 +450,7 @@ class Tape(object):
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
                                          ('time', 'nv',))
-            time_bnds[:, :] = self._out_time_bnds
+            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i+1]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -494,7 +501,7 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult
+            var[:, :] = self._out_data[field][:self._out_data_i+1] * self._units_mult
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
@@ -530,7 +537,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self._ncprec, ('time',))
-        time[:] = self._out_times
+        time[:] = self._out_times[:self._out_data_i+1]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -543,7 +550,7 @@ class Tape(object):
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
                                          ('time', 'nv',))
-            time_bnds[:, :] = self._out_time_bnds
+            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i+1]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -605,7 +612,7 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
+            var[:, :] = self._out_data[field][:self._out_data_i+1] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:

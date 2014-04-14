@@ -309,6 +309,12 @@ def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         else:
             break
         # ------------------------------------------------------------ #
+
+    # ---------------------------------------------------------------- #
+    # Make sure we write out the last history file
+    for tapename, tape in hist_tapes.iteritems():
+        log.debug('Closing Tape: %s', tapename)
+        tape.finish()
     # ---------------------------------------------------------------- #
     return time_handle, hist_tapes
 # -------------------------------------------------------------------- #
