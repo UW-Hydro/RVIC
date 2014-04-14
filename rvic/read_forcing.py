@@ -56,7 +56,7 @@ class DataModel(object):
 
         # yearly files
         elif len(start) == 1:
-            for year in xrange(start[0], end[0]):
+            for year in xrange(start[0], end[0]+1):
                 self.files.append(os.path.join(self.path,
                                   file_str.replace('$YYYY',
                                                    "{0:04d}".format(year))))
