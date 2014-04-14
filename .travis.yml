@@ -20,4 +20,8 @@ install:
   - python setup.py install
 # Run test
 script:
+  - which python
+  - python --version
+  - conda list
+  - pip freeze
   - py.test
