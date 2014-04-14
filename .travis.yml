@@ -17,7 +17,7 @@ before_install:
 install:
   - conda create --yes -n rvic_env python=$TRAVIS_PYTHON_VERSION 
   - source activate rvic_env
-  - pip install -r ci/requireemnts-2.7.txt
+  - pip install -r ci/requirements-2.7.txt
   - python setup.py install
 # Run test
 script:
