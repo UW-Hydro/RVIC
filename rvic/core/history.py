@@ -13,14 +13,13 @@ Summary:
 """
 import os
 import numpy as np
-from netCDF4 import Dataset, date2num, num2date
+from netCDF4 import Dataset, date2num, num2date, stringtochar
 from datetime import datetime
 from time_utility import ord_to_datetime
 from logging import getLogger
 from log import LOG_NAME
-from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT
-from share import NC_DOUBLE, WATERDENSITY
-# from share import NC_CHAR, RVIC_TRACERS
+from share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, NC_INT, NC_FLOAT, NC_CHAR
+from share import NC_DOUBLE, WATERDENSITY, MONTHSPERYEAR
 import share
 
 
@@ -63,33 +62,35 @@ class Tape(object):
         self._out_dir = out_dir
         self._glob_ats = glob_ats
 
-        self._out_data_i = 0            # position counter for out_data array
-        self._out_times = np.zeros(self._mfilt, dtype=np.float64)
-        self._out_time_bnds = np.zeros((self._mfilt, 2), dtype=np.float64)
-
         self.__get_rvar(Rvar)           # Get the initial Rvar fields
         self._grid_shape = grid_area.shape
+        self._out_data = {}
 
         # ------------------------------------------------------------ #
-        # Get Grid Lons/Lats if outtype is grid, setup out_data
-        self._out_data = {}
+        # calculate the step size for each out_data timestep (units=days)
+        if nhtfrq > 0:
+            # If some number of timesteps
+            self._out_data_stepsize = self._nhtfrq * self._dt / SECSPERDAY
+        elif nhtfrq < 0:
+            # If some number hours
+            self._out_data_stepsize = -1 * self._nhtfrq / HOURSPERDAY
+        else:
+            # If monthly
+            self._out_data_stepsize = None  # varies by month
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Get Grid Lons/Lats if outtype is grid
         if outtype == 'grid':
+            self._out_data_shape = self._grid_shape
             if type(grid_lons) == np.ndarray and type(grid_lats) == np.ndarray:
                 self._grid_lons = grid_lons
                 self._grid_lats = grid_lats
-                for field in self._fincl:
-                    if grid_lons.ndim == 1:
-                        shape = (self._mfilt,) + self._grid_shape
-                    else:
-                        shape = (self._mfilt,) + self._grid_shape
-                    self._out_data[field] = np.zeros(shape, dtype=np.float64)
             else:
                 raise ValueError('Must include grid lons / lats if '
                                  'outtype == grid')
         else:
-            for field in self._fincl:
-                self._out_data[field] = np.zeros((self._mfilt,
-                                                 self._num_outlets))
+            self._out_data_shape = self._num_outlets
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -138,7 +139,12 @@ class Tape(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # Determine when the next write should be
+        # Determine when the next write should be and initialize out_data
+        self.__next_write_out_data()
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Determine when the update of out_data should be
         self.__next_update_out_data()
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
@@ -229,8 +235,74 @@ class Tape(object):
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
 
+    # ---------------------------------------------------------------- #
     def write_initial(self):
         pass
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    def __next_write_out_data(self):
+        """ """
+        self._out_data_i = 0            # position counter for out_data array
+
+        # ------------------------------------------------------------ #
+        # b0 is first timestep of next period
+        # b1 is end of last timestep of next period
+
+        # time when out_data will start (now)
+        b0 = self._time_ord
+        self._begtime = b0
+
+        # determine time when out_data will be full
+        if self._mfilt == 'year':
+            if self._nhtfrq == 0:
+                mfilt = MONTHSPERYEAR
+            else:
+                t1 = datetime(self._timestamp.year + 1, 1, 1)
+                b1 = date2num(t1, TIMEUNITS, calendar=self._calendar)
+
+                # calculate the mfilt value
+                mfilt = int(round((b1 - b0) / self._out_data_stepsize))
+
+        elif self._mfilt == 'month':
+            if self._nhtfrq == 0:
+                mfilt = 1
+            else:
+                if self._timestamp.month == 12:
+                    t1 = datetime(self._timestamp.year + 1, 2, 1)
+                else:
+                    t1 = datetime(self._timestamp.year,
+                                  self._timestamp.month + 1, 1)
+                b1 = date2num(t1, TIMEUNITS, calendar=self._calendar)
+
+                # calculate the mfilt value
+                mfilt = int(round((b1 - b0) / self._out_data_stepsize))
+
+        elif self._mfilt == 'day':
+            if self._nhtfrq == 0:
+                raise ValueError('Incompatable values for NHTFRQ and MFILT')
+            b1 = b0 + 1.0
+
+            # calculate the mfilt value
+            mfilt = int(round((b1 - b0) / self._out_data_stepsize))
+
+        else:
+            mfilt = self._mfilt
+        # ------------------------------------------------------------ #
+
+        if mfilt < 1:
+            mfilt = 1
+
+        self._out_data_write = mfilt-1
+        self._out_times = np.zeros(mfilt, dtype=np.float64)
+        if self._avgflag != 'I':
+            self._out_time_bnds = np.zeros((mfilt, 2), dtype=np.float64)
+
+        shape = (mfilt, ) + self._out_data_shape
+
+        for field in self._fincl:
+            self._out_data[field] = np.zeros(shape, dtype=np.float64)
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # fill in out_data
@@ -257,16 +329,23 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # if out_data is full, write
-        if self._out_data_i == self._mfilt-1:
+        if self._out_data_i == self._out_data_write:
+            self.finish()
+            self._out_data_i = 0
+        else:
+            self._out_data_i += 1
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    def finish(self):
+        """write out_data"""
+        if self._out_data_i > 0:
             if self._outtype == 'grid':
                 self.__write_grid()
             else:
                 self.__write_array()
 
             self.files_count += 1
-            self._out_data_i = 0
-        else:
-            self._out_data_i += 1
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -280,6 +359,7 @@ class Tape(object):
         self._outlet_y_ind = rvar.outlet_y_ind
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
+        self._outlet_name = rvar.outlet_name
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -303,13 +383,8 @@ class Tape(object):
                                        self._timestamp.month + 1, 1),
                               TIMEUNITS, calendar=self._calendar)
 
-        # If some hours in the future
-        elif self._nhtfrq < 0:
-            b1 = b0 - (self._nhtfrq / HOURSPERDAY)
-
-        # If some dts in the future
         else:
-            b1 = b0 + (self._nhtfrq * self._dt / SECSPERDAY)
+            b1 = b0 + self._out_data_stepsize
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -362,7 +437,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self._ncprec, ('time',))
-        time[:] = self._out_times
+        time[:] = self._out_times[:self._out_data_i+1]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -375,7 +450,7 @@ class Tape(object):
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
                                          ('time', 'nv',))
-            time_bnds[:, :] = self._out_time_bnds
+            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i+1]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -426,7 +501,7 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult
+            var[:, :] = self._out_data[field][:self._out_data_i+1] * self._units_mult
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
@@ -462,7 +537,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self._ncprec, ('time',))
-        time[:] = self._out_times
+        time[:] = self._out_times[:self._out_data_i+1]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -475,7 +550,7 @@ class Tape(object):
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
                                          ('time', 'nv',))
-            time_bnds[:, :] = self._out_time_bnds
+            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i+1]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -484,17 +559,27 @@ class Tape(object):
 
         outlets = f.createDimension('outlets', self._num_outlets)
 
+        nocoords = coords + ('nc_chars',)
+        char_names = stringtochar(self._outlet_name)
+        chars = f.createDimension(nocoords[1], char_names.shape[1])
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Variables
         outlet_lon = f.createVariable('lon', self._ncprec, coords)
         outlet_lat = f.createVariable('lat', self._ncprec, coords)
         outlet_x_ind = f.createVariable('outlet_x_ind', NC_INT, coords)
         outlet_y_ind = f.createVariable('outlet_y_ind', NC_INT, coords)
         outlet_decomp_ind = f.createVariable('outlet_decomp_ind', NC_INT,
                                              coords)
+        onm = f.createVariable('outlet_name', NC_CHAR, nocoords)
+
         outlet_lon[:] = self._outlet_lon
         outlet_lat[:] = self._outlet_lat
         outlet_x_ind[:] = self._outlet_x_ind
         outlet_y_ind[:] = self._outlet_y_ind
         outlet_decomp_ind[:] = self._outlet_decomp_ind
+        onm[:, :] = char_names
 
         for key, val in share.outlet_lon.__dict__.iteritems():
             if val:
@@ -515,6 +600,10 @@ class Tape(object):
         for key, val in share.outlet_decomp_ind.__dict__.iteritems():
             if val:
                 setattr(outlet_decomp_ind, key, val)
+
+        for key, val in share.outlet_name.__dict__.iteritems():
+            if val:
+                setattr(onm, key, val)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -523,7 +612,7 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords)
-            var[:, :] = self._out_data[field] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
+            var[:, :] = self._out_data[field][:self._out_data_i+1] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
@@ -540,7 +629,7 @@ class Tape(object):
         f.featureType = "timeSeries"
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % self.filename)
+        log.info('Finished writing %s', self.filename)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

@@ -8,9 +8,8 @@ from write import write_param_file
 from share import NcGlobals, SECSPERDAY
 import os
 from datetime import date
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import plots
+
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -25,29 +24,35 @@ def finish_params(outlets, dom_data, config_dict, directories):
     Adjust the unit hydrographs and pack for parameter file
     """
     options = config_dict['OPTIONS']
+    routing = config_dict['ROUTING']
+    domain = config_dict['DOMAIN']
+    dom_area = domain['AREA_VAR']
+    dom_frac = domain['FRACTION_VAR']
 
     # ---------------------------------------------------------------- #
     # subset (shorten time base)
-    if options['SUBSET_DAYS'] and options['SUBSET_DAYS'] < config_dict['ROUTING']['BASIN_FLOWDAYS']:
-        subset_length = options['SUBSET_DAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
-        outlets, full_time_length, before, after = subset(outlets,
-                                                          subset_length=subset_length)
+    if options['SUBSET_DAYS'] and \
+            options['SUBSET_DAYS'] < routing['BASIN_FLOWDAYS']:
+        subset_length = options['SUBSET_DAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
+        outlets, full_time_length, \
+            before, after = subset(outlets, subset_length=subset_length)
 
         log.debug('plotting unit hydrograph timeseries now for before'
                   ' / after subseting')
 
         title = 'UHS before subset'
-        pfname = plot_uhs(before, title, options['CASEID'],
-                          directories['plots'])
+        pfname = plots.uhs(before, title, options['CASEID'],
+                           directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
 
         title = 'UHS after subset'
-        pfname = plot_uhs(after, title, options['CASEID'],
-                          directories['plots'])
+        pfname = plots.uhs(after, title, options['CASEID'],
+                           directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     else:
-        subset_length = config_dict['ROUTING']['BASIN_FLOWDAYS']*SECSPERDAY/config_dict['ROUTING']['OUTPUT_INTERVAL']
-        log.info('Not subsetting because either SUBSET_DAYS is null or SUBSET_DAYS<BASIN_FLOWDAYS')
+        subset_length = routing['BASIN_FLOWDAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
+        log.info('Not subsetting because either SUBSET_DAYS is null or '
+                 'SUBSET_DAYS<BASIN_FLOWDAYS')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -59,8 +64,17 @@ def finish_params(outlets, dom_data, config_dict, directories):
     else:
         adjust = False
     outlets, plot_dict = adjust_fractions(outlets,
-                                          dom_data[config_dict['DOMAIN']['FRACTION_VAR']],
+                                          dom_data[domain['FRACTION_VAR']],
                                           adjust=adjust)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Calculate the upstream area and upstream grid cells
+    # The upstream_area must be calculated after adjust_fractions
+    for i, outlet in outlets.iteritems():
+        outlet.upstream_gridcells = len(outlet.y_source)
+        outlet.upstream_area = np.sum(dom_data[dom_area][outlet.y_source, outlet.x_source] *
+                                      dom_data[dom_frac][outlet.y_source, outlet.x_source])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -84,12 +98,14 @@ def finish_params(outlets, dom_data, config_dict, directories):
     outlet_decomp_ind = grouped_data['outlet_decomp_ind']
     outlet_number = grouped_data['outlet_number']
     outlet_name = grouped_data['outlet_name']
+    outlet_upstream_area = grouped_data['outlet_upstream_area']
+    outlet_upstream_gridcells = grouped_data['outlet_upstream_gridcells']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Adjust Unit Hydrographs for differences in source/outlet areas and
     # fractions
-    area = dom_data[config_dict['DOMAIN']['AREA_VAR']]
+    area = dom_data[domain['AREA_VAR']]
 
     for source, outlet in enumerate(source2outlet_ind):
         if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim == 0:
@@ -108,16 +124,19 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # Make diagnostic plots
-    sum_after = np.zeros(dom_data[config_dict['DOMAIN']['FRACTION_VAR']].shape)
+    sum_after = np.zeros(dom_data[domain['FRACTION_VAR']].shape)
     for i, (y, x) in enumerate(zip(source_y_ind, source_x_ind)):
         sum_after[y, x] += unit_hydrograph[:, i].sum()
 
     plot_dict['Sum UH Final'] = sum_after
 
+    dom_y = dom_data[domain['LATITUDE_VAR']]
+    dom_x = dom_data[domain['LONGITUDE_VAR']]
+
     for title, data in plot_dict.iteritems():
-        pfname = plot_fractions(data, title, options['CASEID'],
-                                directories['plots'])
-        log.info('%s Plot:  %s', title, pfname)
+        pfname = plots.fractions(data, dom_x, dom_y, title, options['CASEID'],
+                                 directories['plots'])
+        log.info('%s Plot: %s', title, pfname)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -135,9 +154,10 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # Write parameter file
     today = date.today().strftime('%Y%m%d')
     param_file = os.path.join(directories['params'],
-                              '%s.rvic.prm.%s.%s.nc' % (options['CASEID'],
-                                                        options['GRIDID'],
-                                                        today))
+                              '{0}.rvic.prm.{1}.{2}.'
+                              'nc'.format(options['CASEID'],
+                                          options['GRIDID'],
+                                          today))
 
     if 'NEW_DOMAIN' in config_dict.keys():
         dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
@@ -147,7 +167,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     glob_atts = NcGlobals(title='RVIC parameter file',
                           RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
                           RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
-                          RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
+                          RvicFdrFile=os.path.split(routing['FILE_NAME'])[1],
                           RvicDomainFile=os.path.split(dom_file_name)[1])
 
     write_param_file(param_file,
@@ -155,7 +175,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
                      glob_atts=glob_atts,
                      full_time_length=full_time_length,
                      subset_length=subset_length,
-                     unit_hydrograph_dt=config_dict['ROUTING']['OUTPUT_INTERVAL'],
+                     unit_hydrograph_dt=routing['OUTPUT_INTERVAL'],
                      outlet_lon=outlet_lon,
                      outlet_lat=outlet_lat,
                      outlet_x_ind=outlet_x_ind,
@@ -164,6 +184,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
                      outlet_number=outlet_number,
                      outlet_mask=outlet_mask,
                      outlet_name=outlet_name,
+                     outlet_upstream_gridcells=outlet_upstream_gridcells,
+                     outlet_upstream_area=outlet_upstream_area,
                      source_lon=source_lon,
                      source_lat=source_lat,
                      source_x_ind=source_x_ind,
@@ -176,8 +198,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # write a summary of what was done to the log file.
-    log.info('Parameter file includes %i outlets' % (len(outlets)))
-    log.info('Parameter file includes %i Source Points' % (len(source_lon)))
+    log.info('Parameter file includes %i outlets', len(outlets))
+    log.info('Parameter file includes %i Source Points', len(source_lon))
     # ---------------------------------------------------------------- #
 
     return param_file, today
@@ -247,55 +269,6 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
 
 # -------------------------------------------------------------------- #
-def plot_uhs(data, title, case_id, plot_dir):
-    """
-    Plot diagnostic plot showing all unit hydrographs
-    """
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
-    pfname = os.path.join(plot_dir, file_name)
-
-    fig = plt.figure()
-    plt.plot(data)
-    plt.title(title)
-    plt.xlabel('timesteps')
-    plt.ylabel('unit-hydrograph')
-    fig.savefig(pfname)
-
-    return pfname
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
-def plot_fractions(data, title, case_id, plot_dir):
-    """
-    Plot diagnostic plots of fraction variables
-    """
-    # ---------------------------------------------------------------- #
-    # Plot Fractions
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
-    pfname = os.path.join(plot_dir, file_name)
-
-    fig = plt.figure()
-    plt.pcolormesh(data)
-    plt.autoscale(tight=True)
-    plt.axis('tight')
-    plt.colorbar()
-    plt.title(title)
-    plt.xlabel('x')
-    plt.ylabel('y')
-    fig.savefig(pfname)
-    # ---------------------------------------------------------------- #
-    return pfname
-# -------------------------------------------------------------------- #
-
-
-# -------------------------------------------------------------------- #
 # Shorten the unit hydrograph
 def subset(outlets, subset_length=None):
     """ Shorten the Unit Hydrograph"""
@@ -342,10 +315,10 @@ def subset(outlets, subset_length=None):
 
                 log.warning('Subset centered on UH max extends beyond length '
                             'of unit hydrograph.')
-                log.warning('--> Outlet %s' % outlet)
-                log.warning('----> Max Index is %s' % maxind)
+                log.warning('--> Outlet %s', outlet)
+                log.warning('----> Max Index is %s', maxind)
                 log.warning('----> Last value in subset '
-                            'is %s' % outlet.unit_hydrograph[-1, j])
+                            'is %s', outlet.unit_hydrograph[-1, j])
                 if maxind == full_time_length:
                     log.warning('maxind == full_time_length, not able to '
                                 'resolve unithydrograph')
@@ -401,11 +374,15 @@ def group(outlets):
             # outlet specific inputs
             outlet_lon = np.array(outlet.lon, dtype=np.float64)
             outlet_lat = np.array(outlet.lat, dtype=np.float64)
-            outlet_x_ind = np.array(outlet.gridx, dtype=np.int16)
-            outlet_y_ind = np.array(outlet.gridy, dtype=np.int16)
+            outlet_x_ind = np.array(outlet.domx, dtype=np.int16)
+            outlet_y_ind = np.array(outlet.domy, dtype=np.int16)
             outlet_decomp_ind = np.array(cell_id, dtype=np.int16)
             outlet_number = np.array(i, dtype=np.int16)
             outlet_name = np.array(outlet.name)
+            outlet_upstream_gridcells = np.array(outlet.upstream_gridcells,
+                                                 dtype=np.int16)
+            outlet_upstream_area = np.array(outlet.upstream_area,
+                                            dtype=np.float64)
         else:
             # -------------------------------------------------------- #
             # Point specific values
@@ -427,11 +404,15 @@ def group(outlets):
             # outlet specific inputs
             outlet_lon = np.append(outlet_lon, outlet.lon)
             outlet_lat = np.append(outlet_lat, outlet.lat)
-            outlet_x_ind = np.append(outlet_x_ind, outlet.gridx)
-            outlet_y_ind = np.append(outlet_y_ind, outlet.gridy)
+            outlet_x_ind = np.append(outlet_x_ind, outlet.domx)
+            outlet_y_ind = np.append(outlet_y_ind, outlet.domy)
             outlet_decomp_ind = np.append(outlet_decomp_ind, cell_id)
             outlet_number = np.append(outlet_number, i)
             outlet_name = np.append(outlet_name, outlet.name)
+            outlet_upstream_gridcells = np.append(outlet_upstream_gridcells,
+                                                  outlet.upstream_gridcells)
+            outlet_upstream_area = np.append(outlet_upstream_area,
+                                             outlet.upstream_area)
             # -------------------------------------------------------- #
 
     grouped_data = {'unit_hydrograph': unit_hydrograph,
@@ -449,7 +430,9 @@ def group(outlets):
                     'outlet_y_ind': outlet_y_ind,
                     'outlet_decomp_ind': outlet_decomp_ind,
                     'outlet_number': outlet_number,
-                    'outlet_name': outlet_name}
+                    'outlet_name': outlet_name,
+                    'outlet_upstream_gridcells': outlet_upstream_gridcells,
+                    'outlet_upstream_area': outlet_upstream_area}
 
     return grouped_data
 # -------------------------------------------------------------------- #

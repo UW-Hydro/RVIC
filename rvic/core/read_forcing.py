@@ -25,11 +25,12 @@ class DataModel(object):
 
     # ---------------------------------------------------------------- #
     # Initialize
-    def __init__(self, path, file_str, time_fld, liq_flds,
+    def __init__(self, path, file_str, time_fld, lat_fld, liq_flds,
                  start, end):
 
         self.path = path
         self.time_fld = time_fld
+        self.lat_fld = lat_fld
         if isinstance(liq_flds, list):
             self.liq_flds = liq_flds
         else:
@@ -102,8 +103,8 @@ class DataModel(object):
         # ------------------------------------------------------------ #
         # find time bounds and timestep for input files
         for i, fname in enumerate(self.files):
-            log.info('reading forcing file: %s' % fname)
-            f = Dataset(fname, 'r+')
+            log.info('reading forcing file: %s', fname)
+            f = Dataset(fname, 'r')
             self.start_dates.append(f.variables[self.time_fld][0])
             self.end_ords.append(f.variables[self.time_fld][-1])
 
@@ -112,6 +113,15 @@ class DataModel(object):
                 self.calendar = f.variables[self.time_fld].calendar
                 self.time_units = f.variables[self.time_fld].units
                 time_series = f.variables[self.time_fld][:]
+
+                # determine the latitude order
+                lats = f.variables[self.lat_fld][:]
+                if lats[-1] > lats[0]:
+                    log.debug('Input fluxes came in upside down, flipping '
+                              'params and maybe domain.')
+                    self.lat0_is_min = True
+                else:
+                    self.lat0_is_min = False
             else:
                 # check that the units match the first file
                 if f.variables[self.time_fld].units != self.time_units:
@@ -161,7 +171,7 @@ class DataModel(object):
         log.debug('Filenum %s', self.current_filenum)
 
         self.current_file = self.files[self.current_filenum]
-        self.current_fhdl = Dataset(self.current_file, 'r+')
+        self.current_fhdl = Dataset(self.current_file, 'r')
 
         try:
             self.current_tind = date2index(timestamp,
@@ -184,11 +194,11 @@ class DataModel(object):
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
             elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
-                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / MMPERMETER
+                self.fld_mult[fld] = WATERDENSITY / MMPERMETER / self.secs_per_step
             elif units in ['m', 'M', 'meters', 'Meters']:
-                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY
+                self.fld_mult[fld] = WATERDENSITY / self.secs_per_step
             elif units in ['cm', 'CM', 'centimeters', 'Centimeters']:
-                self.fld_mult[fld] = self.secs_per_step * WATERDENSITY / CMPERMETER
+                self.fld_mult[fld] = WATERDENSITY / CMPERMETER / self.secs_per_step
             else:
                 raise ValueError('unknown forcing units')
         # ------------------------------------------------------------ #
@@ -205,7 +215,7 @@ class DataModel(object):
             self.current_fhdl.close()
             self.current_filenum += 1
             self.current_file = self.files[self.current_filenum]
-            self.current_fhdl = Dataset(self.current_file, 'r+')
+            self.current_fhdl = Dataset(self.current_file, 'r')
             self.current_tind = 0
         # ------------------------------------------------------------ #
 
@@ -234,7 +244,7 @@ class DataModel(object):
                 # close the current file and open a new one
                 self.current_fhdl.close()
                 self.current_file = self.files[new_filenum]
-                self.current_fhdl = Dataset(self.current_file, 'r+')
+                self.current_fhdl = Dataset(self.current_file, 'r')
 
             self.current_tind = date2index(timestamp,
                                            self.current_fhdl.variables[self.time_fld])
@@ -249,14 +259,14 @@ class DataModel(object):
             if i == 0:
                 forcing['LIQ'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
-                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld].astype(np.float64)
+                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
 
         for i, fld in enumerate(self.ice_flds):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
-                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld].astype(np.float64)
+                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
             else:
-                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld].astype(np.float64)
+                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
 
         # move forward one step
         self.current_tind += 1

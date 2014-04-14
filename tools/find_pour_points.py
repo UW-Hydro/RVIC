@@ -2,6 +2,7 @@
 """
 Find the outlet location of basins in a grid
 """
+from future import print_function
 import numpy as np
 from netCDF4 import Dataset
 import time as tm
@@ -15,14 +16,13 @@ import sys
 def main():
     input_file, output_file, which_points, verbose = process_command_line()
 
-
     # ---------------------------------------------------------------- #
     #Load input Rasters (Basin Mask and Accumulated Upstream Area)
     #Input rasters need to be the same size
     if verbose:
         print 'Reading input file: %s' % input_file
 
-    f = Dataset(input_file,'r')
+    f = Dataset(input_file, 'r')
     basin_id = f.variables['Basin_ID'][:]
     source_area = f.variables['Source_Area'][:]
     lons = f.variables['lon'][:]
@@ -36,11 +36,15 @@ def main():
     # ---------------------------------------------------------------- #
     # Find the points
     if which_points == 'all':
-        print 'Returning all land cells as pour pour points'
-        basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y = find_all(basin_id, source_area, land_mask, lons, lats, res, verbose)
+        print('Returning all land cells as pour pour points')
+        basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, \
+            max_y = find_all(basin_id, source_area, land_mask, lons, lats, res,
+                             verbose)
     else:
         print 'Returning all basin outlet grid cells as pour points'
-        basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y = find_outlets(basin_id, source_area, lons, lats, res, verbose)
+        basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, \
+            max_y = find_outlets(basin_id, source_area, lons, lats, res,
+                                 verbose)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -55,11 +59,14 @@ def main():
         write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
                           max_x, max_y, output_file)
     # ---------------------------------------------------------------- #
+# -------------------------------------------------------------------- #
 
+
+# -------------------------------------------------------------------- #
 def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
     """Return the info for all land points """
 
-    lat, lon  = np.meshgrid(lats, lons)
+    lat, lon = np.meshgrid(lats, lons)
 
     # ---------------------------------------------------------------- #
     # Find x/y inds of all land points
@@ -93,7 +100,10 @@ def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
     # ---------------------------------------------------------------- #
 
     return basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y
+# -------------------------------------------------------------------- #
 
+
+# -------------------------------------------------------------------- #
 def find_outlets(basin_id, source_area, lons, lats, res, verbose):
     """ Find the outlet location of each basin """
     # ---------------------------------------------------------------- #
@@ -103,11 +113,11 @@ def find_outlets(basin_id, source_area, lons, lats, res, verbose):
 
     # ---------------------------------------------------------------- #
     #Setup basin in/out arrays
-    basin_ids = np.arange(np.min(basin_id),np.max(basin_id))
+    basin_ids = np.arange(np.min(basin_id), np.max(basin_id))
     num_basins = len(basin_ids)
 
     basin = np.zeros(num_basins, dtype='i')
-    max_area =  np.zeros(num_basins, dtype='i')
+    max_area = np.zeros(num_basins, dtype='i')
     x_outlet = np.zeros(num_basins)
     y_outlet = np.zeros(num_basins)
     min_x = np.zeros(num_basins)
@@ -121,14 +131,15 @@ def find_outlets(basin_id, source_area, lons, lats, res, verbose):
     #and record the basin#,longitude,latitude,area
     if verbose:
         sys.stdout.write('Done reading input file...\n ')
-        sys.stdout.write('Searching in %i basins for pour points\n' % num_basins)
+        sys.stdout.write('Searching in %i basins for pour '
+                         'points\n' % num_basins)
 
     for i, j in enumerate(basin_ids):
         if verbose:
-            sys.stdout.write('On basin %i of %i' % (i,num_basins))
+            sys.stdout.write('On basin %i of %i' % (i, num_basins))
             sys.stdout.flush()
             sys.stdout.write('\r')
-        basin[i]=np.int(j)
+        basin[i] = np.int(j)
         inds = np.nonzero(basin_id == j)
         x_basin = x[inds]
         y_basin = y[inds]
@@ -153,7 +164,7 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
     save the list of pour points as a comma seperated text file
     This file is directly importable into arcgis for validation purposes
     """
-    f = Dataset(out_file,'w', format='NETCDF4')
+    f = Dataset(out_file, 'w', format='NETCDF4')
 
     # ---------------------------------------------------------------- #
     # set dimensions
@@ -162,14 +173,14 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 
     # ---------------------------------------------------------------- #
     # initialize variables
-    OIDs = f.createVariable('OID','i8',('points',))
-    x_outlets = f.createVariable('x_outlet','f8',('points',))
-    y_outlets = f.createVariable('y_outlet','f8',('points',))
-    max_areas = f.createVariable('max_area','i8',('points',))
-    min_xs = f.createVariable('min_x','f8',('points',))
-    min_ys = f.createVariable('min_y','f8',('points',))
-    max_xs = f.createVariable('max_x','f8',('points',))
-    max_ys = f.createVariable('max_y','f8',('points',))
+    OIDs = f.createVariable('OID', 'i8', ('points', ))
+    x_outlets = f.createVariable('x_outlet', 'f8', ('points', ))
+    y_outlets = f.createVariable('y_outlet', 'f8', ('points', ))
+    max_areas = f.createVariable('max_area', 'i8', ('points', ))
+    min_xs = f.createVariable('min_x', 'f8', ('points', ))
+    min_ys = f.createVariable('min_y', 'f8', ('points', ))
+    max_xs = f.createVariable('max_x', 'f8', ('points', ))
+    max_ys = f.createVariable('max_y', 'f8', ('points', ))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -177,7 +188,7 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
     f.description = 'Pour Points'
     f.history += ' '.join(sys.argv) + '\n'
     f.history = 'Created: {}\n'.format(tm.ctime(tm.time()))
-    f.source = sys.argv[0] # prints the name of script used
+    f.source = sys.argv[0]  # prints the name of script used
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -236,7 +247,7 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 # -------------------------------------------------------------------- #
 # write ascii file
 def write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
-                        max_x, max_y, out_file):
+                     max_x, max_y, out_file):
     """
     save the list of pour points as a comma seperated text file
     This file is directly importable into arcgis for validation purposes
@@ -244,13 +255,15 @@ def write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
     # ---------------------------------------------------------------- #
     # set format
     fmt = ['%i', '%.10f', '%.10f', '%i', '%.10f', '%.10f', '%.10f', '%.10f']
-    out = np.column_stack((basin,x_outlet,y_outlet,max_area, min_x,min_y,max_x,max_y))
+    out = np.column_stack((basin, x_outlet, y_outlet, max_area,  min_x, min_y,
+                          max_x, max_y))
     header = 'OID, longitude, latitude, basin_area, min_lon, min_lat, max_lon, max_lat\n'
-    with file(out_file,'w') as outfile:
+    with file(out_file, 'w') as outfile:
         outfile.write(header)
-        np.savetxt(outfile,out, fmt=fmt, delimiter=',')
+        np.savetxt(outfile, out, fmt=fmt, delimiter=',')
     return
 # -------------------------------------------------------------------- #
+
 
 # -------------------------------------------------------------------- #
 # process command line
@@ -265,16 +278,18 @@ def process_command_line():
      - source_area
     Will return a text file or netcdf depending on output_file's file sufix"""
     # Parse arguments
-    parser = ArgumentParser(description=desc, formatter_class=RawTextHelpFormatter)
+    parser = ArgumentParser(description=desc,
+                            formatter_class=RawTextHelpFormatter)
     parser.add_argument("input_file",
                         help="Input netCDF file contianing variables \
                         Basin_ID and source_area")
     parser.add_argument("output_file", metavar='outfile.<txt|nc>',
                         help="Output file (suffix dependent)")
-    parser.add_argument("-v","--verbose",action='store_true',
+    parser.add_argument("-v", "--verbose", action='store_true',
                         help="Turn on Verbose Output")
     parser.add_argument('--which_points', metavar='<all|outlets>',
-                        help='Determine which points to return', default='outlets')
+                        help='Determine which points to return',
+                        default='outlets')
     args = parser.parse_args()
     input_file = args.input_file
     output_file = args.output_file

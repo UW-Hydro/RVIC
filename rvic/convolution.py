@@ -1,4 +1,3 @@
-#!/usr/bin/env python2.7
 """
 This is the convolution routine developed in preparation in coupling RVIC to
 CESM.  Eventually, this will be the offline RVIC model.
@@ -15,40 +14,29 @@ structure.
 Major updates to the...
 """
 import os
-from argparse import ArgumentParser
 from logging import getLogger
-from rvic.log import init_logger, LOG_NAME
-# from rvic.mpi import LoggingPool
-from rvic.utilities import make_directories, read_domain
-from rvic.utilities import write_rpointer, tar_inputs
-from rvic.variables import Rvar
-from rvic.time_utility import Dtime
-from rvic.read_forcing import DataModel
-from rvic.history import Tape
-from rvic.share import NcGlobals, RVIC_TRACERS
-from rvic.config import read_config
+from core.log import init_logger, LOG_NAME
+from core.utilities import make_directories, read_domain
+from core.utilities import write_rpointer, tar_inputs
+from core.variables import Rvar
+from core.time_utility import Dtime
+from core.read_forcing import DataModel
+from core.history import Tape
+from core.share import NcGlobals, RVIC_TRACERS
+from core.config import read_config
 
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
-def main(config_file=None, numofproc=1):
+def convolution(config_file, numofproc=1):
     """
-    Top level driver for RVIC model.
+    Top level driver for RVIC convolution model.
     """
-
-    # ---------------------------------------------------------------- #
-    # Read command Line
-    if not config_file:
-        config_file, numofproc = process_command_line()
-    if not os.path.isfile(config_file):
-        raise IOError('{0} does not exist or is not a '
-                      'file'.format(config_file))
-    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initilize
     hist_tapes, data_model, rout_var, dom_data,\
-        time_handle, directories, config_dict = rvic_mod_init(config_file)
+        time_handle, directories, config_dict = convolution_init(config_file)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -59,14 +47,14 @@ def main(config_file=None, numofproc=1):
 
     # ---------------------------------------------------------------- #
     # Run
-    time_handle, hist_tapes = rvic_mod_run(hist_tapes, data_model, rout_var,
-                                           dom_data, time_handle, directories,
-                                           config_dict)
+    time_handle, hist_tapes = convolution_run(hist_tapes, data_model, rout_var,
+                                              dom_data, time_handle,
+                                              directories, config_dict)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Finalize
-    rvic_mod_final(time_handle, hist_tapes)
+    convolution_final(time_handle, hist_tapes)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
@@ -74,7 +62,7 @@ def main(config_file=None, numofproc=1):
 
 # -------------------------------------------------------------------- #
 # Initialize RVIC
-def rvic_mod_init(config_file):
+def convolution_init(config_file):
     """
     - Read Grid File
     - Load the unit hydrograph files (put into point_dict)
@@ -89,7 +77,7 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
     directories = make_directories(config_dict['OPTIONS']['CASE_DIR'],
-                                   ['hist', 'logs', 'restarts'])  # 'params',
+                                   ['hist', 'logs', 'restarts'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -105,9 +93,22 @@ def rvic_mod_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
+    # Initialize the data model
+    forcings = config_dict['INPUT_FORCINGS']
+    data_model = DataModel(forcings['DATL_PATH'],
+                           forcings['DATL_FILE'],
+                           forcings['TIME_VAR'],
+                           forcings['LATITUDE_VAR'],
+                           forcings['DATL_LIQ_FLDS'],
+                           forcings['START'],
+                           forcings['END'])
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
     # Read Domain File
     domain = config_dict['DOMAIN']
-    dom_data, dom_vatts, dom_gatts = read_domain(domain)
+    dom_data, dom_vatts, dom_gatts = read_domain(domain,
+                                                 lat0_is_min=data_model.lat0_is_min)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -119,7 +120,7 @@ def rvic_mod_init(config_file):
                     options['CALENDAR'], directories['restarts'],
                     options['REST_NCFORM'])
 
-    rout_var.set_domain(dom_data, domain)
+    rout_var.set_domain(dom_data, domain, data_model.lat0_is_min)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -139,17 +140,6 @@ def rvic_mod_init(config_file):
     else:
         raise ValueError('RUN_TYPE option {0} is none of these: (restart, '
                          'startup, drystart)'.format(options['RUN_TYPE']))
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Initialize the data model
-    forcings = config_dict['INPUT_FORCINGS']
-    data_model = DataModel(forcings['DATL_PATH'],
-                           forcings['DATL_FILE'],
-                           forcings['TIME_VAR'],
-                           forcings['DATL_LIQ_FLDS'],
-                           forcings['START'],
-                           forcings['END'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -229,7 +219,7 @@ def rvic_mod_init(config_file):
 
 
 # -------------------------------------------------------------------- #
-def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
+def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
                  directories, config_dict):
     """
     Main run loop for RVIC model.
@@ -244,7 +234,7 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
     # ---------------------------------------------------------------- #
     # Start log
     log = getLogger(LOG_NAME)
-    log.info('Starting rvic_mod_run')
+    log.info('Starting convolution_run')
     # ---------------------------------------------------------------- #
 
     # ------------------------------------------------------------ #
@@ -319,6 +309,12 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         else:
             break
         # ------------------------------------------------------------ #
+
+    # ---------------------------------------------------------------- #
+    # Make sure we write out the last history file
+    for tapename, tape in hist_tapes.iteritems():
+        log.debug('Closing Tape: %s', tapename)
+        tape.finish()
     # ---------------------------------------------------------------- #
     return time_handle, hist_tapes
 # -------------------------------------------------------------------- #
@@ -326,8 +322,8 @@ def rvic_mod_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
 # -------------------------------------------------------------------- #
 # Final
-def rvic_mod_final(time_handle, hist_tapes):
-    """ Finalize RVIC """
+def convolution_final(time_handle, hist_tapes):
+    """ Finalize RVIC Convolution"""
     # ---------------------------------------------------------------- #
     # Start log
     log = getLogger(LOG_NAME)
@@ -349,38 +345,9 @@ def rvic_mod_final(time_handle, hist_tapes):
     # tar the inputs directory / log file
     log_tar = tar_inputs(log.filename)
 
-    log.info('Done with rvic_model.')
-    log.info('Location of Log: %s' % log_tar)
+    log.info('Done with rvic convolution.')
+    log.info('Location of Log: %s', log_tar)
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
 
-
-# -------------------------------------------------------------------- #
-# Process Command Line
-def process_command_line():
-    """
-    Get the path to the config_file
-    """
-    # Parse arguments
-    parser = ArgumentParser(description='RVIC is based on the original model '
-                            'of Lohmann, et al., 1996, Tellus, 48(A), 708-721')
-    parser.add_argument("config_file", type=str,
-                        help="Input configuration file")
-    parser.add_argument("-np", "--numofproc", type=int,
-                        help="Number of processors used to run job", default=1)
-
-    args = parser.parse_args()
-
-    if args.numofproc > 1:
-        print('RVIC model is currently only able to run on 1 '
-              'processor...proceeding...')
-
-    return args.config_file, args.numofproc
-# -------------------------------------------------------------------- #
-
-# -------------------------------------------------------------------- #
-# Run Program
-if __name__ == "__main__":
-    main()
-# -------------------------------------------------------------------- #

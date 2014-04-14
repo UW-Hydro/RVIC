@@ -1,7 +1,6 @@
-#include <stdio.h>
 #include <stdlib.h>
 
-void c_convolve(const int nsources,             /*scalar - number of sources*/
+void convolve(const int nsources,               /*scalar - number of sources*/
                 const int noutlets,             /*scalar - length of subset*/
                 const int subset_length,        /*scalar - length of subset*/
                 const int x_size,
@@ -13,10 +12,9 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
                 const double* aggrunin,         /*2d array[ysize][xsize] - vic runoff flux*/
                 double* ring)                   /*2d array[times][outlets] - convolution ring*/
 {
-    const double* runin;                      /*pointer to sources runoff flux*/
-    int s, i, j;                              /*counters*/
-    int y, x, offset, outlet;                 /*2d indicies*/
-    int xyind, rind, uhind;                   /*1d indicies*/
+    int s, i, j;                                /*counters*/
+    int y, x, offset, outlet;                   /*2d indicies*/
+    int xyind, rind, uhind;                     /*1d indicies*/
 
     /*Loop through all sources*/
     for (s = 0; s < nsources; s++) {
@@ -30,9 +28,9 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
         //2d-->1d indexing goes like this:  ind = y*x_size + x
         xyind = y*x_size + x;
 
-        runin = aggrunin[xyind];
-
         /* Do the convolution */
+        // i is the position in the unit hydrograph
+        // j is the position in the ring
         for (i = 0; i < subset_length; i++) {
             j = i + offset;
 
@@ -40,7 +38,7 @@ void c_convolve(const int nsources,             /*scalar - number of sources*/
             rind = j * noutlets + outlet;
             uhind = i * nsources + s;
 
-            ring[rind] += unit_hydrograph[uhind] * runin;
+            ring[rind] += unit_hydrograph[uhind] * aggrunin[xyind];
         }
     }
 }

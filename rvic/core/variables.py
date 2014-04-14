@@ -26,13 +26,13 @@ class Point(object):
     Creates a point class for intellegently storing coordinate information
     '''
 
-    def __init__(self, lat='', lon='', gridx='', gridy='', routx='',
-                 routy='', name=None, cell_id=None):
+    def __init__(self, lat=-9999.9, lon=-9999.9, domx=-9999, domy=-9999,
+                 routx=-9999, routy=-9999, name='', cell_id=-9999):
         '''Defines x and y variables'''
         self.lat = lat
         self.lon = lon
-        self.gridx = gridx
-        self.gridy = gridy
+        self.domx = domx
+        self.domy = domy
         self.routx = routx
         self.routy = routy
         self.cell_id = cell_id
@@ -40,17 +40,26 @@ class Point(object):
         if name:
             self.name = name
         else:
-            self.name = 'outlet_{:3.4f}_{:3.4f}'.format(self.lat, self.lon)
+            self.name = 'outlet_{0:3.4f}_{1:3.4f}'.format(self.lat, self.lon)
+
+        return
 
     def __str__(self):
-        return ("Point({}, {:3.4f}, {:3.4f}, {:3.4f}, "
-                "{:3.4f})".format(self.name, self.lat, self.lon, self.gridy,
-                                  self.gridx))
+        return ("Point({0}, lat:{1:3.4f}, lon:{2:3.4f}, y:{3:d}, "
+                "x:{4:d})".format(self.name, self.lat, self.lon, self.domy,
+                                  self.domx))
 
     def __repr__(self):
-        return ("Point({}, {:3.4f}, {:3.4f}, {:3.4f}, "
-                "{:3.4f})".format(self.name, self.lat, self.lon, self.gridy,
-                                  self.gridx))
+        return ("    -- Point --    \n"
+                "name:\t{0}\n"
+                "lat:\t{1:3.4f}\n"
+                "lon:\t{2:3.4f}\n"
+                "domy:\t{3:d}\n"
+                "domx:\t{4:d}\n"
+                "routy:\t{5:d}\n"
+                "routx:\t{6:d}\n".format(self.name, self.lat, self.lon,
+                                         self.domy, self.domx,
+                                         self.routy, self.routx))
 # -------------------------------------------------------------------- #
 
 
@@ -129,23 +138,24 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Check that grid file matches
+    # Check that dom file matches
     def _check_domain_file(self, domain_file):
         """
-        Confirm that the grid files match in the parameter and domain files
+        Confirm that the dom files match in the parameter and domain files
         """
         input_file = os.path.split(domain_file)[1]
         log.info('domain_file: %s', input_file)
         log.info('Parameter RvicDomainFile: %s', self.RvicDomainFile)
 
         if input_file == self.RvicDomainFile:
-            log.info('Grid files match in parameter and domain file')
+            log.info('dom files match in parameter and domain file')
         else:
-            raise ValueError('Grid files do not match in parameter and '
+            raise ValueError('dom files do not match in parameter and '
                              'domain file')
     # ---------------------------------------------------------------- #
 
-    def set_domain(self, dom_data, domain):
+    # ---------------------------------------------------------------- #
+    def set_domain(self, dom_data, domain, lat0_is_min):
         """ Set the domain size """
         self._check_domain_file(domain['FILE_NAME'])
 
@@ -161,6 +171,21 @@ class Rvar(object):
             raise ValueError('source_x_ind.max() ({0}) > domain xsize'
                              ' ({1})'.format(self.source_x_ind, self.xsize))
         log.info('set domain')
+
+        if lat0_is_min:
+            log.info('Flipping Parameter File Y inds...')
+            self._flip_y_inds()
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # Flip the y index order
+    def _flip_y_inds(self):
+        """
+        Flip the y index order
+        """
+        self.source_y_ind = self.ysize - self.source_y_ind - 1
+        self.outlet_y_ind = self.ysize - self.outlet_y_ind - 1
+    # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initilize State
