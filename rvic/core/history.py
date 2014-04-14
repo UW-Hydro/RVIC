@@ -41,7 +41,7 @@ class Tape(object):
                  avgflag='A', units='kg m-2 s-1',
                  file_format='NETCDF4_CLASSIC', outtype='grid',
                  grid_lons=False, grid_lats=False, grid_area=None, out_dir='.',
-                 calendar=None, glob_ats=None, zlib=True, complevel=4, 
+                 calendar=None, glob_ats=None, zlib=True, complevel=4,
                  least_significant_digit=None):
         self._tape_num = tape_num
         self._time_ord = time_ord        # Days since basetime
@@ -95,13 +95,39 @@ class Tape(object):
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
-        # Get units multiplier
+        # Get units multiplier (size of noutlets)
         self._units = units
         if units in ['kg/m2/s', 'kg m-2 s-1', 'kg m^-2 s^-1',
                      'kg*m-2*s-1', 'kg s-1 m-2']:
-            self._units_mult = 1.0
+            self._units_mult = np.ones_like(self._outlet_y_ind,
+                                            dtype=np.float64)
         elif units in ['m3/s', 'm^3/s', 'm3 s-1']:
-            self._units_mult = grid_area / WATERDENSITY
+            # kg/m2/s --> m3/s
+            self._units_mult = grid_area[self._outlet_y_ind,
+                                         self._outlet_x_ind]
+            self._units_mult /= WATERDENSITY
+        elif units in ['mm/day', 'mm d-1', 'mm d^-1', 'mm/day']:
+            # kg/m2/s --> mm/day over basin area
+            self._units_mult = grid_area[self._outlet_y_ind,
+                                         self._outlet_x_ind]
+            self._units_mult *= SECSPERDAY
+            self._units_mult /= WATERDENSITY
+            self._units_mult /= self._outlet_upstream_area
+        elif units in ['gal/day', 'gpd', 'gal d-1']:
+            self._units_mult = grid_area[self._outlet_y_ind,
+                                         self._outlet_x_ind]
+            self._units_mult /= WATERDENSITY
+            self._units_mult *= 2.28E7
+        elif units in ['cfs', 'ft^3 s-1', 'f3/s']:
+            self._units_mult = grid_area[self._outlet_y_ind,
+                                         self._outlet_x_ind]
+            self._units_mult /= WATERDENSITY
+            self._units_mult *= 35.3
+        elif units in ['acre-ft/d']:
+            self._units_mult = grid_area[self._outlet_y_ind,
+                                         self._outlet_x_ind]
+            self._units_mult /= WATERDENSITY
+            self._units_mult *= 70.0
         else:
             raise ValueError('{0} is not a valid units string'.format(units))
         # ------------------------------------------------------------ #
@@ -324,10 +350,10 @@ class Tape(object):
                 # Grid the fields
                 self._out_data[field][self._out_data_i,
                                       self._outlet_y_ind,
-                                      self._outlet_x_ind] = self._temp_data[field][:]
+                                      self._outlet_x_ind] = self._temp_data[field][:] * self._units_mult
                 # ---------------------------------------------------- #
             else:
-                self._out_data[field][self._out_data_i, :] = self._temp_data[field]
+                self._out_data[field][self._out_data_i, :] = self._temp_data[field] * self._units_mult
         # ------------------------------------------------------------ #
 
         self._out_times[self._out_data_i] = self._write_ord
@@ -368,6 +394,7 @@ class Tape(object):
         self._outlet_lon = rvar.outlet_lon
         self._outlet_lat = rvar.outlet_lat
         self._outlet_name = rvar.outlet_name
+        self._outlet_upstream_area = rvar.outlet_upstream_area
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -511,8 +538,8 @@ class Tape(object):
 
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords,
-                                   **self.ncvaropts))
-            var[:, :] = self._out_data[field][:self._out_data_i+1] * self._units_mult
+                                   **self.ncvaropts)
+            var[:, :] = self._out_data[field][:self._out_data_i+1]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
@@ -630,7 +657,7 @@ class Tape(object):
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords,
                                    **self.ncvaropts)
-            var[:, :] = self._out_data[field][:self._out_data_i+1] * self._units_mult[self._outlet_y_ind, self._outlet_x_ind]
+            var[:, :] = self._out_data[field][:self._out_data_i+1]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
