@@ -4,7 +4,6 @@ share.py
 import sys
 import socket
 import time as time_mod
-import subprocess
 from collections import OrderedDict
 from netCDF4 import default_fillvals
 from getpass import getuser
@@ -32,6 +31,7 @@ SECSPERHOUR = 3600.
 MINSPERHOUR = 60.
 MINSPERDAY = HOURSPERDAY * MINSPERHOUR
 SECSPERDAY = HOURSPERDAY * SECSPERHOUR
+MONTHSPERYEAR = 12
 
 # length
 MMPERMETER = 1000.
