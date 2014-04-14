@@ -108,6 +108,10 @@ class Rvar(object):
         self.RvicUHFile = f.RvicUHFile
         self.RvicFdrFile = f.RvicFdrFile
         self.file_format = file_format
+        try:
+            self.outlet_upstream_area = f.variables['outlet_upstream_area'][:]
+        except:
+            self.outlet_upstream_area = None
         self.glob_atts = NcGlobals(title='RVIC restart file',
                                    RvicPourPointsFile=f.RvicPourPointsFile,
                                    RvicUHFile=f.RvicUHFile,
