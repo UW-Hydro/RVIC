@@ -15,9 +15,8 @@ before_install:
   - sudo ln -s /run/shm /dev/shm
 # Install packages
 install:
-  - conda create --yes -n rvic_env python=$TRAVIS_PYTHON_VERSION 
-  - source activate rvic_env
-  - pip install -r ci/requirements-2.7.txt
+  - conda create --yes --name=rvic_test_env python=$TRAVIS_PYTHON_VERSION --file=ci/requirements-2.7.txt
+  - source activate rvic_test_env
   - python setup.py install
 # Run test
 script:
