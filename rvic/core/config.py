@@ -3,6 +3,7 @@ config.py
 
 """
 
+import os
 from ConfigParser import SafeConfigParser
 
 
@@ -64,7 +65,7 @@ def config_type(value):
             try:
                 return float(value)
             except:
-                return value
+                return os.path.expandvars(value)
     else:
         try:
             return map(float, val_list)
