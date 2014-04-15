@@ -26,4 +26,6 @@ script:
   - pip freeze
   - echo $PATH
   - python -c 'import rvic; print rvic.__file__'
-  - py.test  # erroring here for unknown path reasons...
+  - cd tests
+  - pwd
+  - python run_tests.py unit
