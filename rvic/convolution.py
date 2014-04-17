@@ -15,7 +15,7 @@ Major updates to the...
 """
 import os
 from logging import getLogger
-from core.log import init_logger, LOG_NAME
+from core.log import init_logger, close_logger, LOG_NAME
 from core.utilities import make_directories, read_domain
 from core.utilities import write_rpointer, tar_inputs
 from core.variables import Rvar
@@ -347,6 +347,8 @@ def convolution_final(time_handle, hist_tapes):
 
     log.info('Done with rvic convolution.')
     log.info('Location of Log: %s', log_tar)
+
+    close_logger()
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #

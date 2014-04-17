@@ -61,14 +61,44 @@ def config_type(value):
             return False
         elif value in ['none', 'None', 'NONE', '']:
             return None
+        elif isint(value):
+            return int(value)
+        elif isfloat(value):
+            return float(value)
         else:
-            try:
-                return float(value)
-            except:
-                return os.path.expandvars(value)
+            return os.path.expandvars(value)
     else:
         try:
             return map(float, val_list)
         except:
+            pass
+        try:
+            return map(int, val_list)
+        except:
             return val_list
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def isfloat(x):
+    """Test of value is a float"""
+    try:
+        a = float(x)
+    except ValueError:
+        return False
+    else:
+        return True
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def isint(x):
+    """Test if value is an integer"""
+    try:
+        a = float(x)
+        b = int(a)
+    except ValueError:
+        return False
+    else:
+        return a == b
 # -------------------------------------------------------------------- #

@@ -78,3 +78,15 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
 
     return logger
 # -------------------------------------------------------------------- #
+
+
+def close_logger():
+    """Close the handlers of the logger"""
+    log = logging.getLogger(LOG_NAME)
+    x = list(log.handlers)
+    for i in x:
+        log.removeHandler(i)
+        i.flush()
+        i.close()
+        sys.stdout = sys.__stdout__
+        sys.stderr = sys.__stderr__

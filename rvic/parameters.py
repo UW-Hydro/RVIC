@@ -6,9 +6,9 @@ import numpy as np
 import pandas as pd
 from collections import OrderedDict
 from logging import getLogger
-from core.log import init_logger, LOG_NAME
+from core.log import init_logger, close_logger, LOG_NAME
 from core.mpi import LoggingPool
-from core.utilities import make_directories, copy_inputs, strip_non_ascii
+from core.utilities import make_directories, copy_inputs, strip_invalid_char
 from core.utilities import read_netcdf, tar_inputs, latlon2yx
 from core.utilities import check_ncvars, clean_file, read_domain
 from core.aggregate import make_agg_pairs, aggregate
@@ -123,7 +123,8 @@ def gen_uh_init(config_file):
         if 'names' in pour_points:
             pour_points.fillna(inplace=True, value='unknown')
             for i, name in enumerate(pour_points.names):
-                pour_points.names[i] = strip_non_ascii(name)
+                pour_points.names[i] = strip_invalid_char(name)
+
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna()
     except Exception as e:
@@ -471,6 +472,8 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
     log.info('Location of Inputs: %s', inputs_tar)
     log.info('Location of Log: %s', log_tar)
     log.info('Location of Parmeter File %s', param_file)
+
+    close_logger()
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
