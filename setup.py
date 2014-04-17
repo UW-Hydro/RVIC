@@ -110,7 +110,7 @@ setup(name='rvic',
       packages=['rvic', 'rvic.core'],
       platform=['any'],
       py_modules=['rvic.parameters', 'rvic.convolution', 'rvic.convert'],
-      scripts=['scripts/rvic_model', 'tools/find_pour_points.py',
+      scripts=['scripts/rvic', 'tools/find_pour_points.py',
                'tools/fraction2domain.bash'],
       ext_modules=[Extension('rvic_convolution',
                              sources=['rvic/clib/rvic_convolution.c'])])
