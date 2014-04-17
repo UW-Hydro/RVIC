@@ -11,7 +11,7 @@ from netCDF4 import Dataset
 from logging import getLogger
 from log import LOG_NAME
 from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
-from share import METERS2PERACRE, METERSPERKM
+from share import METERS2PERACRE, METERSPERKM, VALID_CHARS
 from config import read_config
 
 # -------------------------------------------------------------------- #
@@ -335,8 +335,15 @@ def read_domain(domain_dict, lat0_is_min=False):
 
 
 # -------------------------------------------------------------------- #
-def strip_non_ascii(string):
+def strip_non_ascii(in_string):
     ''' Returns the string without non ASCII characters'''
-    stripped = (c for c in string if 0 < ord(c) < 127)
+    stripped = (c for c in in_string if 0 < ord(c) < 127)
     return ''.join(stripped)
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def strip_invalid_char(in_string):
+    ''' Returns the string without invalid characters for filenames'''
+    return ''.join(c for c in in_string if c in VALID_CHARS)
 # -------------------------------------------------------------------- #
