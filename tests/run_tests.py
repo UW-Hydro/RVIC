@@ -2,6 +2,8 @@
 """RVIC command line testing interface"""
 
 from __future__ import print_function
+import os
+import textwrap
 import argparse
 import pytest
 import cProfile
@@ -9,6 +11,17 @@ import pstats
 import StringIO
 from rvic import convert, convolution, parameters
 from rvic.core.config import read_config
+
+if not os.environ.get('RVIC_TEST_DIR'):
+    print('\n$RVIC_TEST_DIR not set.')
+    os.environ["RVIC_TEST_DIR"] = os.path.abspath(os.path.dirname(__file__))
+    print('Setting to run_tests.py dir: '
+          '{0}\n'.format(os.environ["RVIC_TEST_DIR"]))
+if not os.environ.get('WORKDIR'):
+    print('\n$WORKDIR not set.')
+    os.environ["WORKDIR"] = os.environ["RVIC_TEST_DIR"]
+    print('Setting to output run_tests.py dir to $WORKDIR: '
+          '{0}\n'.format(os.environ["WORKDIR"]))
 
 
 # -------------------------------------------------------------------- #
@@ -55,7 +68,15 @@ def run_examples(config_file):
         print("".center(100, '-'))
         print("Starting Test #{0} of {1}: {2}".format(i+1, num_tests,
                                                       test).center(100))
+        desc = textwrap.fill(", ".join(test_dict['description']), 100)
+        print("Description: {0}".format(desc))
         print("".center(100, '-'))
+
+        if 'processors' in test_dict:
+            numofproc = test_dict['processors']
+        else:
+            numofproc = 1
+
         pr = cProfile.Profile()
         pr.enable()
 
@@ -64,7 +85,8 @@ def run_examples(config_file):
         elif test_dict['function'] == 'convolution':
             convolution.convolution(test_dict['config_file'])
         elif test_dict['function'] == 'parameters':
-            parameters.parameters(test_dict['config_file'])
+            parameters.parameters(test_dict['config_file'],
+                                  numofproc=numofproc)
         else:
             raise ValueError('Unknow function variable: '
                              '{0}'.format(test_dict['function']))
