@@ -4,6 +4,7 @@ config.py
 """
 
 import os
+from collections import OrderedDict
 from ConfigParser import SafeConfigParser
 
 
@@ -34,10 +35,10 @@ def read_config(config_file):
     config.optionxform = str
     config.read(config_file)
     sections = config.sections()
-    dict1 = {}
+    dict1 = OrderedDict()
     for section in sections:
         options = config.options(section)
-        dict2 = {}
+        dict2 = OrderedDict()
         for option in options:
             dict2[option] = config_type(config.get(section, option))
         dict1[section] = dict2
