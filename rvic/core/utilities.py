@@ -284,9 +284,11 @@ def read_domain(domain_dict, lat0_is_min=False):
     # Make sure the longitude / latitude vars are 2d
     dom_lat = domain_dict['LATITUDE_VAR']
     dom_lon = domain_dict['LONGITUDE_VAR']
+
+    dom_data['cord_lons'] = dom_data[dom_lon][:]
+    dom_data['cord_lats'] = dom_data[dom_lat][:]
+
     if dom_data[dom_lon].ndim == 1:
-        dom_data['cord_lons'] = dom_data[dom_lon][:]
-        dom_data['cord_lats'] = dom_data[dom_lat][:]
         # ------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
         if (dom_data[dom_lat][-1] > dom_data[dom_lat][0]) != lat0_is_min:
