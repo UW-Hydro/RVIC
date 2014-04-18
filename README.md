@@ -1,6 +1,6 @@
 # RVIC Streamflow Routing Model
 
-[![Build Status](https://travis-ci.org/jhamman/RVIC.svg?branch=develop)](https://travis-ci.org/jhamman/RVIC)
+[![Build Status](https://travis-ci.org/jhamman/RVIC.svg?branch=master)](https://travis-ci.org/jhamman/RVIC)
 
 The RVIC Streamflow Routing model is a simple source to sink routing model.  The model represents each grid cell by a node in the channel network.  Unit hydrographs are developed that described the time distribution of flow from each source grid cell to a corresponding sink grid cell.  The development of the unit hydrographs is done as a pre process step (i.e. `rvic parameters`).  The final step is the convolution of the unit hydrographs with fluxes from a land surface model, typically VIC (i.e. `rvic convolution`).  
 
