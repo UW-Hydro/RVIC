@@ -57,7 +57,7 @@ class DataModel(object):
 
         # yearly files
         elif len(start) == 1:
-            for year in xrange(start[0], end[0]):
+            for year in xrange(start[0], end[0]+1):
                 self.files.append(os.path.join(self.path,
                                   file_str.replace('$YYYY',
                                                    "{0:04d}".format(year))))
@@ -116,10 +116,13 @@ class DataModel(object):
 
                 # determine the latitude order
                 lats = f.variables[self.lat_fld][:]
-                if lats[-1] > lats[0]:
-                    log.debug('Input fluxes came in upside down, flipping '
-                              'params and maybe domain.')
-                    self.lat0_is_min = True
+                if lats.ndim == 1:
+                    if lats[-1] > lats[0]:
+                        log.debug('Input fluxes came in upside down, flipping '
+                                  'params and maybe domain.')
+                        self.lat0_is_min = True
+                    else:
+                        self.lat0_is_min = False
                 else:
                     self.lat0_is_min = False
             else:

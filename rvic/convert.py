@@ -3,7 +3,7 @@ Read a set of uhs files and write an RVIC parameter file
 """
 
 from logging import getLogger
-from core.log import init_logger, LOG_NAME
+from core.log import init_logger, close_logger, LOG_NAME
 from core.utilities import make_directories, copy_inputs, read_domain
 from core.utilities import tar_inputs
 from core.convert import read_station_file, read_uhs_files, move_domain
@@ -143,6 +143,8 @@ def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
     log.info('Location of Inputs: %s', inputs_tar)
     log.info('Location of Log: %s', log_tar)
     log.info('Location of Parmeter File %s', param_file)
+
+    close_logger()
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #

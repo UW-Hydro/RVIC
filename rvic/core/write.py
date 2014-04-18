@@ -282,7 +282,7 @@ def write_param_file(file_name,
             setattr(oug, key, val)
 
     # Outlet Names
-    onm = f.createVariable('outlet_name', NC_CHAR, nocoords, **ncvaropts)
+    onm = f.createVariable('outlet_name', NC_CHAR, nocoords)
     onm[:, :] = char_names
     for key, val in share.outlet_name.__dict__.iteritems():
         if val:

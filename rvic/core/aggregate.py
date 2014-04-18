@@ -4,7 +4,6 @@ aggregate.py
 """
 
 import numpy as np
-from scipy.spatial import cKDTree
 from collections import OrderedDict
 from share import FILLVALUE_F
 from utilities import find_nearest, latlon2yx
@@ -21,8 +20,6 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # Find target cells for pour points
 def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
-# def make_agg_pairs(lons, lats, dom_lon, dom_lat, dom_ids,
-                   # fdr_lons, fdr_lats, fdr_srcarea, agg_type='agg'):
     """
     Group pour points by domain grid outlet cell
     """

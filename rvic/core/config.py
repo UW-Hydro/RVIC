@@ -3,6 +3,8 @@ config.py
 
 """
 
+import os
+from collections import OrderedDict
 from ConfigParser import SafeConfigParser
 
 
@@ -33,10 +35,10 @@ def read_config(config_file):
     config.optionxform = str
     config.read(config_file)
     sections = config.sections()
-    dict1 = {}
+    dict1 = OrderedDict()
     for section in sections:
         options = config.options(section)
-        dict2 = {}
+        dict2 = OrderedDict()
         for option in options:
             dict2[option] = config_type(config.get(section, option))
         dict1[section] = dict2
@@ -60,14 +62,44 @@ def config_type(value):
             return False
         elif value in ['none', 'None', 'NONE', '']:
             return None
+        elif isint(value):
+            return int(value)
+        elif isfloat(value):
+            return float(value)
         else:
-            try:
-                return float(value)
-            except:
-                return value
+            return os.path.expandvars(value)
     else:
         try:
             return map(float, val_list)
         except:
+            pass
+        try:
+            return map(int, val_list)
+        except:
             return val_list
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def isfloat(x):
+    """Test of value is a float"""
+    try:
+        a = float(x)
+    except ValueError:
+        return False
+    else:
+        return True
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def isint(x):
+    """Test if value is an integer"""
+    try:
+        a = float(x)
+        b = int(a)
+    except ValueError:
+        return False
+    else:
+        return a == b
 # -------------------------------------------------------------------- #

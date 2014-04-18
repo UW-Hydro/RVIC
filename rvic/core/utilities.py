@@ -11,7 +11,7 @@ from netCDF4 import Dataset
 from logging import getLogger
 from log import LOG_NAME
 from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
-from share import METERS2PERACRE, METERSPERKM
+from share import METERS2PERACRE, METERSPERKM, VALID_CHARS
 from config import read_config
 
 # -------------------------------------------------------------------- #
@@ -284,9 +284,11 @@ def read_domain(domain_dict, lat0_is_min=False):
     # Make sure the longitude / latitude vars are 2d
     dom_lat = domain_dict['LATITUDE_VAR']
     dom_lon = domain_dict['LONGITUDE_VAR']
+
+    dom_data['cord_lons'] = dom_data[dom_lon][:]
+    dom_data['cord_lats'] = dom_data[dom_lat][:]
+
     if dom_data[dom_lon].ndim == 1:
-        dom_data['cord_lons'] = dom_data[dom_lon][:]
-        dom_data['cord_lats'] = dom_data[dom_lat][:]
         # ------------------------------------------------------------- #
         # Check latitude order, flip if necessary.
         if (dom_data[dom_lat][-1] > dom_data[dom_lat][0]) != lat0_is_min:
@@ -335,8 +337,15 @@ def read_domain(domain_dict, lat0_is_min=False):
 
 
 # -------------------------------------------------------------------- #
-def strip_non_ascii(string):
+def strip_non_ascii(in_string):
     ''' Returns the string without non ASCII characters'''
-    stripped = (c for c in string if 0 < ord(c) < 127)
+    stripped = (c for c in in_string if 0 < ord(c) < 127)
     return ''.join(stripped)
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def strip_invalid_char(in_string):
+    ''' Returns the string without invalid characters for filenames'''
+    return ''.join(c for c in in_string if c in VALID_CHARS)
 # -------------------------------------------------------------------- #
