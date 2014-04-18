@@ -3,6 +3,7 @@ share.py
 """
 import sys
 import socket
+import string
 import time as time_mod
 from collections import OrderedDict
 from netCDF4 import default_fillvals
@@ -63,6 +64,8 @@ CALENDAR_KEYS = {0: ['None'],
                  4: ['all_leap', '366_day'],
                  5: ['360_day'],
                  6: ['julian']}
+
+VALID_CHARS = "-_. %s%s" % (string.ascii_letters, string.digits)
 
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #

@@ -64,6 +64,10 @@ def finish_params(outlets, dom_data, config_dict, directories):
         subset_length = routing['BASIN_FLOWDAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
         log.info('Not subsetting because either SUBSET_DAYS is null or '
                  'SUBSET_DAYS<BASIN_FLOWDAYS')
+        for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
+            outlets[cell_id].offset = np.zeros(outlet.unit_hydrograph.shape[1],
+                                               dtype=np.int16)
+        full_time_length = outlet.unit_hydrograph.shape[0]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

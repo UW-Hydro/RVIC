@@ -8,9 +8,12 @@ Summary:
         - initialization:  sets tape options, determines filenames, etc.
         - update: method that incorporates new fluxes into the history tape.
         - __next_update_out_data: method to determine when to update the
-        outdata container
-
+        out_data container
+        - __next_write_out_data: method to determine when to write the out_data
+        container
+        - finish: method to close all remaining history tapes.
 """
+
 import os
 import numpy as np
 from netCDF4 import Dataset, date2num, num2date, stringtochar
@@ -46,7 +49,7 @@ class Tape(object):
         self._tape_num = tape_num
         self._time_ord = time_ord        # Days since basetime
         self._caseid = caseid            # Case ID and prefix for outfiles
-        self._fincl = fincl              # Fields to include in history file
+        self._fincl = list(fincl)        # Fields to include in history file
         self._mfilt = mfilt              # Maximum number of time samples
         self._ndens = ndens
         if self._ndens == 1:             # Output file precision
@@ -78,6 +81,7 @@ class Tape(object):
         else:
             # If monthly
             self._out_data_stepsize = None  # varies by month
+        log.debug('_out_data_stepsize: ', self._out_data_stepsize)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -91,7 +95,7 @@ class Tape(object):
                 raise ValueError('Must include grid lons / lats if '
                                  'outtype == grid')
         else:
-            self._out_data_shape = self._num_outlets
+            self._out_data_shape = (self._num_outlets, )
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -181,6 +185,8 @@ class Tape(object):
         # Determine when the update of out_data should be
         self.__next_update_out_data()
         # ------------------------------------------------------------ #
+
+        log.debug(self.__repr__())
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -190,18 +196,18 @@ class Tape(object):
 
     def __repr__(self):
         parts = ['------- Summary of History Tape Settings -------',
-                 '\t# caseid:       {0}s'.format(self._caseid),
-                 '\t# fincl:        {0}s'.format(','.join(self._fincl)),
-                 '\t# nhtfrq:       {0}s'.format(self._nhtfrq),
-                 '\t# mfilt:        {0}s'.format(self._mfilt),
-                 '\t# ncprec:       {0}s'.format(self._ncprec),
-                 '\t# avgflag:      {0}s'.format(self._avgflag),
-                 '\t# fname_format: {0}s'.format(self._fname_format),
-                 '\t# file_format:  {0}s'.format(self._file_format),
-                 '\t# outtype:      {0}s'.format(self._outtype),
-                 '\t# out_dir:      {0}s'.format(self._out_dir),
-                 '\t# calendar:     {0}s'.format(self._calendar),
-                 '\t# units:        {0}s'.format(self._units),
+                 '\t# caseid:       {0}'.format(self._caseid),
+                 '\t# fincl:        {0}'.format(','.join(self._fincl)),
+                 '\t# nhtfrq:       {0}'.format(self._nhtfrq),
+                 '\t# mfilt:        {0}'.format(self._mfilt),
+                 '\t# ncprec:       {0}'.format(self._ncprec),
+                 '\t# avgflag:      {0}'.format(self._avgflag),
+                 '\t# fname_format: {0}'.format(self._fname_format),
+                 '\t# file_format:  {0}'.format(self._file_format),
+                 '\t# outtype:      {0}'.format(self._outtype),
+                 '\t# out_dir:      {0}'.format(self._out_dir),
+                 '\t# calendar:     {0}'.format(self._calendar),
+                 '\t# units:        {0}'.format(self._units),
                  '  ------- End of History Tape Settings -------']
         return '\n'.join(parts)
     # ---------------------------------------------------------------- #
@@ -276,7 +282,10 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     def __next_write_out_data(self):
-        """ """
+        """determine the maximum size of out_data"""
+
+        log.debug('determining size of out_data')
+
         self._out_data_i = 0            # position counter for out_data array
 
         # ------------------------------------------------------------ #
@@ -297,7 +306,6 @@ class Tape(object):
 
                 # calculate the mfilt value
                 mfilt = int(round((b1 - b0) / self._out_data_stepsize))
-
         elif self._mfilt == 'month':
             if self._nhtfrq == 0:
                 mfilt = 1
@@ -311,19 +319,19 @@ class Tape(object):
 
                 # calculate the mfilt value
                 mfilt = int(round((b1 - b0) / self._out_data_stepsize))
-
         elif self._mfilt == 'day':
-            if self._nhtfrq == 0:
+            if self._nhtfrq != 0:
+                b1 = b0 + 1.0
+            else:
                 raise ValueError('Incompatable values for NHTFRQ and MFILT')
-            b1 = b0 + 1.0
 
             # calculate the mfilt value
             mfilt = int(round((b1 - b0) / self._out_data_stepsize))
-
         else:
-            mfilt = self._mfilt
+            mfilt = int(self._mfilt)
         # ------------------------------------------------------------ #
 
+        # ------------------------------------------------------------ #
         if mfilt < 1:
             mfilt = 1
 
@@ -334,13 +342,20 @@ class Tape(object):
 
         shape = (mfilt, ) + self._out_data_shape
 
+        log.debug('out_data shape: %s', shape)
+        log.debug('_out_data_write: %s', self._out_data_write)
+
         for field in self._fincl:
             self._out_data[field] = np.zeros(shape, dtype=np.float64)
+
+        self._out_data_has_values = False
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # fill in out_data
     def __update_out_data(self):
+
+        self._out_data_has_values = True
 
         # ------------------------------------------------------------ #
         # Update the _out_data fields
@@ -368,12 +383,15 @@ class Tape(object):
             self._out_data_i = 0
         else:
             self._out_data_i += 1
+            log.debug('out_data counter is %s of %s', self._out_data_i,
+                      self._out_data_write)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     def finish(self):
         """write out_data"""
-        if self._out_data_i > 0:
+        log.debug('finishing tape %s', self._tape_num)
+        if self._out_data_has_values:
             if self._outtype == 'grid':
                 self.__write_grid()
             else:

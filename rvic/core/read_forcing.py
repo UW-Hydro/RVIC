@@ -116,10 +116,13 @@ class DataModel(object):
 
                 # determine the latitude order
                 lats = f.variables[self.lat_fld][:]
-                if lats[-1] > lats[0]:
-                    log.debug('Input fluxes came in upside down, flipping '
-                              'params and maybe domain.')
-                    self.lat0_is_min = True
+                if lats.ndim == 1:
+                    if lats[-1] > lats[0]:
+                        log.debug('Input fluxes came in upside down, flipping '
+                                  'params and maybe domain.')
+                        self.lat0_is_min = True
+                    else:
+                        self.lat0_is_min = False
                 else:
                     self.lat0_is_min = False
             else:
