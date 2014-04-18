@@ -14,6 +14,7 @@ structure.
 Major updates to the...
 """
 import os
+from collections import OrderedDict
 from logging import getLogger
 from core.log import init_logger, close_logger, LOG_NAME
 from core.utilities import make_directories, read_domain
@@ -168,7 +169,7 @@ def convolution_init(config_file):
     # Setup history Tape(s) and Write Initial Outputs
     history = config_dict['HISTORY']
     numtapes = int(history['RVICHIST_NTAPES'])
-    hist_tapes = {}
+    hist_tapes = OrderedDict()
 
     # make sure history file fields are all in list form
     if numtapes == 1:
@@ -185,14 +186,14 @@ def convolution_init(config_file):
                             RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
 
     for j in xrange(numtapes):
-        tapename = 'Tape.%i' % j
+        tapename = 'Tape.{0}'.format(j)
         log.info('setting up History %s', tapename)
         hist_tapes[tapename] = Tape(time_handle.time_ord,
                                     options['CASEID'],
                                     rout_var,
                                     tape_num=j,
                                     fincl=['streamflow'],
-                                    mfilt=int(history['RVICHIST_MFILT'][j]),
+                                    mfilt=history['RVICHIST_MFILT'][j],
                                     ndens=int(history['RVICHIST_NDENS'][j]),
                                     nhtfrq=int(history['RVICHIST_NHTFRQ'][j]),
                                     avgflag=history['RVICHIST_AVGFLAG'][j],
@@ -220,7 +221,7 @@ def convolution_init(config_file):
 
 # -------------------------------------------------------------------- #
 def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
-                 directories, config_dict):
+                    directories, config_dict):
     """
     Main run loop for RVIC model.
     """
