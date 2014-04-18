@@ -5,14 +5,11 @@ The RVIC Streamflow Routing model is a simple source to sink routing model.  The
 ### Usage
 See the [RVIC Wiki Page](https://github.com/jhamman/RVIC/wiki/RVIC-Wiki)
 
-### Development History
+### Development:
 1.  Based on the initial model of Lohmann, et al., 1996, Tellus, 48(A), 708-721
-2.  Currently being coupled as a componenet model in the Comunity Earth System Model (RASM) as part of the Regional Arctic System Model Project.   
+2.  Currently being coupled as a componenet model in the Comunity Earth System Model (RASM) as part of the Regional Arctic System Model Project.
 
-### Upcoming Development
-1.  History file restarts to further support short model runs.
-2.  Possible distributed application to support full grid routing (rather than source to sink only).
-3.  Plans to couple directly to VIC.
+More information on the development and testing of the RVIC model can be found [here](https://github.com/jhamman/RVIC/wiki/Development-and-Testing).
 
 ### References:
 **RVIC Primary Reference**
