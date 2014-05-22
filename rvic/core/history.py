@@ -72,16 +72,16 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # calculate the step size for each out_data timestep (units=days)
-        if nhtfrq > 0:
+        if self._nhtfrq > 0:
             # If some number of timesteps
             self._out_data_stepsize = self._nhtfrq * self._dt / SECSPERDAY
-        elif nhtfrq < 0:
+        elif self._nhtfrq < 0:
             # If some number hours
             self._out_data_stepsize = -1 * self._nhtfrq / HOURSPERDAY
         else:
             # If monthly
             self._out_data_stepsize = None  # varies by month
-        log.debug('_out_data_stepsize: ', self._out_data_stepsize)
+        log.debug('_out_data_stepsize: %s', self._out_data_stepsize)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -163,10 +163,10 @@ class Tape(object):
             self._fname_format = os.path.join(out_dir,
                                              "%s.rvic.h%s%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
         else:
-            if nhtfrq == 0:
+            if self._nhtfrq == 0:
                 self._fname_format = os.path.join(out_dir,
                                                  "%s.rvic.h%s%s.%%Y-%%m.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
-            elif (nhtfrq == -24) or (nhtfrq*self._dt == SECSPERDAY):
+            elif (self._nhtfrq == -24) or (nhtfrq*self._dt == SECSPERDAY):
                 self._fname_format = os.path.join(out_dir,
                                                  "%s.rvic.h%s%s.%%Y-%%m-%%d.nc" % (self._caseid, self._tape_num, self._avgflag.lower()))
             else:
@@ -269,6 +269,9 @@ class Tape(object):
             # Determine next update
             self.__next_update_out_data()
 
+            # Determine when the next write should be and initialize out_data
+            self.__next_write_out_data()
+
             # zero out temp_data
             for field in self._fincl:
                 self._temp_data[field][:] = 0.0
@@ -336,9 +339,9 @@ class Tape(object):
             mfilt = 1
 
         self._out_data_write = mfilt-1
-        self._out_times = np.zeros(mfilt, dtype=np.float64)
+        self._out_times = np.empty(mfilt, dtype=np.float64)
         if self._avgflag != 'I':
-            self._out_time_bnds = np.zeros((mfilt, 2), dtype=np.float64)
+            self._out_time_bnds = np.empty((mfilt, 2), dtype=np.float64)
 
         shape = (mfilt, ) + self._out_data_shape
 
