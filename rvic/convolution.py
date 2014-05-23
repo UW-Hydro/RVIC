@@ -151,7 +151,7 @@ def convolution_init(config_file):
                         options['CALENDAR'], data_model.secs_per_step)
     time_handle.end = data_model.end
 
-    data_model.start(time_handle.timestamp)
+    data_model.start(time_handle.timestamp, rout_var)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -353,4 +353,3 @@ def convolution_final(time_handle, hist_tapes):
     # ---------------------------------------------------------------- #
     return
 # -------------------------------------------------------------------- #
-
