@@ -10,9 +10,9 @@ except:
     from distutils.core import setup
     from distutils.extension import Extension
 
-MAJOR = 0
-MINOR = 3
-MICRO = 0
+MAJOR = 1
+MINOR = 0
+MICRO = 1
 ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
