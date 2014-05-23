@@ -158,7 +158,7 @@ class DataModel(object):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    def start(self, timestamp):
+    def start(self, timestamp, rout_var):
         """ Initialize the first files inputs"""
         # ------------------------------------------------------------ #
         # find and open first file
@@ -204,6 +204,26 @@ class DataModel(object):
                 self.fld_mult[fld] = WATERDENSITY / CMPERMETER / self.secs_per_step
             else:
                 raise ValueError('unknown forcing units')
+        # ------------------------------------------------------------ #
+
+        # ------------------------------------------------------------ #
+        # Compare rout_var mask to forcing mask
+        for fld in self.liq_flds:
+            self.current_fhdl.variables[fld].set_auto_maskandscale(False)
+            try:
+                fill_val = getattr(self.current_fhdl.variables[fld],
+                                   '_FillValue')
+                fmask = np.squeeze(self.current_fhdl.variables[fld][0]) == fill_val
+
+                if np.any(fmask[rout_var.source_y_ind, rout_var.source_x_ind]):
+                    log.error('There are fill values in the routing domain')
+                    log.error('Can not continue...')
+                    raise ValueError('Exiting now due to fill values being '
+                                     'inside the domain defined by the RVIC '
+                                     'parameter file')
+
+            except AttributeError:
+                pass
         # ------------------------------------------------------------ #
     # ---------------------------------------------------------------- #
 
