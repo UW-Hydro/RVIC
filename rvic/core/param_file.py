@@ -5,7 +5,7 @@ import numpy as np
 import logging
 from log import LOG_NAME
 from write import write_param_file
-from share import NcGlobals, SECSPERDAY
+from share import NcGlobals, SECSPERDAY, MAX_NC_CHARS
 import os
 from datetime import date
 import plots
@@ -48,26 +48,28 @@ def finish_params(outlets, dom_data, config_dict, directories):
         outlets, full_time_length, \
             before, after = subset(outlets, subset_length=subset_length)
 
+        slc = slice(min(len(before), 1000))
+
         log.debug('plotting unit hydrograph timeseries now for before'
                   ' / after subseting')
 
         title = 'UHS before subset'
-        pfname = plots.uhs(before, title, options['CASEID'],
+        pfname = plots.uhs(before[slc], title, options['CASEID'],
                            directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
 
         title = 'UHS after subset'
-        pfname = plots.uhs(after, title, options['CASEID'],
+        pfname = plots.uhs(after[slc], title, options['CASEID'],
                            directories['plots'])
         log.info('%s Plot:  %s', title, pfname)
     else:
-        subset_length = routing['BASIN_FLOWDAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
         log.info('Not subsetting because either SUBSET_DAYS is null or '
                  'SUBSET_DAYS<BASIN_FLOWDAYS')
-        for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
-            outlets[cell_id].offset = np.zeros(outlet.unit_hydrograph.shape[1],
-                                               dtype=np.int16)
+        for outlet in outlets.itervalues():
+            outlet.offset = np.zeros(outlet.unit_hydrograph.shape[1],
+                                     dtype=np.int16)
         full_time_length = outlet.unit_hydrograph.shape[0]
+        subset_length = full_time_length
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -94,7 +96,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
     # ---------------------------------------------------------------- #
     # Group
-    grouped_data = group(outlets)
+    grouped_data = group(outlets, subset_length)
 
     # unpack grouped data
     unit_hydrograph = grouped_data['unit_hydrograph']
@@ -290,12 +292,12 @@ def subset(outlets, subset_length=None):
     """ Shorten the Unit Hydrograph"""
 
     log.info('subsetting unit-hydrographs now...')
-    log.debug('Subset Length:  %s' % subset_length)
+    log.debug('Subset Length:  %s', subset_length)
 
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
-            log.debug('Subset Length:  %s' % subset_length)
+            log.debug('Subset Length:  %s', subset_length)
             if not subset_length:
                 subset_length = full_time_length
                 log.debug('No subset_length provided, using full_time_length')
@@ -362,93 +364,86 @@ def subset(outlets, subset_length=None):
 
 
 # -------------------------------------------------------------------- #
-def group(outlets):
+def group(outlets, subset_length):
     """
     group the outlets into one set of arrays
     """
 
+    n_outlets = len(outlets)
+    n_sources = 0
+    for outlet in outlets.itervalues():
+        n_sources += len(outlet.y_source)
+
+    gd = {}
+
+    log.debug('n_outlets: %s', n_outlets)
+    log.debug('n_sources: %s', n_sources)
+    log.debug('subset_length: %s', subset_length)
+
+    # ---------------------------------------------------------------- #
+    # Source specific values
+    gd['unit_hydrograph'] = np.empty((subset_length, n_sources),
+                                     dtype=np.float64)
+    gd['frac_sources'] = np.empty(n_sources, dtype=np.float64)
+    gd['source_lon'] = np.empty(n_sources, dtype=np.float64)
+    gd['source_lat'] = np.empty(n_sources, dtype=np.float64)
+    gd['source_x_ind'] = np.empty(n_sources, dtype=np.int16)
+    gd['source_y_ind'] = np.empty(n_sources, dtype=np.int16)
+    gd['source_decomp_ind'] = np.empty(n_sources, dtype=np.int16)
+    gd['source_time_offset'] = np.empty(n_sources, dtype=np.int16)
+    gd['source2outlet_ind'] = np.empty(n_sources, dtype=np.int16)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # outlet specific inputs
+    gd['outlet_lon'] = np.empty(n_outlets, dtype=np.float64)
+    gd['outlet_lat'] = np.empty(n_outlets, dtype=np.float64)
+    gd['outlet_x_ind'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_y_ind'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_decomp_ind'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_number'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_name'] = np.empty(n_outlets, dtype="S{0}".format(MAX_NC_CHARS))
+    gd['outlet_upstream_gridcells'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_upstream_area'] = np.empty(n_outlets, dtype=np.float64)
+    # ---------------------------------------------------------------- #
+
+    # ---------------------------------------------------------------- #
+    # place outlet and source vars into gd dictionary
+    a = 0
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
+        b = a + len(outlet.y_source)
+        log.debug('unit_hydrograph.shape %s', outlet.unit_hydrograph.shape)
+        # -------------------------------------------------------- #
+        # Point specific values
+        gd['unit_hydrograph'][:, a:b] = outlet.unit_hydrograph
+        gd['frac_sources'][a:b] = outlet.fractions
+        gd['source_lon'][a:b] = outlet.lon_source
+        gd['source_lat'][a:b] = outlet.lat_source
+        gd['source_x_ind'][a:b] = outlet.x_source
+        gd['source_y_ind'][a:b] = outlet.y_source
+        gd['source_decomp_ind'][a:b] = outlet.cell_id_source
+        gd['source_time_offset'][a:b] = outlet.offset
+        gd['source2outlet_ind'][a:b] = i
+        # -------------------------------------------------------- #
 
-        y = outlet.y_source
-        x = outlet.x_source
+        # -------------------------------------------------------- #
+        # outlet specific inputs
+        gd['outlet_lon'][i] = outlet.lon
+        gd['outlet_lat'][i] = outlet.lat
+        gd['outlet_x_ind'][i] = outlet.domx
+        gd['outlet_y_ind'][i] = outlet.domy
+        gd['outlet_decomp_ind'][i] = cell_id
+        gd['outlet_number'][i] = i
+        gd['outlet_name'][i] = outlet.name
+        gd['outlet_upstream_gridcells'][i] = outlet.upstream_gridcells
+        gd['outlet_upstream_area'][i] = outlet.upstream_area
+        # -------------------------------------------------------- #
 
-        if i == 0:
-            # -------------------------------------------------------- #
-            # Source specific values
-            unit_hydrograph = outlet.unit_hydrograph
-            frac_sources = outlet.fractions
-            source_lon = outlet.lon_source
-            source_lat = outlet.lat_source
-            source_x_ind = x
-            source_y_ind = y
-            source_decomp_ind = outlet.cell_id_source
-            source_time_offset = outlet.offset
-            source2outlet_ind = np.zeros(len(outlet.fractions))
-            # -------------------------------------------------------- #
+        # -------------------------------------------------------- #
+        # update src counter
+        a = b
+        # -------------------------------------------------------- #
+    # ---------------------------------------------------------------- #
 
-            # -------------------------------------------------------- #
-            # outlet specific inputs
-            outlet_lon = np.array(outlet.lon, dtype=np.float64)
-            outlet_lat = np.array(outlet.lat, dtype=np.float64)
-            outlet_x_ind = np.array(outlet.domx, dtype=np.int16)
-            outlet_y_ind = np.array(outlet.domy, dtype=np.int16)
-            outlet_decomp_ind = np.array(cell_id, dtype=np.int16)
-            outlet_number = np.array(i, dtype=np.int16)
-            outlet_name = np.array(outlet.name)
-            outlet_upstream_gridcells = np.array(outlet.upstream_gridcells,
-                                                 dtype=np.int16)
-            outlet_upstream_area = np.array(outlet.upstream_area,
-                                            dtype=np.float64)
-        else:
-            # -------------------------------------------------------- #
-            # Point specific values
-            unit_hydrograph = np.append(unit_hydrograph,
-                                        outlet.unit_hydrograph, axis=1)
-            frac_sources = np.append(frac_sources, outlet.fractions)
-            source_lon = np.append(source_lon, outlet.lon_source)
-            source_lat = np.append(source_lat, outlet.lat_source)
-            source_x_ind = np.append(source_x_ind, x)
-            source_y_ind = np.append(source_y_ind, y)
-            source_decomp_ind = np.append(source_decomp_ind,
-                                          outlet.cell_id_source)
-            source_time_offset = np.append(source_time_offset, outlet.offset)
-            source2outlet_ind = np.append(source2outlet_ind,
-                                          np.zeros_like(outlet.offset) + i)
-            # -------------------------------------------------------- #
-
-            # -------------------------------------------------------- #
-            # outlet specific inputs
-            outlet_lon = np.append(outlet_lon, outlet.lon)
-            outlet_lat = np.append(outlet_lat, outlet.lat)
-            outlet_x_ind = np.append(outlet_x_ind, outlet.domx)
-            outlet_y_ind = np.append(outlet_y_ind, outlet.domy)
-            outlet_decomp_ind = np.append(outlet_decomp_ind, cell_id)
-            outlet_number = np.append(outlet_number, i)
-            outlet_name = np.append(outlet_name, outlet.name)
-            outlet_upstream_gridcells = np.append(outlet_upstream_gridcells,
-                                                  outlet.upstream_gridcells)
-            outlet_upstream_area = np.append(outlet_upstream_area,
-                                             outlet.upstream_area)
-            # -------------------------------------------------------- #
-
-    grouped_data = {'unit_hydrograph': unit_hydrograph,
-                    'frac_sources': frac_sources,
-                    'source_lon': source_lon,
-                    'source_lat': source_lat,
-                    'source_x_ind': source_x_ind,
-                    'source_y_ind': source_y_ind,
-                    'source_decomp_ind': source_decomp_ind,
-                    'source_time_offset': source_time_offset,
-                    'source2outlet_ind': source2outlet_ind,
-                    'outlet_lon': outlet_lon,
-                    'outlet_lat': outlet_lat,
-                    'outlet_x_ind': outlet_x_ind,
-                    'outlet_y_ind': outlet_y_ind,
-                    'outlet_decomp_ind': outlet_decomp_ind,
-                    'outlet_number': outlet_number,
-                    'outlet_name': outlet_name,
-                    'outlet_upstream_gridcells': outlet_upstream_gridcells,
-                    'outlet_upstream_area': outlet_upstream_area}
-
-    return grouped_data
+    return gd
 # -------------------------------------------------------------------- #

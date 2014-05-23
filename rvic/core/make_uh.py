@@ -349,7 +349,6 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point, y_inds,
     x_ind = pour_point.basinx
 
     uh_river = np.zeros((t_uh, uh.shape[1], uh.shape[2]), dtype=np.float64)
-    # irf_temp = np.zeros(t_uh+t_cell, dtype=np.float64)
 
     for (y, x, d) in zip(y_inds, x_inds, count_ds):
         if d > 0:
