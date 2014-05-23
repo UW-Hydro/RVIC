@@ -367,7 +367,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         temp_file_1 = os.path.join(directories['aggregated'],
                                    'aggUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
 
-        write_agg_netcdf(temp_file_1, agg_data, glob_atts, 
+        write_agg_netcdf(temp_file_1, agg_data, glob_atts,
                          options['NETCDF_FORMAT'], **ncvaropts)
 
         # -------------------------------------------------------- #
