@@ -269,9 +269,6 @@ class Tape(object):
             # Determine next update
             self.__next_update_out_data()
 
-            # Determine when the next write should be and initialize out_data
-            self.__next_write_out_data()
-
             # zero out temp_data
             for field in self._fincl:
                 self._temp_data[field][:] = 0.0
@@ -384,6 +381,9 @@ class Tape(object):
         if self._out_data_i == self._out_data_write:
             self.finish()
             self._out_data_i = 0
+
+            # Determine when the next write should be and initialize out_data
+            self.__next_write_out_data()
         else:
             self._out_data_i += 1
             log.debug('out_data counter is %s of %s', self._out_data_i,
