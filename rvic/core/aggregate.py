@@ -103,7 +103,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     log.info('NUMBER OF POINTS TO AGGREGATE TO: %i' % key_count)
     log.info('NUMBER OF POUR POINTS AGGREGATED: %i' % pp_count)
     log.info('EFFECIENCY OF: %.2f %%' % (100.*pp_count / num))
-    log.info('UNASSIGNED POUR POINTS: %i \n' % (num-pp_count))
+    log.info('UNASSIGNED POUR POINTS: %i' % (num-pp_count))
     log.info('-------------------------------------------------------------\n')
 
     # ---------------------------------------------------------------- #

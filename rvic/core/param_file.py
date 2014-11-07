@@ -124,14 +124,15 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # fractions
     area = dom_data[domain['AREA_VAR']]
 
-    for source, outlet in enumerate(source2outlet_ind):
-        if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim == 0:
+    if outlet_y_ind.ndim == 0 or outlet_x_ind.ndim == 0:
+        for source, outlet in enumerate(source2outlet_ind):
             unit_hydrograph[:, source] *= area[source_y_ind[source],
                                                source_x_ind[source]]
             unit_hydrograph[:, source] /= area[outlet_y_ind[()],
                                                outlet_x_ind[()]]
             unit_hydrograph[:, source] *= frac_sources[source]
-        else:
+    else:
+        for source, outlet in enumerate(source2outlet_ind):
             unit_hydrograph[:, source] *= area[source_y_ind[source],
                                                source_x_ind[source]]
             unit_hydrograph[:, source] /= area[outlet_y_ind[outlet],
@@ -412,7 +413,8 @@ def group(outlets, subset_length):
     a = 0
     for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
         b = a + len(outlet.y_source)
-        log.debug('unit_hydrograph.shape %s', outlet.unit_hydrograph.shape)
+        log.debug('outlet.unit_hydrograph.shape %s',
+                  outlet.unit_hydrograph.shape)
         # -------------------------------------------------------- #
         # Point specific values
         gd['unit_hydrograph'][:, a:b] = outlet.unit_hydrograph
