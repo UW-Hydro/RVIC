@@ -27,7 +27,7 @@ class Point(object):
     '''
 
     def __init__(self, lat=-9999.9, lon=-9999.9, domx=-9999, domy=-9999,
-                 routx=-9999, routy=-9999, name='', cell_id=-9999):
+                 routx=-9999, routy=-9999, name=None, cell_id=-9999):
         '''Defines x and y variables'''
         self.lat = lat
         self.lon = lon
@@ -76,9 +76,9 @@ class Rvar(object):
         f = Dataset(param_file, 'r')
         self.n_sources = len(f.dimensions['sources'])
         self.n_outlets = len(f.dimensions['outlets'])
-        self.subset_length = f.variables['subset_length'][0]
-        self.full_time_length = f.variables['full_time_length'][0]
-        self.unit_hydrograph_dt = f.variables['unit_hydrograph_dt'][0]
+        self.subset_length = int(f.variables['subset_length'][:])
+        self.full_time_length = int(f.variables['full_time_length'][:])
+        self.unit_hydrograph_dt = f.variables['unit_hydrograph_dt'][:]
         self.source_lon = f.variables['source_lon'][:]
         self.source_lat = f.variables['source_lat'][:]
         self.source_x_ind = f.variables['source_x_ind'][:]
