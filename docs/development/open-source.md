@@ -1,6 +1,6 @@
 # RVIC Model Open Source Philosophy
 
-RVIC is Open Source software.  We have licensed the source code with the [GNU GPL v2.0 license](http://www.gnu.org/licenses/gpl-2.0.html).  This license provides very few restrictions on use.
+RVIC is Open Source software.  We have licensed the source code with the [GNU GPL v3.0 license](http://www.gnu.org/licenses/gpl-3.0.html).  This license provides very few restrictions on use.
 
 Our rationale for moving the RVIC model development to the open source community is that we want:
 - to encourage other researchers and developers to contribute to the RVIC development,  and
