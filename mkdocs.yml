@@ -1,0 +1,26 @@
+site_name: RVIC
+site_description: RVIC Streamflow Routing Model
+site_author: UW Hydro | Computational Hydrology
+copyright: 'Copyright &copy; 2015, <a href="www.hydro.washington.edu/">University of Washington Computational Hydrology Group</a>.'
+repo_url: https://github.com/UW-Hydro/RVIC
+theme: readthedocs
+
+pages:
+# Main pages
+- ['index.md', 'Home']
+# About Pages
+- ['about/model-overview.md', 'About', 'Model Overview']
+- ['about/references.md', 'About', 'References']
+# User Guide Pages
+- ['user-guide/index.md', 'User Guide', 'User Guide']
+- ['user-guide/install.md', 'User Guide', 'Installing']
+- ['user-guide/parameters.md', 'User Guide', 'Generating RVIC Parameters']
+- ['user-guide/convolution.md', 'User Guide', 'Running the RVIC Convolution']
+- ['user-guide/conversion.md', 'User Guide', 'Conversion from other VIC Routing Models']
+- ['user-guide/api.md', 'User Guide', 'RVIC API']
+# Model Development
+- ['development/model-development.md', 'Model Development', 'RVIC Development']
+- ['development/open-source.md', 'Model Development', 'Open Source Philosophy']
+# Support Pages
+- ['support/contact.md', 'Support',  'Contact']
+- ['support/faq.md', 'Support', 'Frequently Asked Questions']
