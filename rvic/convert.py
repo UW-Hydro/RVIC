@@ -3,12 +3,12 @@ Read a set of uhs files and write an RVIC parameter file
 """
 
 from logging import getLogger
-from core.log import init_logger, close_logger, LOG_NAME
-from core.utilities import make_directories, copy_inputs, read_domain
-from core.utilities import tar_inputs
-from core.convert import read_station_file, read_uhs_files, move_domain
-from core.param_file import finish_params
-from core.config import read_config
+from .core.log import init_logger, close_logger, LOG_NAME
+from .core.utilities import make_directories, copy_inputs, read_domain
+from .core.utilities import tar_inputs
+from .core.convert import read_station_file, read_uhs_files, move_domain
+from .core.param_file import finish_params
+from .core.config import read_config
 
 
 # -------------------------------------------------------------------- #
@@ -59,7 +59,8 @@ def uhs2param_init(config_file):
     # copy inputs to $case_dir/inputs and update configuration
     config_dict = copy_inputs(config_file, directories['inputs'])
     options = config_dict['OPTIONS']
-    config_dict['POUR_POINTS'] = {'FILE_NAME': config_dict['UHS_FILES']['STATION_FILE']}
+    config_dict['POUR_POINTS'] = {
+        'FILE_NAME': config_dict['UHS_FILES']['STATION_FILE']}
     config_dict['ROUTING']['FILE_NAME'] = 'unknown'
     config_dict['UH_BOX'] = {'FILE_NAME': 'unknown'}
     # ---------------------------------------------------------------- #

@@ -3,7 +3,7 @@ plots.py
 """
 import os
 import logging
-from log import LOG_NAME
+from .log import LOG_NAME
 import numpy as np
 from datetime import date
 try:
@@ -65,7 +65,7 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
     data = np.ma.array(data, mask=mask)
 
     cmap = matplotlib.cm.cool
-    cmap.set_bad(color=u'w')
+    cmap.set_bad(color='w')
 
     fig = plt.figure()
     plt.pcolormesh(data, cmap=cmap)
@@ -96,7 +96,7 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
     pfname = os.path.join(plot_dir, file_name)
 
     fig = plt.figure(figsize=(8, 8))
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    fig.add_axes([0.1, 0.1, 0.8, 0.8])
 
     dom_x[dom_x < 0] += 360.0
 
@@ -104,12 +104,11 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
     data = np.ma.array(data, mask=mask)
 
     cmap = matplotlib.cm.cool
-    cmap.set_bad(color=u'w')
+    cmap.set_bad(color='w')
 
     # define projection
-    midx = int(dom_x.shape[1]/2)
-    midy = int(dom_x.shape[0]/2)
-    print midx, midy
+    midx = int(dom_x.shape[1] / 2)
+    midy = int(dom_x.shape[0] / 2)
 
     projection = {'projection': 'stere',
                   'lon_0': dom_x[-1, midx],
@@ -136,7 +135,6 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
     m.drawmeridians(meridians, labels=[0, 0, 0, 1])
 
     x, y = m(dom_x, dom_y)  # compute map proj coordinates.
-    print 'passed 1'
     cs = m.pcolormesh(x, y, data, cmap=cmap)
     m.colorbar(cs, location='right', pad="5%")
     plt.title(title)

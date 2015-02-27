@@ -6,13 +6,13 @@ import tarfile
 from scipy.spatial import cKDTree
 import numpy as np
 from shutil import rmtree, copyfile
-from ConfigParser import SafeConfigParser
+from .pycompat import iteritems, SafeConfigParser
 from netCDF4 import Dataset
 from logging import getLogger
-from log import LOG_NAME
-from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
-from share import METERS2PERACRE, METERSPERKM, VALID_CHARS
-from config import read_config
+from .log import LOG_NAME
+from .share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
+from .share import METERS2PERACRE, METERSPERKM, VALID_CHARS
+from .config import read_config
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -84,7 +84,7 @@ def read_netcdf(nc_file, variables=None, coords=None):
     f = Dataset(nc_file, 'r')
 
     if not variables:
-        variables = f.variables.keys()
+        variables = list(f.variables.keys())
     if not coords:
         coords = slice(None)
 
@@ -114,7 +114,7 @@ def check_ncvars(config_section, nckeys):
     """
     Make sure the variables listed in the config file are present in the netcdf
     """
-    for key, value in config_section.iteritems():
+    for key, value in iteritems(config_section):
         if key.endswith('var'):
             if value not in nckeys:
                 log.error('%s (%s) not in %s', value, key,
@@ -129,7 +129,7 @@ def check_ncvars(config_section, nckeys):
 # Find the index of the the nearest value
 def find_nearest(array, value):
     """ Find the index location in (array) with value nearest to (value)"""
-    return np.abs(array-value).argmin()
+    return np.abs(array - value).argmin()
 # -------------------------------------------------------------------- #
 
 
@@ -179,7 +179,7 @@ def make_directories(rundir, subdir_names):
 
 # -------------------------------------------------------------------- #
 # Move all the input files to a central location
-def copy_inputs(config_file, InputsDir):
+def copy_inputs(config_file, inputs_dir):
 
     config_dict = read_config(config_file)
 
@@ -187,20 +187,20 @@ def copy_inputs(config_file, InputsDir):
     config.optionxform = str
     config.read(config_file)
 
-    new_config = os.path.join(InputsDir, os.path.split(config_file)[1])
+    new_config = os.path.join(inputs_dir, os.path.split(config_file)[1])
 
     # ---------------------------------------------------------------- #
     # copy the inputs
-    for key, section in config_dict.iteritems():
-        if 'FILE_NAME' in section.keys():
-            new_file_name = os.path.join(InputsDir,
-                                         os.path.split(section['FILE_NAME'])[1])
+    for key, section in iteritems(config_dict):
+        if 'FILE_NAME' in list(section.keys()):
+            new_file_name = os.path.join(
+                inputs_dir, os.path.split(section['FILE_NAME'])[1])
 
             copyfile(section['FILE_NAME'], new_file_name)
 
             # update the config file for an easy restart
             config.set(key, 'FILE_NAME',
-                       os.path.join(InputsDir,
+                       os.path.join(inputs_dir,
                                     os.path.split(section['FILE_NAME'])[1]))
 
             # update the config_dict with the new value
@@ -271,7 +271,7 @@ def read_domain(domain_dict, lat0_is_min=False):
     """
     dom_data, dom_vatts, dom_gatts = read_netcdf(domain_dict['FILE_NAME'])
 
-    check_ncvars(domain_dict, dom_data.keys())
+    check_ncvars(domain_dict, list(dom_data.keys()))
 
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
@@ -294,7 +294,7 @@ def read_domain(domain_dict, lat0_is_min=False):
         if (dom_data[dom_lat][-1] > dom_data[dom_lat][0]) != lat0_is_min:
             log.debug('Domain Inputs came in upside down, flipping everything '
                       'now.')
-            var_list = dom_data.keys()
+            var_list = list(dom_data.keys())
             var_list.remove(dom_lon)
             for var in var_list:
                 dom_data[var] = np.flipud(dom_data[var])
@@ -315,18 +315,18 @@ def read_domain(domain_dict, lat0_is_min=False):
     if area_units in ["rad2", "radians2", "radian2", "radian^2", "rad^2",
                       "radians^2", "rads^2", "radians squared",
                       "square-radians"]:
-        dom_data[dom_area] = dom_data[dom_area]*EARTHRADIUS*EARTHRADIUS
+        dom_data[dom_area] = dom_data[dom_area] * EARTHRADIUS * EARTHRADIUS
     elif area_units in ["m2", "m^2", "meters^2", "meters2", "square-meters",
                         "meters squared"]:
         dom_data[dom_area] = dom_data[dom_area]
     elif area_units in ["km2", "km^2", "kilometers^2", "kilometers2",
                         "square-kilometers", "kilometers squared"]:
-        dom_data[dom_area] = dom_data[dom_area]*METERSPERKM*METERSPERKM
+        dom_data[dom_area] = dom_data[dom_area] * METERSPERKM * METERSPERKM
     elif area_units in ["mi2", "mi^2", "miles^2", "miles", "square-miles",
                         "miles squared"]:
-        dom_data[dom_area] = dom_data[dom_area]*METERSPERMILE*METERSPERMILE
+        dom_data[dom_area] = dom_data[dom_area] * METERSPERMILE * METERSPERMILE
     elif area_units in ["acres", "ac", "ac."]:
-        dom_data[dom_area] = dom_data[dom_area]*METERS2PERACRE
+        dom_data[dom_area] = dom_data[dom_area] * METERS2PERACRE
     else:
         log.warning("WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN "
                     "SQUARE METERS",

@@ -4,23 +4,23 @@ RVIC parameter file development driver
 import os
 import numpy as np
 import pandas as pd
-from collections import OrderedDict
 from logging import getLogger
-from core.log import init_logger, close_logger, LOG_NAME
-from core.mpi import LoggingPool
-from core.utilities import make_directories, copy_inputs, strip_invalid_char
-from core.utilities import read_netcdf, tar_inputs, latlon2yx
-from core.utilities import check_ncvars, clean_file, read_domain
-from core.aggregate import make_agg_pairs, aggregate
-from core.make_uh import rout
-from core.share import NcGlobals
-from core.write import write_agg_netcdf
-from core.variables import Point
-from core.param_file import finish_params
-from core.config import read_config
+from .core.log import init_logger, close_logger, LOG_NAME
+from .core.multi_proc import LoggingPool
+from .core.utilities import make_directories, copy_inputs, strip_invalid_char
+from .core.utilities import read_netcdf, tar_inputs, latlon2yx
+from .core.utilities import check_ncvars, clean_file, read_domain
+from .core.aggregate import make_agg_pairs, aggregate
+from .core.make_uh import rout
+from .core.share import NcGlobals
+from .core.write import write_agg_netcdf
+from .core.variables import Point
+from .core.param_file import finish_params
+from .core.config import read_config
+from .core.pycompat import OrderedDict, iteritems, range
 
 try:
-    from core.remap import remap
+    from .core.remap import remap
     remap_available = True
 except:
     remap_available = False
@@ -46,8 +46,8 @@ def parameters(config_file, numofproc=1):
     if numofproc > 1:
         pool = LoggingPool(processes=numofproc)
 
-        for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
-            log.info('On Outlet #{0} of {1}'.format(i+1, len(outlets)))
+        for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
+            log.info('On Outlet #{0} of {1}'.format(i + 1, len(outlets)))
             pool.apply_async(gen_uh_run,
                              args=(uh_box, fdr_data, fdr_vatts, dom_data,
                                    outlet, config_dict, directories),
@@ -55,9 +55,10 @@ def parameters(config_file, numofproc=1):
         pool.close()
         pool.join()
 
-        outlets = OrderedDict(sorted(results.items(), key=lambda t: t[0]))
+        outlets = OrderedDict(sorted(list(iteritems(results)),
+                              key=lambda t: t[0]))
     else:
-        for name, outlet in outlets.iteritems():
+        for name, outlet in iteritems(outlets):
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
@@ -116,8 +117,8 @@ def gen_uh_init(config_file):
                                   comment='#')
         log.info('Opened Pour Points File: '
                  '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
-        if not (all(x in pour_points.keys() for x in ['lons', 'lats']) or
-                all(x in pour_points.keys() for x in ['x', 'y'])):
+        if not (all(x in list(pour_points.keys()) for x in ['lons', 'lats']) or
+                all(x in list(pour_points.keys()) for x in ['x', 'y'])):
             raise ValueError('Pour Points File must include '
                              'variables (lons, lats) or (x, y)')
         if 'names' in pour_points:
@@ -169,10 +170,11 @@ def gen_uh_init(config_file):
         if fdr_data[fdr_lat][-1] > fdr_data[fdr_lat][0]:
             log.debug('Flow Direction inputs came in upside down, flipping '
                       'everything now.')
-            var_list = fdr_data.keys()
+            var_list = list(fdr_data.keys())
             var_list.remove(fdr_lon)
             for var in var_list:
-                fdr_data[var] = np.flipud(fdr_data[var])
+                if fdr_data[var].ndim >= 1:
+                    fdr_data[var] = np.flipud(fdr_data[var])
         # ---------------------------------------------------------------- #
 
         # ---------------------------------------------------------------- #
@@ -190,7 +192,7 @@ def gen_uh_init(config_file):
         # ---------------------------------------------------------------- #
         fdr_data['resolution'] = np.abs(fdr_data[fdr_lon][1] -
                                         fdr_data[fdr_lon][0])
-        check_ncvars(config_dict['ROUTING'], fdr_data.keys())
+        check_ncvars(config_dict['ROUTING'], list(fdr_data.keys()))
         # ---------------------------------------------------------------- #
 
         log.info('Opened FDR File: {0}'.format(fdr_file))
@@ -227,12 +229,13 @@ def gen_uh_init(config_file):
 
     else:
         outlets = {}
-        if all(x in pour_points.keys() for x in ['x', 'y', 'lons', 'lats']):
+        if all(x in list(pour_points.keys()) for x in ['x', 'y',
+                                                       'lons', 'lats']):
             lats = pour_points['lats'].values
             lons = pour_points['lons'].values
             routys = pour_points['y'].values
             routxs = pour_points['x'].values
-        elif all(x in pour_points.keys() for x in ['x', 'y']):
+        elif all(x in list(pour_points.keys()) for x in ['x', 'y']):
             # use x and y (assume from routing inputs grid)
             # find lons and lats from xs and ys
             routys = pour_points['y'].values
@@ -256,8 +259,8 @@ def gen_uh_init(config_file):
                                  glats=dom_data[domain['LATITUDE_VAR']],
                                  glons=dom_data[domain['LONGITUDE_VAR']])
 
-        for i in xrange(len(lats)):
-            if 'names' in pour_points.keys():
+        for i in range(len(lats)):
+            if 'names' in list(pour_points.keys()):
                 name = pour_points['names'].values[i]
                 name = name.replace("'", "").replace(" ", "_")
             else:
@@ -319,7 +322,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     for j, pour_point in enumerate(outlet.pour_points):
 
         log.info('On pour_point #{0} of'
-                 ' {1}'.format(j+1, len(outlet.pour_points)))
+                 ' {1}'.format(j + 1, len(outlet.pour_points)))
 
         # -------------------------------------------------------- #
         # Make the Unit Hydrograph Grid
@@ -339,7 +342,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         # -------------------------------------------------------- #
         # aggregate
         if options['AGGREGATE']:
-            if j != len(outlet.pour_points)-1:
+            if j != len(outlet.pour_points) - 1:
                 agg_data = aggregate(rout_data, agg_data,
                                      res=fdr_data['resolution'])
             else:
@@ -358,22 +361,26 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     # ------------------------------------------------------------ #
     # write temporary file #1
     if options['REMAP']:
-        glob_atts = NcGlobals(title='RVIC Unit Hydrograph Grid File',
-                              RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
-                              RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
-                              RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
-                              RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
+        glob_atts = NcGlobals(
+            title='RVIC Unit Hydrograph Grid File',
+            RvicPourPointsFile=os.path.split(
+                config_dict['POUR_POINTS']['FILE_NAME'])[1],
+            RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
+            RvicFdrFile=os.path.split(config_dict['ROUTING']['FILE_NAME'])[1],
+            RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
 
-        temp_file_1 = os.path.join(directories['aggregated'],
-                                   'aggUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
+        temp_file_1 = os.path.join(
+            directories['aggregated'],
+            'aggUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
 
         write_agg_netcdf(temp_file_1, agg_data, glob_atts,
                          options['NETCDF_FORMAT'], **ncvaropts)
 
         # -------------------------------------------------------- #
         # Remap temporary file #1 to temporary file #2
-        temp_file_2 = os.path.join(directories['remapped'],
-                                   'remapUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
+        temp_file_2 = os.path.join(
+            directories['remapped'],
+            'remapUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
 
         remap(domain['FILE_NAME'], temp_file_1, temp_file_2)
 
@@ -388,7 +395,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         # Check latitude order, flip if necessary.
         if final_data[dom_lat].ndim == 1:
             if final_data[dom_lat][-1] > final_data[dom_lat][0]:
-                var_list = final_data.keys()
+                var_list = list(final_data.keys())
 
                 log.debug('Remapped inputs came in upside down, flipping {0}'
                           ' now.'.format(", ".join(var_list)))
@@ -396,7 +403,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                 final_data[dom_lat] = final_data[dom_lat][::-1]
                 final_data['fraction'] = final_data['fraction'][::-1, :]
                 # flip unit hydrograph along y axis (axis 1)
-                final_data['unit_hydrograph'] = final_data['unit_hydrograph'][:, ::-1, :]
+                final_data['unit_hydrograph'] = \
+                    final_data['unit_hydrograph'][:, ::-1, :]
             assert dom_data['cord_lats'][0] == final_data[dom_lat][0]
         # -------------------------------------------------------- #
 

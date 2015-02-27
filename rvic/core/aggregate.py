@@ -4,12 +4,12 @@ aggregate.py
 """
 
 import numpy as np
-from collections import OrderedDict
-from share import FILLVALUE_F
-from utilities import find_nearest, latlon2yx
-from variables import Point
+from .share import FILLVALUE_F
+from .utilities import find_nearest, latlon2yx
+from .variables import Point
 from logging import getLogger
-from log import LOG_NAME
+from .log import LOG_NAME
+from .pycompat import OrderedDict, iteritems, zip
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -33,7 +33,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     fdr_srcarea = fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']]
 
     # ---------------------------------------------------------------- #
-    #Find Destination grid cells
+    # Find Destination grid cells
     log.info('Finding addresses now...')
     routys, routxs = latlon2yx(plats=lats,
                                plons=lons,
@@ -81,7 +81,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
 
     # ---------------------------------------------------------------- #
     # Sort based on outlet total source area pour_point.source_area
-    outlets = OrderedDict(sorted(outlets.items(),
+    outlets = OrderedDict(sorted(list(iteritems(outlets)),
                           key=lambda t: t[1].upstream_area,
                           reverse=True))
     # ---------------------------------------------------------------- #
@@ -102,8 +102,8 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     log.info('NUMBER OF POUR POINTS IN INPUT LIST: %i' % num)
     log.info('NUMBER OF POINTS TO AGGREGATE TO: %i' % key_count)
     log.info('NUMBER OF POUR POINTS AGGREGATED: %i' % pp_count)
-    log.info('EFFECIENCY OF: %.2f %%' % (100.*pp_count / num))
-    log.info('UNASSIGNED POUR POINTS: %i \n' % (num-pp_count))
+    log.info('EFFECIENCY OF: %.2f %%' % (100. * pp_count / num))
+    log.info('UNASSIGNED POUR POINTS: %i \n' % (num - pp_count))
     log.info('-------------------------------------------------------------\n')
 
     # ---------------------------------------------------------------- #
@@ -139,8 +139,10 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
     # ---------------------------------------------------------------- #
     # make output arrays for lons/lats and initialize fraction/unit_hydrograph
     # pad output arrays so there is a space =pad around inputs
-    lats = np.arange((lat_min-res*pad), (lat_max+res*(pad+1)), res)[::-1]
-    lons = np.arange((lon_min-res*pad), (lon_max+res*(pad+1)), res)
+    lats = np.arange((lat_min - res * pad),
+                     (lat_max + res * (pad + 1)), res)[::-1]
+    lons = np.arange((lon_min - res * pad),
+                     (lon_max + res * (pad + 1)), res)
 
     fraction = np.zeros((len(lats), len(lons)), dtype=np.float64)
     unit_hydrograph = np.zeros((tshape, len(lats), len(lons)),
@@ -153,18 +155,18 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
     # find target index locations of all corners for both datasets
     # Not that the lat inds are inverted
     ilat_min_ind = find_nearest(lats, np.max(in_data['lat']))
-    ilat_max_ind = find_nearest(lats, np.min(in_data['lat']))+1
+    ilat_max_ind = find_nearest(lats, np.min(in_data['lat'])) + 1
     ilon_min_ind = find_nearest(lons, np.min(in_data['lon']))
-    ilon_max_ind = find_nearest(lons, np.max(in_data['lon']))+1
+    ilon_max_ind = find_nearest(lons, np.max(in_data['lon'])) + 1
 
     log.debug('in_data fraction shape: %s',
               str(in_data['fraction'].shape))
 
     if agg_data:
         alat_min_ind = find_nearest(lats, np.max(agg_data['lat']))
-        alat_max_ind = find_nearest(lats, np.min(agg_data['lat']))+1
+        alat_max_ind = find_nearest(lats, np.min(agg_data['lat'])) + 1
         alon_min_ind = find_nearest(lons, np.min(agg_data['lon']))
-        alon_max_ind = find_nearest(lons, np.max(agg_data['lon']))+1
+        alon_max_ind = find_nearest(lons, np.max(agg_data['lon'])) + 1
 
         log.debug('agg_data fraction shape: %s',
                   str(agg_data['fraction'].shape))
@@ -173,12 +175,18 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
 
     # ---------------------------------------------------------------- #
     # Place data
-    fraction[ilat_min_ind:ilat_max_ind, ilon_min_ind:ilon_max_ind] += in_data['fraction']
-    unit_hydrograph[:, ilat_min_ind:ilat_max_ind, ilon_min_ind:ilon_max_ind] += in_data['unit_hydrograph']
+    fraction[ilat_min_ind:ilat_max_ind,
+             ilon_min_ind:ilon_max_ind] += in_data['fraction']
+    unit_hydrograph[:,
+                    ilat_min_ind:ilat_max_ind,
+                    ilon_min_ind:ilon_max_ind] += in_data['unit_hydrograph']
 
     if agg_data:
-        fraction[alat_min_ind:alat_max_ind, alon_min_ind:alon_max_ind] += agg_data['fraction']
-        unit_hydrograph[:, alat_min_ind:alat_max_ind, alon_min_ind:alon_max_ind] += agg_data['unit_hydrograph']
+        fraction[alat_min_ind:alat_max_ind,
+                 alon_min_ind:alon_max_ind] += agg_data['fraction']
+        unit_hydrograph[:, alat_min_ind:alat_max_ind,
+                        alon_min_ind:alon_max_ind] += \
+            agg_data['unit_hydrograph']
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

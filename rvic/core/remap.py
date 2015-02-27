@@ -6,7 +6,7 @@ import os
 from cdo import Cdo
 cdo = Cdo()
 from logging import getLogger
-from log import LOG_NAME
+from .log import LOG_NAME
 
 # -------------------------------------------------------------------- #
 # create logger

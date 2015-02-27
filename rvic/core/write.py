@@ -5,10 +5,10 @@ write.py
 import numpy as np
 from netCDF4 import Dataset, stringtochar
 from logging import getLogger
-from log import LOG_NAME
-from share import NC_DOUBLE, NC_INT, NC_CHAR, FILLVALUE_F, NcGlobals
-import share
-
+from .log import LOG_NAME
+from .share import NC_DOUBLE, NC_INT, NC_CHAR, FILLVALUE_F, NcGlobals
+from .pycompat import iteritems
+from . import share
 # -------------------------------------------------------------------- #
 # create logger
 log = getLogger(LOG_NAME)
@@ -49,30 +49,30 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format, zlib=True,
     unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt', NC_INT, (),
                                           **ncvaropts)
     unit_hydrograph_dt[:] = agg_data['unit_hydrograph_dt']
-    for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
+    for key, val in iteritems(share.unit_hydrograph_dt.__dict__):
         if val:
             setattr(unit_hydrograph_dt, key, val)
 
     timesteps = f.createVariable('timesteps', NC_INT, ('timesteps',),
                                  **ncvaropts)
     timesteps[:] = agg_data['timesteps']
-    for key, val in share.timesteps.__dict__.iteritems():
+    for key, val in iteritems(share.timesteps.__dict__):
         if val:
             setattr(timesteps, key, val)
 
     lon = f.createVariable('lon', NC_DOUBLE, ('lon',), **ncvaropts)
-    for key, val in share.lon.__dict__.iteritems():
+    for key, val in iteritems(share.lon.__dict__):
         if val:
             setattr(lon, key, val)
 
     lat = f.createVariable('lat', NC_DOUBLE, ('lat',), **ncvaropts)
-    for key, val in share.lat.__dict__.iteritems():
+    for key, val in iteritems(share.lat.__dict__):
         if val:
             setattr(lat, key, val)
 
     fraction = f.createVariable('fraction', NC_DOUBLE, ('lat', 'lon',),
                                 **ncvaropts)
-    for key, val in share.fraction.__dict__.iteritems():
+    for key, val in iteritems(share.fraction.__dict__):
         if val:
             setattr(fraction, key, val)
 
@@ -80,7 +80,7 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format, zlib=True,
                                         ('timesteps', 'lat', 'lon',),
                                         fill_value=FILLVALUE_F,
                                         **ncvaropts)
-    for key, val in share.unit_hydrograph.__dict__.iteritems():
+    for key, val in iteritems(share.unit_hydrograph.__dict__):
         if val:
             setattr(unit_hydrographs, key, val)
     # ---------------------------------------------------------------- #
@@ -95,7 +95,7 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format, zlib=True,
 
     # ---------------------------------------------------------------- #
     # write globals
-    for key, val in glob_atts.atts.iteritems():
+    for key, val in iteritems(glob_atts.atts):
         if val:
             setattr(f, key, val)
     # ---------------------------------------------------------------- #
@@ -157,7 +157,7 @@ def write_param_file(file_name,
     timesteps = f.createVariable('timesteps', NC_DOUBLE, ('timesteps',),
                                  **ncvaropts)
     timesteps[:] = np.arange(subset_length)
-    for key, val in share.timesteps.__dict__.iteritems():
+    for key, val in iteritems(share.timesteps.__dict__):
         if val:
             setattr(timesteps, key, val)
     timesteps.timestep_length = 'unit_hydrograph_dt'
@@ -167,7 +167,7 @@ def write_param_file(file_name,
     # ---------------------------------------------------------------- #
     # write global attributes
     glob_atts.update()
-    for key, val in glob_atts.atts.iteritems():
+    for key, val in iteritems(glob_atts.atts):
         if val:
             setattr(f, key, val)
     f.featureType = "timeSeries"
@@ -179,21 +179,21 @@ def write_param_file(file_name,
     # Full time length (size of ring)
     ftl = f.createVariable('full_time_length', NC_INT, (), **ncvaropts)
     ftl[:] = full_time_length
-    for key, val in share.full_time_length.__dict__.iteritems():
+    for key, val in iteritems(share.full_time_length.__dict__):
         if val:
             setattr(ftl, key, val)
 
     # Subset Length
     sl = f.createVariable('subset_length', NC_INT, (), **ncvaropts)
     sl[:] = subset_length
-    for key, val in share.subset_length.__dict__.iteritems():
+    for key, val in iteritems(share.subset_length.__dict__):
         if val:
             setattr(sl, key, val)
 
     # UH timestep
     uh_dt = f.createVariable('unit_hydrograph_dt', NC_DOUBLE, (), **ncvaropts)
     uh_dt[:] = unit_hydrograph_dt
-    for key, val in share.unit_hydrograph_dt.__dict__.iteritems():
+    for key, val in iteritems(share.unit_hydrograph_dt.__dict__):
         if val:
             setattr(uh_dt, key, val)
     # ---------------------------------------------------------------- #
@@ -206,11 +206,11 @@ def write_param_file(file_name,
     else:
         numoutlets = len(outlet_lon)
     ocoords = ('outlets',)
-    outlets = f.createDimension(ocoords[0], numoutlets)
+    f.createDimension(ocoords[0], numoutlets)
 
     nocoords = ocoords + ('nc_chars',)
     char_names = stringtochar(outlet_name)
-    chars = f.createDimension(nocoords[1], char_names.shape[1])
+    f.createDimension(nocoords[1], char_names.shape[1])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -219,49 +219,49 @@ def write_param_file(file_name,
     # Outlet Cell Longitudes
     olon = f.createVariable('outlet_lon', NC_DOUBLE, ocoords, **ncvaropts)
     olon[:] = outlet_lon
-    for key, val in share.outlet_lon.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_lon.__dict__):
         if val:
             setattr(olon, key, val)
 
     # Outlet Cell Latitudes
     olat = f.createVariable('outlet_lat', NC_DOUBLE, ocoords, **ncvaropts)
     olat[:] = outlet_lat
-    for key, val in share.outlet_lat.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_lat.__dict__):
         if val:
             setattr(olat, key, val)
 
     # Outlet Cell X Indicies
     oxi = f.createVariable('outlet_x_ind', NC_INT, ocoords, **ncvaropts)
     oxi[:] = outlet_x_ind
-    for key, val in share.outlet_x_ind.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_x_ind.__dict__):
         if val:
             setattr(oxi, key, val)
 
     # Outlet Cell Y Indicies
     oyi = f.createVariable('outlet_y_ind', NC_INT, ocoords, **ncvaropts)
     oyi[:] = outlet_y_ind
-    for key, val in share.outlet_y_ind.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_y_ind.__dict__):
         if val:
             setattr(oyi, key, val)
 
     # Outlet Cell Decomp IDs
     odi = f.createVariable('outlet_decomp_ind', NC_INT, ocoords, **ncvaropts)
     odi[:] = outlet_decomp_ind
-    for key, val in share.outlet_decomp_ind.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_decomp_ind.__dict__):
         if val:
             setattr(odi, key, val)
 
     # Outlet Cell Number
     on = f.createVariable('outlet_number', NC_INT, ocoords, **ncvaropts)
     on[:] = outlet_number
-    for key, val in share.outlet_number.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_number.__dict__):
         if val:
             setattr(on, key, val)
 
     # Outlet Mask
     om = f.createVariable('outlet_mask', NC_INT, ocoords, **ncvaropts)
     om[:] = outlet_mask
-    for key, val in share.outlet_mask.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_mask.__dict__):
         if val:
             setattr(om, key, val)
 
@@ -269,7 +269,7 @@ def write_param_file(file_name,
     oua = f.createVariable('outlet_upstream_area', NC_DOUBLE, ocoords,
                            **ncvaropts)
     oua[:] = outlet_upstream_area
-    for key, val in share.outlet_upstream_area.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_upstream_area.__dict__):
         if val:
             setattr(oua, key, val)
 
@@ -277,14 +277,14 @@ def write_param_file(file_name,
     oug = f.createVariable('outlet_upstream_gridcells', NC_INT, ocoords,
                            **ncvaropts)
     oug[:] = outlet_upstream_gridcells
-    for key, val in share.outlet_upstream_gridcells.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_upstream_gridcells.__dict__):
         if val:
             setattr(oug, key, val)
 
     # Outlet Names
     onm = f.createVariable('outlet_name', NC_CHAR, nocoords)
     onm[:, :] = char_names
-    for key, val in share.outlet_name.__dict__.iteritems():
+    for key, val in iteritems(share.outlet_name.__dict__):
         if val:
             setattr(onm, key, val)
     # ---------------------------------------------------------------- #
@@ -292,7 +292,7 @@ def write_param_file(file_name,
     # ---------------------------------------------------------------- #
     # Source Dimension
     scoords = ('sources',)
-    sources = f.createDimension(scoords[0], len(source_lon))
+    f.createDimension(scoords[0], len(source_lon))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -301,49 +301,49 @@ def write_param_file(file_name,
     # Source Cell Longitudes
     slon = f.createVariable('source_lon', NC_DOUBLE, scoords, **ncvaropts)
     slon[:] = source_lon
-    for key, val in share.source_lon.__dict__.iteritems():
+    for key, val in iteritems(share.source_lon.__dict__):
         if val:
             setattr(slon, key, val)
 
     # Source Cell Latitudes
     slat = f.createVariable('source_lat', NC_DOUBLE, scoords, **ncvaropts)
     slat[:] = source_lat
-    for key, val in share.source_lat.__dict__.iteritems():
+    for key, val in iteritems(share.source_lat.__dict__):
         if val:
             setattr(slat, key, val)
 
     # Source Cell X Indicies
     sxi = f.createVariable('source_x_ind', NC_INT, scoords, **ncvaropts)
     sxi[:] = source_x_ind
-    for key, val in share.source_x_ind.__dict__.iteritems():
+    for key, val in iteritems(share.source_x_ind.__dict__):
         if val:
             setattr(sxi, key, val)
 
     # Source Cell Y Indicies
     syi = f.createVariable('source_y_ind', NC_INT, scoords, **ncvaropts)
     syi[:] = source_y_ind
-    for key, val in share.source_y_ind.__dict__.iteritems():
+    for key, val in iteritems(share.source_y_ind.__dict__):
         if val:
             setattr(syi, key, val)
 
     # Source Cell Decomp IDs
     sdi = f.createVariable('source_decomp_ind', NC_INT, scoords, **ncvaropts)
     sdi[:] = source_decomp_ind
-    for key, val in share.source_decomp_ind.__dict__.iteritems():
+    for key, val in iteritems(share.source_decomp_ind.__dict__):
         if val:
             setattr(sdi, key, val)
 
     # Source Cell Time Offset
     sto = f.createVariable('source_time_offset', NC_INT, scoords, **ncvaropts)
     sto[:] = source_time_offset
-    for key, val in share.source_time_offset.__dict__.iteritems():
+    for key, val in iteritems(share.source_time_offset.__dict__):
         if val:
             setattr(sto, key, val)
 
     # Source to Outlet Index Mapping
     s2o = f.createVariable('source2outlet_ind', NC_INT, scoords, **ncvaropts)
     s2o[:] = source2outlet_ind
-    for key, val in share.source2outlet_ind.__dict__.iteritems():
+    for key, val in iteritems(share.source2outlet_ind.__dict__):
         if val:
             setattr(s2o, key, val)
 
@@ -351,13 +351,13 @@ def write_param_file(file_name,
 
     # ---------------------------------------------------------------- #
     # 3-D Source Variables
-    uhcords = ('timesteps',) + scoords +('tracers',)
-    tracers = f.createDimension(uhcords[2], 1)
+    uhcords = ('timesteps',) + scoords + ('tracers',)
+    f.createDimension(uhcords[2], 1)
 
     # Unit Hydrographs
     uhs = f.createVariable('unit_hydrograph', NC_DOUBLE, uhcords, **ncvaropts)
     uhs[:, :] = unit_hydrograph
-    for key, val in share.unit_hydrograph.__dict__.iteritems():
+    for key, val in iteritems(share.unit_hydrograph.__dict__):
         if val:
             setattr(uhs, key, val)
     # ---------------------------------------------------------------- #

@@ -5,9 +5,10 @@ import os
 import re
 import numpy as np
 import logging
-from log import LOG_NAME
-from variables import Point
-from share import FILLVALUE_I
+from .log import LOG_NAME
+from .variables import Point
+from .share import FILLVALUE_I
+from .pycompat import iteritems
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -35,13 +36,13 @@ def read_station_file(file_name, dom_data, config_dict):
         uhs_file = f.readline().strip()
 
         # move to zero based index
-        y = int(y)-1
-        x = int(x)-1
+        y = int(y) - 1
+        x = int(x) - 1
 
         # make sure files exist
         log.info('On station: %s, active: %s', name, active)
         uhs2_file = os.path.join(config_dict['UHS_FILES']['ROUT_DIR'],
-                                 name+'.uh_s2')
+                                 name + '.uh_s2')
         if active == '1':
             if os.path.isfile(uhs_file):
                 active = True
@@ -60,8 +61,10 @@ def read_station_file(file_name, dom_data, config_dict):
             outlets[i].uhs_file = uhs_file
             outlets[i].cell_id = i
             outlets[i].outlet_decomp_ind = dom_data['cell_ids'][y, x]
-            outlets[i].lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
-            outlets[i].lat = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
+            outlets[i].lon = \
+                dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']][y, x]
+            outlets[i].lat = \
+                dom_data[config_dict['DOMAIN']['LATITUDE_VAR']][y, x]
         else:
             log.info('%s not active... skipping', name)
     f.close()
@@ -82,7 +85,7 @@ def read_uhs_files(outlets, dom_data, config_dict):
     line2: ...
     """
     if config_dict['UHS_FILES']['ROUT_PROGRAM'] == 'C':
-        for cell_id, outlet in outlets.iteritems():
+        for cell_id, outlet in iteritems(outlets):
             log.info('Reading outlet %i: %s', cell_id, outlet.name)
             log.debug(outlet.uhs_file)
             f = open(outlet.uhs_file, 'r')
@@ -98,63 +101,33 @@ def read_uhs_files(outlets, dom_data, config_dict):
             uh = []
 
             # loop over the source points
-            for j in xrange(num_sources):
+            for j in range(num_sources):
                 line = re.sub(' +', ' ', f.readline())
                 lon, lat, fracs, x, y = line.split()
                 # move to zero based index
-                y = int(y)-1
-                x = int(x)-1
+                y = int(y) - 1
+                x = int(x) - 1
                 outlets[cell_id].lon_source[j] = float(lon)
                 outlets[cell_id].lat_source[j] = float(lat)
                 outlets[cell_id].fractions[j] = float(fracs)
                 outlets[cell_id].x_source[j] = int(x)
                 outlets[cell_id].y_source[j] = int(y)
                 line = re.sub(' +', ' ', f.readline())
-                uh.append(map(float, line.split()))
+                uh.append(list(map(float, line.split())))
 
-            outlets[cell_id].unit_hydrograph = np.rot90(np.array(uh,
-                                                                 dtype=np.float64),
-                                                        k=-1)
-            outlets[cell_id].source_decomp_ind = dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
+            outlets[cell_id].unit_hydrograph = np.rot90(
+                np.array(uh, dtype=np.float64), k=-1)
+            outlets[cell_id].source_decomp_ind = \
+                dom_data['cell_ids'][outlets[cell_id].y_source,
+                                     outlets[cell_id].x_source]
             f.close()
 
-            outlets[cell_id].cell_id_source = dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
+            outlets[cell_id].cell_id_source = \
+                dom_data['cell_ids'][outlets[cell_id].y_source,
+                                     outlets[cell_id].x_source]
 
     elif config_dict['UHS_FILES']['ROUT_PROGRAM'] == 'Fortran':
         raise ValueError('Fortran conversion not working...')
-        # log.info('parsing fortran uhs files')
-        # # setup for finding x, y inds
-        # dom_lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']]
-        # dom_lat = dom_data[config_dict['DOMAIN']['LATITUDE_VAR']]
-        # combined = np.dstack(([dom_lat.ravel(), dom_lon.ravel()]))[0]
-        # mytree = cKDTree(combined)
-
-        # for cell_id, outlet in outlets.iteritems():
-        #     # read lons, lats, and unit hydrographs
-        #     log.debug('reading %s' %outlet.ll_file)
-        #     lons, lats = np.genfromtxt(outlet.ll_file, dtype="f8", unpack=True)
-
-        #     log.debug('reading %s' %outlet.uhs_file)
-        #     uh = np.genfromtxt(outlet.uhs_file, dtype="f8")
-        #     outlets[cell_id].unit_hydrograph = np.rot90(uh, k=-1)
-        #     if len(lons) != uh.shape[0]:
-        #         raise ValueError('length mismatch in ll file and uhs file %s %s' %(lons.shape, uh.shape))
-
-        #     # now find the y_source and x_sources
-        #     points = list(np.vstack((np.array(lats), np.array(lons))).transpose())
-        #     dist, indexes = mytree.query(points, k=1)
-        #     yinds, xinds = np.unravel_index(np.array(indexes), dom_lat.shape)
-
-        #     # finally, get the fractions and the source_decomp_ind from the domain data
-        #     outlets[cell_id].cell_id_source = dom_data['cell_ids'][yinds, xinds]
-        #     outlets[cell_id].fractions = dom_data[config_dict['DOMAIN']['FRACTION_VAR']][yinds, xinds]
-        #     print 'fractions', outlets[cell_id].fractions
-
-        #     # now store all the data
-        #     outlets[cell_id].lat_source = lats
-        #     outlets[cell_id].lon_source = lons
-        #     outlets[cell_id].y_source = yinds
-        #     outlets[cell_id].x_source = xinds
     else:
         raise ValueError('UHS_FILES[ROUT_PROGRAM] must be either C or Fortran')
 
@@ -192,7 +165,7 @@ def move_domain(dom_data, new_dom_data, outlets):
 
     # ---------------------------------------------------------------- #
     # Adjust locations
-    for cell_id, outlet in outlets.iteritems():
+    for cell_id, outlet in iteritems(outlets):
 
         outlets[cell_id].domy = new_y[outlet.domy]
         outlets[cell_id].domx = new_x[outlet.domx]
@@ -200,8 +173,12 @@ def move_domain(dom_data, new_dom_data, outlets):
         outlets[cell_id].y_source = new_y[outlet.y_source]
         outlets[cell_id].x_source = new_x[outlet.x_source]
 
-        outlets[cell_id].outlet_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].domy, outlets[cell_id].domx]
-        outlets[cell_id].source_decomp_ind = new_dom_data['cell_ids'][outlets[cell_id].y_source, outlets[cell_id].x_source]
+        outlets[cell_id].outlet_decomp_ind = \
+            new_dom_data['cell_ids'][outlets[cell_id].domy,
+                                     outlets[cell_id].domx]
+        outlets[cell_id].source_decomp_ind = \
+            new_dom_data['cell_ids'][outlets[cell_id].y_source,
+                                     outlets[cell_id].x_source]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

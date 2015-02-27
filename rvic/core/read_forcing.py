@@ -8,9 +8,10 @@ from calendar import monthrange
 from bisect import bisect_right
 from netCDF4 import Dataset, date2num, date2index, num2date
 from logging import getLogger
-from log import LOG_NAME
-from time_utility import ord_to_datetime
-from share import MMPERMETER, CMPERMETER, WATERDENSITY, TIMEUNITS, SECSPERDAY
+from .log import LOG_NAME
+from .time_utility import ord_to_datetime
+from .share import MMPERMETER, CMPERMETER, WATERDENSITY, TIMEUNITS, SECSPERDAY
+from .pycompat import range
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -48,8 +49,8 @@ class DataModel(object):
                 start = [int(start)]
                 end = [int(end)]
             else:
-                start = map(int, start.split('-'))
-                end = map(int, end.split('-'))
+                start = list(map(int, start.split('-')))
+                end = list(map(int, end.split('-')))
 
         # single files without year in them
         if not start:
@@ -57,7 +58,7 @@ class DataModel(object):
 
         # yearly files
         elif len(start) == 1:
-            for year in xrange(start[0], end[0]+1):
+            for year in range(start[0], end[0] + 1):
                 self.files.append(os.path.join(self.path,
                                   file_str.replace('$YYYY',
                                                    "{0:04d}".format(year))))
@@ -67,8 +68,13 @@ class DataModel(object):
             year = start[0]
             month = start[1]
             while True:
-                self.files.append(os.path.join(self.path,
-                                  file_str.replace('$YYYY', "{0:04d}".format(year)).replace('$MM', "{0:02d}".format(month))))
+                self.files.append(
+                    os.path.join(
+                        self.path,
+                        file_str.replace(
+                            '$YYYY',
+                            "{0:04d}".format(year)).replace(
+                                '$MM', "{0:02d}".format(month))))
                 if year == end[0] and month == end[1]:
                     break
                 else:
@@ -84,8 +90,16 @@ class DataModel(object):
             month = start[1]
             day = start[2]
             while True:
-                self.files.append(os.path.join(self.path,
-                                  file_str.replace('$YYYY', "{0:04d}".format(year)).replace('$MM', "{0:02d}".format(month)).replace('$DD', "{0:02d}".format(day))))
+                self.files.append(
+                    os.path.join(
+                        self.path,
+                        file_str.replace(
+                            '$YYYY',
+                            "{0:04d}".format(year)).replace(
+                                '$MM',
+                                "{0:02d}".format(month)).replace(
+                                    '$DD',
+                                    "{0:02d}".format(day))))
                 if year == end[0] and month == end[1] and day == end[2]:
                     break
                 else:
@@ -150,7 +164,7 @@ class DataModel(object):
             t1 = date2num(num2date(time_series[1], self.time_units,
                                    calendar=self.calendar),
                           TIMEUNITS, calendar=self.calendar)
-            self.secs_per_step = (t1-t0) * SECSPERDAY
+            self.secs_per_step = (t1 - t0) * SECSPERDAY
         else:
             raise ValueError('Need more than 1 forcing timestep in order to '
                              'calculate timestep')
@@ -177,9 +191,9 @@ class DataModel(object):
         self.current_fhdl = Dataset(self.current_file, 'r')
 
         try:
-            self.current_tind = date2index(timestamp,
-                                           self.current_fhdl.variables[self.time_fld])
-        except Exception, e:
+            self.current_tind = date2index(
+                timestamp, self.current_fhdl.variables[self.time_fld])
+        except Exception as e:
             log.error(num2date(self.start_dates, self.time_units,
                                calendar=self.calendar))
             log.error('timestamp: %s', timestamp)
@@ -197,11 +211,13 @@ class DataModel(object):
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
             elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
-                self.fld_mult[fld] = WATERDENSITY / MMPERMETER / self.secs_per_step
+                self.fld_mult[fld] = (WATERDENSITY / MMPERMETER /
+                                      self.secs_per_step)
             elif units in ['m', 'M', 'meters', 'Meters']:
                 self.fld_mult[fld] = WATERDENSITY / self.secs_per_step
             elif units in ['cm', 'CM', 'centimeters', 'Centimeters']:
-                self.fld_mult[fld] = WATERDENSITY / CMPERMETER / self.secs_per_step
+                self.fld_mult[fld] = (WATERDENSITY / CMPERMETER /
+                                      self.secs_per_step)
             else:
                 raise ValueError('unknown forcing units')
         # ------------------------------------------------------------ #
@@ -213,7 +229,8 @@ class DataModel(object):
             try:
                 fill_val = getattr(self.current_fhdl.variables[fld],
                                    '_FillValue')
-                fmask = np.squeeze(self.current_fhdl.variables[fld][0]) == fill_val
+                fmask = np.squeeze(
+                    self.current_fhdl.variables[fld][0]) == fill_val
 
                 if np.any(fmask[rout_var.source_y_ind, rout_var.source_x_ind]):
                     log.error('There are fill values in the routing domain')
@@ -233,7 +250,8 @@ class DataModel(object):
 
         # ------------------------------------------------------------ #
         # Get the current data index location
-        if self.current_tind == len(self.current_fhdl.variables[self.time_fld]):
+        if self.current_tind == len(
+                self.current_fhdl.variables[self.time_fld]):
             # close file and open next
             self.current_fhdl.close()
             self.current_filenum += 1
@@ -244,18 +262,20 @@ class DataModel(object):
 
         # ------------------------------------------------------------ #
         # check that the timestamp is what was expected
-        expected_timestamp = ord_to_datetime(self.current_fhdl.variables[self.time_fld][self.current_tind],
-                                             self.time_units,
-                                             calendar=self.calendar)
+        expected_timestamp = ord_to_datetime(
+            self.current_fhdl.variables[self.time_fld][self.current_tind],
+            self.time_units,
+            calendar=self.calendar)
         if timestamp != expected_timestamp:
             log.warning('Timestamp is not what was expected')
             log.warning('Got timestamp %s', timestamp)
             log.warning('Expected timestamp %s', expected_timestamp)
 
             # Attempt to find the correct timestamp
-            self.ordtime = date2num(timestamp,
-                                    self.current_fhdl.variables[self.time_fld].units,
-                                    calendar=self.calendar)
+            self.ordtime = date2num(
+                timestamp,
+                self.current_fhdl.variables[self.time_fld].units,
+                calendar=self.calendar)
 
             # check to make sure the timestamp exists in input dataset
             if self.ordtime > max(self.end_ords):
@@ -269,8 +289,8 @@ class DataModel(object):
                 self.current_file = self.files[new_filenum]
                 self.current_fhdl = Dataset(self.current_file, 'r')
 
-            self.current_tind = date2index(timestamp,
-                                           self.current_fhdl.variables[self.time_fld])
+            self.current_tind = date2index(
+                timestamp, self.current_fhdl.variables[self.time_fld])
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -280,16 +300,24 @@ class DataModel(object):
         for i, fld in enumerate(self.liq_flds):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
-                forcing['LIQ'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['LIQ'] = \
+                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
+                     * self.fld_mult[fld])
             else:
-                forcing['LIQ'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['LIQ'] += \
+                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
+                     * self.fld_mult[fld])
 
         for i, fld in enumerate(self.ice_flds):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
-                forcing['ICE'] = self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['ICE'] = \
+                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
+                     * self.fld_mult[fld])
             else:
-                forcing['ICE'] += self.current_fhdl.variables[fld][self.current_tind, :, :] * self.fld_mult[fld]
+                forcing['ICE'] += \
+                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
+                     * self.fld_mult[fld])
 
         # move forward one step
         self.current_tind += 1

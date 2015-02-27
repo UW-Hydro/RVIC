@@ -16,15 +16,16 @@ Major updates to the...
 import os
 from collections import OrderedDict
 from logging import getLogger
-from core.log import init_logger, close_logger, LOG_NAME
-from core.utilities import make_directories, read_domain
-from core.utilities import write_rpointer, tar_inputs
-from core.variables import Rvar
-from core.time_utility import Dtime
-from core.read_forcing import DataModel
-from core.history import Tape
-from core.share import NcGlobals, RVIC_TRACERS
-from core.config import read_config
+from .core.log import init_logger, close_logger, LOG_NAME
+from .core.utilities import make_directories, read_domain
+from .core.utilities import write_rpointer, tar_inputs
+from .core.variables import Rvar
+from .core.time_utility import Dtime
+from .core.read_forcing import DataModel
+from .core.history import Tape
+from .core.share import NcGlobals, RVIC_TRACERS
+from .core.config import read_config
+from .core.pycompat import iteritems
 
 
 # -------------------------------------------------------------------- #
@@ -83,7 +84,7 @@ def convolution_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Copy Inputs to $case_dir/inputs and update configuration
-    #config_dict = copy_inputs(config_file, directories['inputs'])
+    # config_dict = copy_inputs(config_file, directories['inputs'])
     options = config_dict['OPTIONS']
     # ---------------------------------------------------------------- #
 
@@ -108,8 +109,8 @@ def convolution_init(config_file):
     # ---------------------------------------------------------------- #
     # Read Domain File
     domain = config_dict['DOMAIN']
-    dom_data, dom_vatts, dom_gatts = read_domain(domain,
-                                                 lat0_is_min=data_model.lat0_is_min)
+    dom_data, dom_vatts, dom_gatts = read_domain(
+        domain, lat0_is_min=data_model.lat0_is_min)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -173,19 +174,20 @@ def convolution_init(config_file):
 
     # make sure history file fields are all in list form
     if numtapes == 1:
-        for var, value in history.iteritems():
+        for var, value in iteritems(history):
             if not isinstance(value, list):
                 history[var] = list([value])
 
-    global_atts = NcGlobals(title='RVIC history file',
-                            casename=options['CASEID'],
-                            casestr=options['CASESTR'],
-                            RvicPourPointsFile=os.path.split(rout_var.RvicPourPointsFile)[1],
-                            RvicUHFile=os.path.split(rout_var.RvicUHFile)[1],
-                            RvicFdrFile=os.path.split(rout_var.RvicFdrFile)[1],
-                            RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
+    global_atts = NcGlobals(
+        title='RVIC history file',
+        casename=options['CASEID'],
+        casestr=options['CASESTR'],
+        RvicPourPointsFile=os.path.split(rout_var.RvicPourPointsFile)[1],
+        RvicUHFile=os.path.split(rout_var.RvicUHFile)[1],
+        RvicFdrFile=os.path.split(rout_var.RvicFdrFile)[1],
+        RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
 
-    for j in xrange(numtapes):
+    for j in range(numtapes):
         tapename = 'Tape.{0}'.format(j)
         log.info('setting up History %s', tapename)
         hist_tapes[tapename] = Tape(time_handle.time_ord,
@@ -208,7 +210,7 @@ def convolution_init(config_file):
                                     glob_ats=global_atts)
 
     # loop over again and print summary
-    for tapename, tape in hist_tapes.iteritems():
+    for tapename, tape in iteritems(hist_tapes):
         log.info('==========%s==========', tapename)
         log.info(tape)
         tape.write_initial()
@@ -275,7 +277,7 @@ def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         data2tape['storage'] = rout_var.get_storage()
 
         # Update the history Tape(s)
-        for tapename, tape in hist_tapes.iteritems():
+        for tapename, tape in iteritems(hist_tapes):
             log.debug('Updating Tape: %s', tapename)
             tape.update(data2tape, time_ord)
         # ------------------------------------------------------------ #
@@ -286,7 +288,7 @@ def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
             # History files
             history_files = []
             history_restart_files = []
-            for tapename, tape in hist_tapes.iteritems():
+            for tapename, tape in iteritems(hist_tapes):
                 log.debug('Writing Restart File for Tape: %s', tapename)
                 # hist_fname, rest_fname = tape.write_restart()
                 history_files.append(tape.filename)
@@ -304,7 +306,7 @@ def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
         if not stop_flag:
             timestamp, time_ord, stop_flag, \
                 rest_flag = time_handle.advance_timestep()
-            #check that we're still inline with convolution
+            # check that we're still inline with convolution
             if end_timestamp != timestamp:
                 raise ValueError('timestamps do not match after convolution')
         else:
@@ -313,7 +315,7 @@ def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
 
     # ---------------------------------------------------------------- #
     # Make sure we write out the last history file
-    for tapename, tape in hist_tapes.iteritems():
+    for tapename, tape in iteritems(hist_tapes):
         log.debug('Closing Tape: %s', tapename)
         tape.finish()
     # ---------------------------------------------------------------- #
@@ -336,7 +338,7 @@ def convolution_final(time_handle, hist_tapes):
     log.info("-----------------------------------------------------------")
     log.info('Done with streamflow convolution')
     log.info('Processed %i timesteps' % time_handle.timesteps)
-    for name, tape in hist_tapes.iteritems():
+    for name, tape in iteritems(hist_tapes):
         log.info('Wrote %i history files from %s' % (tape.files_count, name))
     # log.info('Routed to %i points' % time_handle.points)
     log.info("-----------------------------------------------------------")
