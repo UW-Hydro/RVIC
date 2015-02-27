@@ -9,9 +9,10 @@ import numpy as np
 from netCDF4 import num2date, date2num
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
-from share import TIMEUNITS, SECSPERDAY, MINSPERDAY, HOURSPERDAY, TIMESTAMPFORM
+from .share import TIMEUNITS, SECSPERDAY, MINSPERDAY, HOURSPERDAY, \
+    TIMESTAMPFORM
 from logging import getLogger
-from log import LOG_NAME
+from .log import LOG_NAME
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -42,7 +43,7 @@ class Dtime(object):
         self.stop_option = stop_option
         self.stop_n = stop_n
         if self.stop_option == 'date':
-            date = map(int, stop_date.split('-'))
+            date = list(map(int, stop_date.split('-')))
             self.stop_date = datetime(*date)
         else:
             self.stop_date = False
@@ -51,7 +52,7 @@ class Dtime(object):
         self.rest_option = rest_option
         self.rest_n = rest_n
         if self.rest_option == 'date':
-            date = map(int, rest_date.split('-'))
+            date = list(map(int, rest_date.split('-')))
             self.rest_date = datetime(*date)
         else:
             self.rest_date = False
@@ -115,7 +116,8 @@ class Dtime(object):
         elif self.stop_option == 'nmonths':
             temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
                                    calendar=self.calendar)
-            if relativedelta(temp, self.start_date).months % self.stop_n == 0.0:
+            if relativedelta(temp,
+                             self.start_date).months % self.stop_n == 0.0:
                 flag = True
         elif self.stop_option == 'nmonth':
             temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
@@ -178,7 +180,8 @@ class Dtime(object):
         elif self.rest_option == 'nmonths':
             temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,
                                    calendar=self.calendar)
-            if relativedelta(temp, self.start_date).months % self.rest_n == 0.0:
+            if relativedelta(temp,
+                             self.start_date).months % self.rest_n == 0.0:
                 flag = True
         elif self.rest_option == 'nmonth':
             temp = ord_to_datetime(self.time_ord + self.dt, TIMEUNITS,

@@ -1,8 +1,8 @@
 """
-mpi.py
+multi_proc.py
 """
 
-from log import LOG_NAME
+from .log import LOG_NAME
 import multiprocessing
 from multiprocessing.pool import Pool
 import traceback

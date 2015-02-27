@@ -17,10 +17,10 @@ def main():
     input_file, output_file, which_points, verbose = process_command_line()
 
     # ---------------------------------------------------------------- #
-    #Load input Rasters (Basin Mask and Accumulated Upstream Area)
-    #Input rasters need to be the same size
+    # Load input Rasters (Basin Mask and Accumulated Upstream Area)
+    # Input rasters need to be the same size
     if verbose:
-        print 'Reading input file: %s' % input_file
+        print('Reading input file: %s' % input_file)
 
     f = Dataset(input_file, 'r')
     basin_id = f.variables['Basin_ID'][:]
@@ -41,7 +41,7 @@ def main():
             max_y = find_all(basin_id, source_area, land_mask, lons, lats, res,
                              verbose)
     else:
-        print 'Returning all basin outlet grid cells as pour points'
+        print('Returning all basin outlet grid cells as pour points')
         basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, \
             max_y = find_outlets(basin_id, source_area, lons, lats, res,
                                  verbose)
@@ -50,7 +50,7 @@ def main():
     # ---------------------------------------------------------------- #
     # Write output file
     if verbose:
-        print 'writing to outfile:', output_file
+        print('writing to outfile:', output_file)
 
     if os.path.splitext(output_file)[1] != '.nc':
         write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
@@ -84,8 +84,8 @@ def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    #Loop over every basin id, finding the maximum upstream area [and location]
-    #and record the basin#,longitude,latitude,area
+    # Loop over every basin id, finding the maximum upstream area, and location
+    # and record the basin#,longitude,latitude,area
 
     for i, (yi, xi, bi) in enumerate(zip(y, x, basin)):
         inds = np.nonzero(basin_id == bi)
@@ -94,9 +94,9 @@ def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
         x_outlet[i] = lon[y, x]
         y_outlet[i] = lat[y, x]
         min_x[i] = min(x_basin)
-        max_x[i] = max(x_basin)+res
+        max_x[i] = max(x_basin) + res
         min_y[i] = min(y_basin)
-        max_y[i] = max(y_basin)+res
+        max_y[i] = max(y_basin) + res
     # ---------------------------------------------------------------- #
 
     return basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y
@@ -107,12 +107,12 @@ def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
 def find_outlets(basin_id, source_area, lons, lats, res, verbose):
     """ Find the outlet location of each basin """
     # ---------------------------------------------------------------- #
-    #Make arrays of same dimensions as input arrays of lat/lon values
+    # Make arrays of same dimensions as input arrays of lat/lon values
     x, y = np.meshgrid(lons, lats)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    #Setup basin in/out arrays
+    # Setup basin in/out arrays
     basin_ids = np.arange(np.min(basin_id), np.max(basin_id))
     num_basins = len(basin_ids)
 
@@ -127,8 +127,8 @@ def find_outlets(basin_id, source_area, lons, lats, res, verbose):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    #Loop over every basin id, finding the maximum upstream area [and location]
-    #and record the basin#,longitude,latitude,area
+    # Loop over every basin id, finding the maximum upstream area, and location
+    # and record the basin#,longitude,latitude,area
     if verbose:
         sys.stdout.write('Done reading input file...\n ')
         sys.stdout.write('Searching in %i basins for pour '
@@ -148,9 +148,9 @@ def find_outlets(basin_id, source_area, lons, lats, res, verbose):
         x_outlet[i] = x_basin[max_ind]
         y_outlet[i] = y_basin[max_ind]
         min_x[i] = min(x_basin)
-        max_x[i] = max(x_basin)+res
+        max_x[i] = max(x_basin) + res
         min_y[i] = min(y_basin)
-        max_y[i] = max(y_basin)+res
+        max_y[i] = max(y_basin) + res
     # ---------------------------------------------------------------- #
     return basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, max_y
 # -------------------------------------------------------------------- #
@@ -173,7 +173,7 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 
     # ---------------------------------------------------------------- #
     # initialize variables
-    OIDs = f.createVariable('OID', 'i8', ('points', ))
+    oids = f.createVariable('OID', 'i8', ('points', ))
     x_outlets = f.createVariable('x_outlet', 'f8', ('points', ))
     y_outlets = f.createVariable('y_outlet', 'f8', ('points', ))
     max_areas = f.createVariable('max_area', 'i8', ('points', ))
@@ -193,8 +193,8 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 
     # ---------------------------------------------------------------- #
     # write variable attributes
-    OIDs.long_name = 'Basin Identifier'
-    OIDs.standard_name = 'OID'
+    oids.long_name = 'Basin Identifier'
+    oids.standard_name = 'OID'
 
     x_outlets.long_name = 'longitude_coordinate_of_pour_point'
     x_outlets.standard_name = 'longitude'
@@ -228,7 +228,7 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 
     # ---------------------------------------------------------------- #
     # fill vairables
-    OIDs[:] = basin
+    oids[:] = basin
     x_outlets[:] = x_outlet
     y_outlets[:] = y_outlet
     max_areas[:] = max_areas
@@ -255,9 +255,10 @@ def write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
     # ---------------------------------------------------------------- #
     # set format
     fmt = ['%i', '%.10f', '%.10f', '%i', '%.10f', '%.10f', '%.10f', '%.10f']
-    out = np.column_stack((basin, x_outlet, y_outlet, max_area,  min_x, min_y,
+    out = np.column_stack((basin, x_outlet, y_outlet, max_area, min_x, min_y,
                           max_x, max_y))
-    header = 'OID, longitude, latitude, basin_area, min_lon, min_lat, max_lon, max_lat\n'
+    header = 'OID, longitude, latitude, basin_area, min_lon, min_lat, ' \
+             'max_lon, max_lat\n'
     with file(out_file, 'w') as outfile:
         outfile.write(header)
         np.savetxt(outfile, out, fmt=fmt, delimiter=',')

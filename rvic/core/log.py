@@ -43,8 +43,8 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     # ---------------------------------------------------------------- #
     # create log file handler
     if log_dir:
-        log_file = os.path.join(log_dir, 'RVIC-'+strftime("%Y%m%d-%H%M%S",
-                                gmtime())+'.log')
+        log_file = os.path.join(log_dir, 'RVIC-' + strftime("%Y%m%d-%H%M%S",
+                                gmtime()) + '.log')
         fh = logging.FileHandler(log_file)
         fh.setLevel(log_level)
         fh.setFormatter(FORMATTER)

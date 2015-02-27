@@ -3,12 +3,13 @@ param_file.py
 """
 import numpy as np
 import logging
-from log import LOG_NAME
-from write import write_param_file
-from share import NcGlobals, SECSPERDAY, MAX_NC_CHARS
+from .log import LOG_NAME
+from .write import write_param_file
+from .share import NcGlobals, SECSPERDAY, MAX_NC_CHARS
+from .pycompat import iteritems, range, zip
+from . import plots
 import os
 from datetime import date
-import plots
 
 
 # -------------------------------------------------------------------- #
@@ -44,7 +45,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # subset (shorten time base)
     if options['SUBSET_DAYS'] and \
             options['SUBSET_DAYS'] < routing['BASIN_FLOWDAYS']:
-        subset_length = options['SUBSET_DAYS']*SECSPERDAY/routing['OUTPUT_INTERVAL']
+        subset_length = (options['SUBSET_DAYS'] *
+                         SECSPERDAY / routing['OUTPUT_INTERVAL'])
         outlets, full_time_length, \
             before, after = subset(outlets, subset_length=subset_length)
 
@@ -65,7 +67,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     else:
         log.info('Not subsetting because either SUBSET_DAYS is null or '
                  'SUBSET_DAYS<BASIN_FLOWDAYS')
-        for outlet in outlets.itervalues():
+        for outlet in outlets.values():
             outlet.offset = np.zeros(outlet.unit_hydrograph.shape[1],
                                      dtype=np.int16)
         full_time_length = outlet.unit_hydrograph.shape[0]
@@ -88,10 +90,12 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # Calculate the upstream area and upstream grid cells
     # The upstream_area must be calculated after adjust_fractions
-    for i, outlet in outlets.iteritems():
+    for i, outlet in iteritems(outlets):
         outlet.upstream_gridcells = len(outlet.y_source)
-        outlet.upstream_area = np.sum(dom_data[dom_area][outlet.y_source, outlet.x_source] *
-                                      dom_data[dom_frac][outlet.y_source, outlet.x_source])
+        outlet.upstream_area = np.sum(dom_data[dom_area][outlet.y_source,
+                                                         outlet.x_source] *
+                                      dom_data[dom_frac][outlet.y_source,
+                                                         outlet.x_source])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -150,7 +154,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     dom_y = dom_data[domain['LATITUDE_VAR']]
     dom_x = dom_data[domain['LONGITUDE_VAR']]
 
-    for title, data in plot_dict.iteritems():
+    for title, data in iteritems(plot_dict):
         pfname = plots.fractions(data, dom_x, dom_y, title, options['CASEID'],
                                  directories['plots'])
         log.info('%s Plot: %s', title, pfname)
@@ -176,16 +180,19 @@ def finish_params(outlets, dom_data, config_dict, directories):
                                           options['GRIDID'],
                                           today))
 
-    if 'NEW_DOMAIN' in config_dict.keys():
+    if 'NEW_DOMAIN' in list(config_dict.keys()):
         dom_file_name = config_dict['NEW_DOMAIN']['FILE_NAME']
     else:
         dom_file_name = config_dict['DOMAIN']['FILE_NAME']
 
-    glob_atts = NcGlobals(title='RVIC parameter file',
-                          RvicPourPointsFile=os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1],
-                          RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
-                          RvicFdrFile=os.path.split(routing['FILE_NAME'])[1],
-                          RvicDomainFile=os.path.split(dom_file_name)[1])
+    param_file_name = \
+        os.path.split(config_dict['POUR_POINTS']['FILE_NAME'])[1]
+    glob_atts = NcGlobals(
+        title='RVIC parameter file',
+        RvicPourPointsFile=param_file_name,
+        RvicUHFile=os.path.split(config_dict['UH_BOX']['FILE_NAME'])[1],
+        RvicFdrFile=os.path.split(routing['FILE_NAME'])[1],
+        RvicDomainFile=os.path.split(dom_file_name)[1])
 
     write_param_file(param_file,
                      nc_format=options['NETCDF_FORMAT'],
@@ -241,7 +248,7 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
-    for cell_id, outlet in outlets.iteritems():
+    for cell_id, outlet in iteritems(outlets):
         y = outlet.y_source
         x = outlet.x_source
 
@@ -259,12 +266,12 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
     # fractions
     yi, xi = np.nonzero(fractions > dom_fractions)
     log.info('Adjust fractions for %s grid cells', len(yi))
-    ratio_fraction[yi, xi] = dom_fractions[yi, xi]/fractions[yi, xi]
+    ratio_fraction[yi, xi] = dom_fractions[yi, xi] / fractions[yi, xi]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Adjust fracs based on ratio_fraction
-    for cell_id, outlet in outlets.iteritems():
+    for cell_id, outlet in iteritems(outlets):
         y = outlet.y_source
         x = outlet.x_source
         if adjust:
@@ -294,7 +301,7 @@ def subset(outlets, subset_length=None):
     log.info('subsetting unit-hydrographs now...')
     log.debug('Subset Length:  %s', subset_length)
 
-    for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
+    for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
             log.debug('Subset Length:  %s', subset_length)
@@ -311,10 +318,10 @@ def subset(outlets, subset_length=None):
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
                           dtype=np.float64)
 
-        d_left = -1*subset_length/2
-        d_right = subset_length/2
+        d_left = -1 * subset_length / 2
+        d_right = subset_length / 2
 
-        for j in xrange(outlet.unit_hydrograph.shape[1]):
+        for j in range(outlet.unit_hydrograph.shape[1]):
             # find index position of maximum
             maxind = np.argmax(outlet.unit_hydrograph[:, j])
 
@@ -371,7 +378,7 @@ def group(outlets, subset_length):
 
     n_outlets = len(outlets)
     n_sources = 0
-    for outlet in outlets.itervalues():
+    for outlet in outlets.values():
         n_sources += len(outlet.y_source)
 
     gd = {}
@@ -410,7 +417,7 @@ def group(outlets, subset_length):
     # ---------------------------------------------------------------- #
     # place outlet and source vars into gd dictionary
     a = 0
-    for i, (cell_id, outlet) in enumerate(outlets.iteritems()):
+    for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
         b = a + len(outlet.y_source)
         log.debug('unit_hydrograph.shape %s', outlet.unit_hydrograph.shape)
         # -------------------------------------------------------- #

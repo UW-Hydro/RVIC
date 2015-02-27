@@ -5,7 +5,7 @@ import sys
 import socket
 import string
 import time as time_mod
-from collections import OrderedDict
+from .pycompat import OrderedDict, iteritems
 from netCDF4 import default_fillvals
 from getpass import getuser
 
@@ -147,12 +147,13 @@ class NcGlobals:
             self.atts['RvicDomainFile'] = RvicDomainFile
 
     def update(self):
-        self.atts['history'] = 'Created: {0}'.format(time_mod.ctime(time_mod.time()))
+        self.atts['history'] = \
+            'Created: {0}'.format(time_mod.ctime(time_mod.time()))
 
 
 class NcVar:
     def __init__(self, **kwargs):
-        for key, val in kwargs.iteritems():
+        for key, val in iteritems(kwargs):
             setattr(self, key, val)
 
 # Coordinate Variables
@@ -259,7 +260,8 @@ ring = NcVar(long_name='Convolution Ring',
 streamflow = NcVar(long_name='Streamflow at outlet grid cell',
                    units='kg m-2 s-1')
 
-storage = NcVar(long_name='Mass storage in stream upstream of outlet grid cell',
+storage = NcVar(long_name='Mass storage in stream upstream of outlet '
+                          'grid cell',
                 units='kg m-2 s-1')
 
 # valid values http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#calendar
@@ -296,7 +298,8 @@ timemgr_rst_curr_tod = NcVar(long_name='current time of day',
                              valid_range='0, 86400')
 
 nhtfrq = NcVar(long_name='Frequency of history writes',
-               units='absolute value of negative is in hours, 0=monthly, positive is time-steps',
+               units='absolute value of negative is in hours, 0=monthly, '
+                     'positive is time-steps',
                comment='Namelist item')
 
 mfilt = NcVar(long_name='Number of history time samples on a file',

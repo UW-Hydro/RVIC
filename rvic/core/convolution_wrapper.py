@@ -16,10 +16,12 @@ LIBPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 try:
     _convolution = np.ctypeslib.load_library(SHAREDOBJECT, LIBPATH)
 except ImportError as ie:
-    print('looking for shared object {0} in {1}'.format(SHAREDOBJECT, LIBPATH))
+    print(('looking for shared object {0} in {1}'.format(SHAREDOBJECT,
+                                                         LIBPATH)))
     raise ImportError(ie)
 except OSError as oe:
-    print('looking for shared object {0} in {1}'.format(SHAREDOBJECT, LIBPATH))
+    print(('looking for shared object {0} in {1}'.format(SHAREDOBJECT,
+                                                         LIBPATH)))
     raise ImportError(oe)
 
 _args = [ctypes.c_int,

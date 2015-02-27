@@ -4,8 +4,7 @@ config.py
 """
 
 import os
-from collections import OrderedDict
-from ConfigParser import SafeConfigParser
+from .pycompat import OrderedDict, SafeConfigParser
 
 
 class Config(object):
@@ -70,11 +69,11 @@ def config_type(value):
             return os.path.expandvars(value)
     else:
         try:
-            return map(float, val_list)
+            return list(map(float, val_list))
         except:
             pass
         try:
-            return map(int, val_list)
+            return list(map(int, val_list))
         except:
             return val_list
 # -------------------------------------------------------------------- #
@@ -84,7 +83,7 @@ def config_type(value):
 def isfloat(x):
     """Test of value is a float"""
     try:
-        a = float(x)
+        float(x)
     except ValueError:
         return False
     else:

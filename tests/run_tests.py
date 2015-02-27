@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 """RVIC command line testing interface"""
 
-from __future__ import print_function
 import os
 import textwrap
 import argparse
 import pytest
 import cProfile
 import pstats
-import StringIO
+import io
 from rvic import convert, convolution, parameters
 from rvic.core.config import read_config
+from rvic.core.pycompat import PY3, iteritems
 
 if not os.environ.get('RVIC_TEST_DIR'):
     print('\n$RVIC_TEST_DIR not set.')
@@ -62,11 +62,11 @@ def run_examples(config_file):
 
     # ---------------------------------------------------------------- #
     # run tests
-    num_tests = len(config_dict.keys())
+    num_tests = len(list(config_dict.keys()))
 
-    for i, (test, test_dict) in enumerate(config_dict.iteritems()):
+    for i, (test, test_dict) in enumerate(iteritems(config_dict)):
         print("".center(100, '-'))
-        print("Starting Test #{0} of {1}: {2}".format(i+1, num_tests,
+        print("Starting Test #{0} of {1}: {2}".format(i + 1, num_tests,
                                                       test).center(100))
         desc = textwrap.fill(", ".join(test_dict['description']), 100)
         print("Description: {0}".format(desc))
@@ -92,13 +92,16 @@ def run_examples(config_file):
                              '{0}'.format(test_dict['function']))
 
         pr.disable()
-        s = StringIO.StringIO()
+        if PY3:
+            s = io.StringIO()
+        else:
+            s = io.BytesIO()
         sortby = 'cumulative'
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
 
         print("".center(100, '-'))
-        print("Done With Test #{0} of {1}: {2}".format(i+1, num_tests,
+        print("Done With Test #{0} of {1}: {2}".format(i + 1, num_tests,
                                                        test).center(100))
         print(".....Printing Profile Information.....".center(100))
         print("".center(100, '-'))
