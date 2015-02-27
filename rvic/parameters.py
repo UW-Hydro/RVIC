@@ -10,6 +10,7 @@ from .core.multi_proc import LoggingPool
 from .core.utilities import make_directories, copy_inputs, strip_invalid_char
 from .core.utilities import read_netcdf, tar_inputs, latlon2yx
 from .core.utilities import check_ncvars, clean_file, read_domain
+from .core.utilities import search_for_channel
 from .core.aggregate import make_agg_pairs, aggregate
 from .core.make_uh import rout
 from .core.share import NcGlobals
@@ -161,6 +162,7 @@ def gen_uh_init(config_file):
     fdr_lon = config_dict['ROUTING']['LONGITUDE_VAR']
     fdr_vel = config_dict['ROUTING']['VELOCITY']
     fdr_dif = config_dict['ROUTING']['DIFFUSION']
+    fdr_area = config_dict['ROUTING']['SOURCE_AREA_VAR']
     try:
         fdr_data, fdr_vatts, _ = read_netcdf(fdr_file)
         fdr_shape = fdr_data[fdr_var].shape
@@ -170,11 +172,19 @@ def gen_uh_init(config_file):
         if fdr_data[fdr_lat][-1] > fdr_data[fdr_lat][0]:
             log.debug('Flow Direction inputs came in upside down, flipping '
                       'everything now.')
-            var_list = list(fdr_data.keys())
-            var_list.remove(fdr_lon)
-            for var in var_list:
-                if fdr_data[var].ndim >= 1:
-                    fdr_data[var] = np.flipud(fdr_data[var])
+
+            remove_vars = []
+
+            for var, data in iteritems(fdr_data):
+                log.debug('flipping %s', var)
+                if data.ndim >= 1 and var != fdr_lon:
+                    fdr_data[var] = np.flipud(data)
+                elif data.ndim == 0:
+                    remove_vars.append(var)
+
+            if remove_vars:
+                for var in remove_vars:
+                    del fdr_data[var]
         # ---------------------------------------------------------------- #
 
         # ---------------------------------------------------------------- #
@@ -253,6 +263,14 @@ def gen_uh_init(config_file):
                                        glats=fdr_data[fdr_lat],
                                        glons=fdr_data[fdr_lon])
 
+        if options['SEARCH_FOR_CHANNEL']:
+            routys, routxs = search_for_channel(fdr_data[fdr_area],
+                                                routys, routxs,
+                                                tol=10, search=2)
+            # update lats and lons
+            lats = fdr_data[fdr_lat][routys]
+            lons = fdr_data[fdr_lon][routxs]
+
         # Find location on domain grid
         domys, domxs = latlon2yx(plats=lats,
                                  plons=lons,
@@ -262,7 +280,7 @@ def gen_uh_init(config_file):
         for i in range(len(lats)):
             if 'names' in list(pour_points.keys()):
                 name = pour_points['names'].values[i]
-                name = name.replace("'", "").replace(" ", "_")
+                name = name.replace("'", '').replace(" ", "_")
             else:
                 # fill name filed with p-outlet_num
                 name = 'p-{0}'.format(i)

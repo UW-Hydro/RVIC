@@ -13,7 +13,7 @@ try:
     matplotlib_available = True
     try:
         from mpl_toolkits.basemap import Basemap
-        basemap_available = False  # Core dumping due to Geos Error
+        basemap_available = False
     except:
         basemap_available = False
 except:
@@ -32,9 +32,9 @@ def uhs(data, title, case_id, plot_dir):
     Plot diagnostic plot showing all unit hydrographs
     """
     today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
+    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
+                                         case_id.lower().replace(" ", "_"),
+                                         today)
     pfname = os.path.join(plot_dir, file_name)
 
     fig = plt.figure()
@@ -56,9 +56,9 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
     # ---------------------------------------------------------------- #
     # Plot Fractions
     today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
+    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
+                                         case_id.lower().replace(" ", "_"),
+                                         today)
     pfname = os.path.join(plot_dir, file_name)
 
     mask = data <= 0.0
@@ -75,7 +75,7 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
     plt.title(title)
     plt.xlabel('x')
     plt.ylabel('y')
-    plt.gca().invert_yaxis()
+    # plt.gca().invert_yaxis()
     fig.savefig(pfname)
     # ---------------------------------------------------------------- #
     return pfname
@@ -90,9 +90,9 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
     # ---------------------------------------------------------------- #
     # Plot Fractions
     today = date.today().strftime('%Y%m%d')
-    file_name = "{}_{}_{}.png".format(title.lower().replace(" ", "_"),
-                                      case_id.lower().replace(" ", "_"),
-                                      today)
+    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
+                                         case_id.lower().replace(" ", "_"),
+                                         today)
     pfname = os.path.join(plot_dir, file_name)
 
     fig = plt.figure(figsize=(8, 8))

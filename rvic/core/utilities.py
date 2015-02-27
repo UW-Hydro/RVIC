@@ -51,6 +51,40 @@ def latlon2yx(plats, plons, glats, glons):
 
 
 # -------------------------------------------------------------------- #
+# Search neighboring grid cells for channel
+def search_for_channel(source_area, routys, routxs, search=2, tol=10):
+    """Search neighboring grid cells for channel"""
+
+    log.debug('serching for channel')
+
+    new_ys = np.empty_like(routys)
+    new_xs = np.empty_like(routxs)
+
+    for i, (y, x) in enumerate(zip(routys, routxs)):
+        area0 = source_area[y, x]
+
+        search_area = source_area[y-search:y+search+1, x-search:x+search+1]
+
+        if np.any(search_area > area0*tol):
+            sy, sx = np.unravel_index(search_area.argmax(), search_area.shape)
+
+            new_ys[i] = y + sy - search
+            new_xs[i] = x + sx - search
+
+            log.debug('Moving pour point to channel y: '
+                      '{0}->{1}, x: {2}->{3}'.format(y, new_ys[i],
+                                                     x, new_xs[i]))
+            log.debug('Source Area has increased from {0}'
+                      ' to {1}'.format(area0, source_area[new_ys[i], new_xs[i]]))
+        else:
+            new_ys[i] = y
+            new_xs[i] = x
+    return new_ys, new_xs
+
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
 # Write rpointer file
 def write_rpointer(restart_dir, restart_file, timestamp):
     """ Write a configuration file with restart file and time """

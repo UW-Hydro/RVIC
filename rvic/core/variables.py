@@ -28,7 +28,7 @@ class Point(object):
     '''
 
     def __init__(self, lat=-9999.9, lon=-9999.9, domx=-9999, domy=-9999,
-                 routx=-9999, routy=-9999, name='', cell_id=-9999):
+                 routx=-9999, routy=-9999, name=None, cell_id=-9999):
         '''Defines x and y variables'''
         self.lat = lat
         self.lon = lon
