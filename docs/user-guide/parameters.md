@@ -99,104 +99,102 @@ A csv file that describes the routing of flow to the edge of the origin grid cel
     - Description: Print output to console in addition to the log file
     - Type: bool
     - valid values: True, False
-3.  **CASE_DIR**
-    - Description: case run directory
-    - Type: char
-4.  **RVIC_TAG**
-    - Description: RVIC Tag
-    - Type: char
-5.  **CASEID**
+3.  **CLEAN**
+    - Description: Delete temporary files, only used if REMAP=True
+    - Type: bool
+    - valid values: True, False
+4.  **CASEID**
     - Description: Case ID
     - Type: char
-6.  **CASESTR**
-    - Description: Case description
+5.  **GRIDID**
+    - Description: routing domain grid shortname
     - Type: char
-7.  **CALENDAR**
-    - Description: Calendar
+6.  **CASE_DIR**
+    - Description: case run directory
     - Type: char
-    - Valid Values: standard, gregorian, proleptic_gregorian noleap, 365_day, 360_day, julian, all_leap, 366_day
-8.  **RUN_TYPE**
-    - Description: Run initialization type
+7.  **TEMP_DIR**
+    - Description: Directory to use for temporary read/write operations, only used if REMAP=True.
     - Type: char
-    - Valid Values: startup, drystart, restart
-9.  **RUN_STARTDATE**
-    - Description: Run start date (yyyy-mm-dd-hh). Only used for startup and drystart runs.
-    - Type: char
-10.  **STOP_OPTION**
-    - Description:  Run stop condition
-    - Type: char
-    - Valid Values: none, never, nsteps, nseconds, nminutes, nhours, ndays, nmonths, nyears, date, end
-11.  **STOP_N**
-    - Description:  Run length based on STOP_OPTION
+8.  **REMAP**
+    - Description: Remap Unit Hydrographs from [ROUTING] grid to [DOMAIN] grid
+    - Type: bool
+    - Valid values: True, False
+9.  **AGGREGATE**
+    - Description: Aggregate all [POUR_POINTS] inside each [DOMAIN] grid cell
+    - Type: bool
+    - Valid values: True, False
+
+    Note: *This should only be used when routing to coastal grid cells for CESM.*
+10.  **AGG_PAD**
+    - Description: Size of pad to add to aggregated files prior to remapping
     - Type: int
-12.  **STOP_DATE**
-    - Description:  Run stop date based on STOP_OPTION
-    - Type: char
-13.  **REST_OPTION**
-    - Description:  Frequency of model restart writes
-    - Type: char
-    - Valid Values: none, never, nsteps, nseconds, nminutes, nhours, ndays, nmonths, nyears, date, end
-14.  **REST_N**
-    - Description:  Write restart frequency based on REST_OPTION
-    - Type: int
-15.  **STOP_DATE**
-    - Description:  Write restart date based on REST_OPTION
-    - Type: char
-16.  **REST_NCFORM**
-    - Description: Restart file format
+11.  **NETCDF_FORMAT**
+    - Description: Output parameter file format
     - Type: char
     - Valid values: NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4
-17.  **Output file compression options**
 
-    Descriptions of these options can be found in the [netCDF4-Python package](http://unidata.github.io/netcdf4-python/netCDF4.Dataset-class.html#createVariable)
+    Note: *For use with CESM, NETCDF3_CLASSIC is recommended.*
+12.  **SUBSET_DAYS**
+    - Description: Length of unit hydrograph subset in days
+    - Type: int
 
-    - NETCDF_ZLIB: False (bool)
-    - NETCDF_COMPLEVEL: 4 (int)
-    - NETCDF_SIGFIGS: None (bool or int)
+13.  **CONSTRAIN_FRACTIONS**
 
-### HISTORY
-1.  **RVICHIST_NTAPES**
-    - Description:  Number of history file output streams (a.k.a. history tapes).
-    - Type: int
-2.  **RVICHIST_MFILT**
-    - Description:  Per tape series maximum number of time samples per output file.
-    - Type: int
-3.  **RVICHIST_NDENS**
-    - Description:  Per tape series history file density (i.e. output precision)
-        - 1=double precision
-        - 2=single precision
-    - Type: int
-    - Valid Values: 1, 2
-4.  **RVICHIST_NHTFRQ**
-    - Description:  Per tape series history write frequency.
-        - positive means in time steps
-        - 0 = monthly
-        - negative means hours
-    - Type: int
-5.  **RVICHIST_AVGFLAG**
-    - Description:  Per tape series history output type.
-        - A - Average, over the output interval.
-        - I - Instantaneous, output the value at the output interval.
-        - X - Maximum, over the output interval.
-        - M - Minimum, over the output interval.
-    - Type: char
-    - Valid Values: A, I, X, M
-6.  **RVICHIST_OUTTYPE**
-    - Description: History file output shape
-        - grid - shape is (time, y, x)
-        - array - shape is (time, outlets)
-    - Type: char
-    - Valid values: grid, array
-7.  **RVICHIST_NCFORM**
-    - Description: Restart file format
-    - Type: char
-    - Valid values: NETCDF3_CLASSIC, NETCDF3_64BIT, NETCDF4_CLASSIC, and NETCDF4
-8.  **RVICHIST_UNITS**
-    - Description: Per tape series output units
-    - Type: char
-    - Valid values: kg m-2 s-1, m3/s
+    - Description: Constrain the final unit hydrographs sum to be less than or equal to the domain fractions
+    - Type: bool
+    - Valid values: True, False
 
-### DOMAIN
+    Note: *True when routing to coastal grid cells, else False.*
+
+###POUR_POINTS
+1.  **FILE_NAME**
+    - Description: Path to Pour Points File, A comma separated file of outlets to route to [lons, lats] - one coordinate pair per line (order not important).  May optionally include a column [names] - which will (if not aggregating) be included in param file.
+    - Type: char
+
+###UH_BOX
+1.  **FILE_NAME**
+    - Description: Path to UH Box File.  This defines the unit hydrograph to rout flow to the edge of each grid cell.  A comma separated file of [time in seconds, unit hydrograph ordinate] - one timestep per line.  The timestep should be 1hr (3600 sec) or less.
+    - Type: char
+2.  **HEADER_LINES**
+    - Description: Number of Header lines to ignore in [UH_BOX]FILE_NAME
+    - Type: int
+
+###ROUTING
+1.  **FILE_NAME**
+    - Description: Path to routing inputs netCDF.
+    - Type: char
+2.  **LONGITUDE_VAR**
+    - Description: Longitude variable name
+    - Type: char
+3.  **LATITUDE_VAR**
+    - Description: Latitude variable name
+    - Type: char
+4.  **FLOW_DISTANCE_VAR**
+    - Description: Flow Distance variable name
+    - Type: char
+5.  **FLOW_DIRECTION_VAR**
+    - Description: Flow Direction variable name
+    - Type: char
+6.  **BASIN_ID_VAR**
+    - Description: Basin ID variable name
+    - Type: char
+7.  **VELOCITY**
+    - Description: Velocity variable name or value
+    - Type: char, float
+8.  **DIFFUSION**
+    - Description: Diffusion variable name or value
+    - Type: char, float
+9.  **OUTPUT_INTERVAL**
+    - Description: Timestep of output unit hydrographs.  Must be a multiple of the timestep in the UH_BOX
+    - Type: int
+10.  **BASIN_FLOWDAYS**
+    - Description: Maximum time for runoff to reach outlet in days
+    - Type: int
+11. **CELL_FLOWDAYS**
+    - Description: Maximum time for runoff to pass through a grid cell in days
+    - Type: int
+
+###DOMAIN
 1.  **FILE_NAME**
     - Description: Path to CESM complaint domain file
     - Type: char
@@ -210,41 +208,8 @@ A csv file that describes the routing of flow to the edge of the origin grid cel
     - Description: Land Mask variable name
     - Type: char
 5.  **FRACTION_VAR**
-    - Description: Land fraction of Grid Cell
-    - Type: char
-6.  **AREA_VAR**
-    - Description: Grid Cell Area
-    - Type: char
-
-### INITIAL_STATE
-1.  **FILE_NAME**
-    - Description: RVIC state file
-    - Type: char
-
-### PARAM_FILE
-1.  **FILE_NAME**
-    - Description: rvic parameter file file
-    - Type: char
-
-### INPUT_FORCINGS
-1.  **DATL_PATH**
-    - Description: Path to directory with land data netCDF forcings
-    - Type: char
-2.  **DATL_FILE**
-    - Description: format of land data files (prfix.$YYYY[-$MM-[$DD[-$HH]]].nc)
-    - Type: char
-3.  **TIME_VAR**
-    - Description: Time variable name
-    - Type: char
-4.  **LATITUDE_VAR**
     - Description: Latitude variable name
     - Type: char
-5.  **DATL_LIQ_FLDS**
-    - Description: Liquid variable names (e.g. runoff, baseflow)
-    - Type: char
-6.  **START**
-    - Description: start date, date format YYYY[-MM[-DD]]
-    - Type: char
-7.  **END**
-    - Description: start date, date format YYYY[-MM[-DD]]
+6.  **AREA_VAR**
+    - Description: Longitude variable name
     - Type: char
