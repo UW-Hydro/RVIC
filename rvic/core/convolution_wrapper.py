@@ -7,21 +7,22 @@ gcc -shared -o rvic_convolution.so rvic_convolution.c
 """
 
 import os
+import sysconfig
 import numpy as np
 import ctypes
 
-SHAREDOBJECT = 'rvic_convolution.so'
+SHAREDOBJECT = 'rvic_convolution' + sysconfig.get_config_var('SO')
 LIBPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../'))
 
 try:
     _convolution = np.ctypeslib.load_library(SHAREDOBJECT, LIBPATH)
 except ImportError as ie:
-    print(('looking for shared object {0} in {1}'.format(SHAREDOBJECT,
-                                                         LIBPATH)))
+    print('error looking for shared object {0} in {1}'.format(SHAREDOBJECT,
+                                                              LIBPATH))
     raise ImportError(ie)
 except OSError as oe:
-    print(('looking for shared object {0} in {1}'.format(SHAREDOBJECT,
-                                                         LIBPATH)))
+    print('error looking for shared object {0} in {1}'.format(SHAREDOBJECT,
+                                                              LIBPATH))
     raise ImportError(oe)
 
 _args = [ctypes.c_int,
