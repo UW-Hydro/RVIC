@@ -30,7 +30,6 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     dom_ids = dom_data['cell_ids']
     fdr_lons = fdr_data[config_dict['ROUTING']['LONGITUDE_VAR']]
     fdr_lats = fdr_data[config_dict['ROUTING']['LATITUDE_VAR']]
-    #fdr_srcarea = fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']]
 
     # ---------------------------------------------------------------- #
     #Find Destination grid cells
@@ -60,8 +59,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
                            routy=routys[i],
                            name=None,
                            cell_id=dom_ids[domys[i], domxs[i]])
-        pour_point.source_area = 0#fdr_srcarea[pour_point.routy,
-                                   #          pour_point.routx]
+        pour_point.source_area = 0
 
         cell_id = dom_ids[domys[i], domxs[i]]
 
