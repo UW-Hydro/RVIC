@@ -1,7 +1,7 @@
 # Installing RVIC
 
 ## Dependencies
-- [Python 2.7](http://www.python.org/)
+- [Python 2.7 or later including Python3](http://www.python.org/)
 - [Numpy](http://www.numpy.org)
 - [Scipy](http://www.scipy.org/)
 - [netcdf4-python](https://code.google.com/p/netcdf4-python/)
