@@ -33,7 +33,7 @@ source activate rvic
 Now, download the RVIC source code:
 
 ```shell
-git clone https://github.com/jhamman/RVIC.git
+git clone git@github.com:UW-Hydro/RVIC.git
 ```
 
 From the RVIC source code repository, RVIC can be installed using Python's `distutils`:
