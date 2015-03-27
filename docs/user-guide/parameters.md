@@ -146,6 +146,12 @@ A csv file that describes the routing of flow to the edge of the origin grid cel
 
     Note: *True when routing to coastal grid cells, else False.*
 
+14. **SEARCH_FOR_CHANNEL**
+
+    - Description: If AGGREGATE==TRUE, must specify whether you want RVIC to check whether a gridcell is on a channel.
+    - Type: bool
+    - Valid values: True, False
+
 ###POUR_POINTS
 1.  **FILE_NAME**
     - Description: Path to Pour Points File, A comma separated file of outlets to route to [lons, lats] - one coordinate pair per line (order not important).  May optionally include a column [names] - which will (if not aggregating) be included in param file.
