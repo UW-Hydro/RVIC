@@ -41,12 +41,16 @@ def main():
         if args.script == 'parameters':
             from rvic.parameters import parameters
             parameters(args.config_file, numofproc=args.numofproc)
+        else:
+            if args.numofproc > 1:
+                print('{0} processors were specified but script {1} only '
+                      'excepts 1'.format(args.numofproc, args.script))
         if args.script == 'convolution':
             from rvic.convolution import convolution
-            convolution(args.config_file, numofproc=args.numofproc)
+            convolution(args.config_file)
         if args.script == 'convert':
             from rvic.convert import convert
-            convert(args.config_file, numofproc=args.numofproc)
+            convert(args.config_file)
     else:
         parser.print_help()
     return

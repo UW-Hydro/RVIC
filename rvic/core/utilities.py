@@ -13,6 +13,7 @@ from .log import LOG_NAME
 from .share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
 from .share import METERS2PERACRE, METERSPERKM, VALID_CHARS
 from .config import read_config
+from .pycompat import pyzip
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -43,7 +44,7 @@ def latlon2yx(plats, plons, glats, glons):
     points = list(np.vstack((np.array(plats), np.array(plons))).transpose())
 
     mytree = cKDTree(combined)
-    dist, indexes = mytree.query(points, k=1)
+    indexes = mytree.query(points, k=1)[1]
     y, x = np.unravel_index(indexes, glons.shape)
     return y, x
 
@@ -184,8 +185,8 @@ def clean_dir(directory):
         try:
             if os.path.isfile(file_path):
                 os.unlink(file_path)
-        except:
-            log.exception('Error cleaning file: %s' % file_path)
+        except Exception:
+            log.exception('Error cleaning file: %s', file_path)
     return
 # -------------------------------------------------------------------- #
 
@@ -197,8 +198,8 @@ def clean_file(file_name):
     try:
         if os.path.isfile(file_name):
             os.unlink(file_name)
-    except:
-        log.exception('Error cleaning file: %s' % file_name)
+    except Exception:
+        log.exception('Error cleaning file: %s', file_name)
     return
 # -------------------------------------------------------------------- #
 

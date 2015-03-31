@@ -8,7 +8,7 @@ import logging
 from .log import LOG_NAME
 from .variables import Point
 from .share import FILLVALUE_I
-from .pycompat import iteritems
+from .pycompat import iteritems, pyrange
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -101,7 +101,7 @@ def read_uhs_files(outlets, dom_data, config_dict):
             uh = []
 
             # loop over the source points
-            for j in range(num_sources):
+            for j in pyrange(num_sources):
                 line = re.sub(' +', ' ', f.readline())
                 lon, lat, fracs, x, y = line.split()
                 # move to zero based index

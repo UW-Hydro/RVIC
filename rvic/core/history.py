@@ -253,7 +253,7 @@ class Tape(object):
         # Update the fields
         for field in self._fincl:
             tracer = 'LIQ'
-            log.debug('updating {0}'.format(field))
+            log.debug('updating %s', field)
             fdata = data2tape[field][tracer]
             if self._avgflag == 'A':
                 self._temp_data[field] += fdata
@@ -596,7 +596,7 @@ class Tape(object):
                 setattr(f, key, val)
         # ------------------------------------------------------------ #
         f.close()
-        log.info('Finished writing %s' % self.filename)
+        log.info('Finished writing %s', self.filename)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

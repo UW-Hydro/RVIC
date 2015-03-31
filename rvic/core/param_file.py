@@ -6,7 +6,7 @@ import logging
 from .log import LOG_NAME
 from .write import write_param_file
 from .share import NcGlobals, SECSPERDAY, MAX_NC_CHARS
-from .pycompat import iteritems, range, zip
+from .pycompat import iteritems, pyrange, pyzip
 from . import plots
 import os
 from datetime import date
@@ -147,7 +147,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # Make diagnostic plots
     sum_after = np.zeros(dom_data[domain['FRACTION_VAR']].shape)
-    for i, (y, x) in enumerate(zip(source_y_ind, source_x_ind)):
+    for i, (y, x) in enumerate(pyzip(source_y_ind, source_x_ind)):
         sum_after[y, x] += unit_hydrograph[:, i].sum()
 
     plot_dict['Sum UH Final'] = sum_after
@@ -301,11 +301,13 @@ def subset(outlets, subset_length=None):
 
     log.info('subsetting unit-hydrographs now...')
     log.debug('Subset Length:  %s', subset_length)
-
+    log.debug(outlets)
     for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
+        log.debug(i, cell_id, outlet, outlets)
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
             log.debug('Subset Length:  %s', subset_length)
+            log.debug('full_time_length:  %s', full_time_length)
             if not subset_length:
                 subset_length = full_time_length
                 log.debug('No subset_length provided, using full_time_length')
@@ -322,7 +324,7 @@ def subset(outlets, subset_length=None):
         d_left = -1 * subset_length / 2
         d_right = subset_length / 2
 
-        for j in range(outlet.unit_hydrograph.shape[1]):
+        for j in pyrange(outlet.unit_hydrograph.shape[1]):
             # find index position of maximum
             maxind = np.argmax(outlet.unit_hydrograph[:, j])
 

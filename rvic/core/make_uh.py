@@ -21,7 +21,7 @@ from scipy.interpolate import interp1d
 from .utilities import latlon2yx
 from .share import SECSPERDAY
 from .log import LOG_NAME
-from .pycompat import zip, range
+from .pycompat import pyzip, pyrange
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -243,7 +243,7 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
 
     cells = 0
 
-    for yy, xx in zip(byinds, bxinds):
+    for yy, xx in pyzip(byinds, bxinds):
         if in_catch[yy, xx] >= 0:
             # set the old path to zero
             pathy[:cells + 1] = 0
@@ -292,7 +292,6 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     catch_fracs[cyinds, cxinds] = 1.0
 
     count = len(cyinds)
-    tempy, tempx = np.nonzero(count_ds)
 
     log.debug("Found %i upstream grid cells from present station", count)
     log.debug("Expected at most %i upstream grid cells from present station",
@@ -325,7 +324,7 @@ def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
     uh = np.zeros((t_cell, xmask.shape[0], xmask.shape[1]), dtype=np.float64)
     time = np.arange(dt, t_cell * dt + dt, dt, dtype=np.float64)
 
-    for y, x in zip(y_inds, x_inds):
+    for y, x in pyzip(y_inds, x_inds):
         xm = xmask[y, x]
         v = velocity[y, x]
         d = diffusion[y, x]
@@ -353,7 +352,7 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point, y_inds,
 
     uh_river = np.zeros((t_uh, uh.shape[1], uh.shape[2]), dtype=np.float64)
 
-    for (y, x, d) in zip(y_inds, x_inds, count_ds):
+    for (y, x, d) in pyzip(y_inds, x_inds, count_ds):
         if d > 0:
             yy = to_y[y, x]
             xx = to_x[y, x]
@@ -385,7 +384,7 @@ def make_grid_uh(t_uh, t_cell, uh_river, uh_box, to_y, to_x, y_inds, x_inds,
     unit_hydrograph = np.zeros((t_uh, uh_river.shape[1], uh_river.shape[2]))
     irf_temp = np.zeros(t_uh + t_cell, dtype=np.float64)
 
-    for (y, x, d) in zip(y_inds, x_inds, count_ds):
+    for (y, x, d) in pyzip(y_inds, x_inds, count_ds):
         irf_temp[:] = 0.0
         if d > 0:
             yy = to_y[y, x]
@@ -421,8 +420,8 @@ def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval,
         t_uh_out = int(t_uh / fac)
         uh_out = np.zeros((t_uh_out, unit_hydrograph.shape[1],
                           unit_hydrograph.shape[2]), dtype=np.float64)
-        for (y, x) in zip(y_inds, x_inds):
-            for t in range(t_uh_out):
+        for (y, x) in pyzip(y_inds, x_inds):
+            for t in pyrange(t_uh_out):
                 uh_out[t, y, x] = unit_hydrograph[t * fac:t * fac + fac,
                                                   y, x].sum()
     else:
@@ -435,7 +434,7 @@ def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval,
                           unit_hydrograph.shape[2]), dtype=np.float64)
         ts_orig = np.linspace(0, t_uh, t_uh)
         ts_new = np.linspace(0, t_uh, t_uh_out)
-        for (y, x) in zip(y_inds, x_inds):
+        for (y, x) in pyzip(y_inds, x_inds):
             f = interp1d(ts_orig, unit_hydrograph[:, y, x])
             uh_out[:, y, x] = f(ts_new)
 

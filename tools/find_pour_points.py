@@ -2,7 +2,7 @@
 """
 Find the outlet location of basins in a grid
 """
-from future import print_function
+from __future__ import print_function
 import numpy as np
 from netCDF4 import Dataset
 import time as tm
@@ -38,8 +38,7 @@ def main():
     if which_points == 'all':
         print('Returning all land cells as pour pour points')
         basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, \
-            max_y = find_all(basin_id, source_area, land_mask, lons, lats, res,
-                             verbose)
+            max_y = find_all(basin_id, source_area, land_mask, lons, lats, res)
     else:
         print('Returning all basin outlet grid cells as pour points')
         basin, x_outlet, y_outlet, max_area, min_x, min_y, max_x, \
@@ -56,14 +55,14 @@ def main():
         write_ascii_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
                          max_x, max_y, output_file)
     else:
-        write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
+        write_netcdf_file(basin, x_outlet, y_outlet, min_x, min_y,
                           max_x, max_y, output_file)
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
-def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
+def find_all(basin_id, source_area, land_mask, lons, lats, res):
     """Return the info for all land points """
 
     lat, lon = np.meshgrid(lats, lons)
@@ -87,7 +86,7 @@ def find_all(basin_id, source_area, land_mask, lons, lats, res, verbose):
     # Loop over every basin id, finding the maximum upstream area, and location
     # and record the basin#,longitude,latitude,area
 
-    for i, (yi, xi, bi) in enumerate(zip(y, x, basin)):
+    for i, bi in enumerate(basin):
         inds = np.nonzero(basin_id == bi)
         x_basin = lon[inds]
         y_basin = lat[inds]
@@ -158,7 +157,7 @@ def find_outlets(basin_id, source_area, lons, lats, res, verbose):
 
 # -------------------------------------------------------------------- #
 # write output netcdf
-def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
+def write_netcdf_file(basin, x_outlet, y_outlet, min_x, min_y,
                       max_x, max_y, out_file):
     """
     save the list of pour points as a comma seperated text file
@@ -168,7 +167,7 @@ def write_netcdf_file(basin, x_outlet, y_outlet, max_area, min_x, min_y,
 
     # ---------------------------------------------------------------- #
     # set dimensions
-    points = f.createDimension('points', None)
+    f.createDimension('points', None)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

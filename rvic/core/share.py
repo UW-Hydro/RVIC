@@ -69,7 +69,7 @@ VALID_CHARS = "-_. %s%s" % (string.ascii_letters, string.digits)
 
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #
-class NcGlobals:
+class NcGlobals(object):
     def __init__(self,
                  title=None,
                  casename=None,
@@ -91,59 +91,62 @@ class NcGlobals:
 
         self.atts = OrderedDict()
 
-        if title:
+        if title is not None:
             self.atts['title'] = title
 
-        if comment:
+        if comment is not None:
             self.atts['comment'] = comment
 
-        if Conventions:
+        if Conventions is not None:
             self.atts['Conventions'] = Conventions
 
-        if history:
+        if history is not None:
             self.atts['history'] = history
 
-        if source:
+        if source is not None:
             self.atts['source'] = source
 
-        if institution:
+        if institution is not None:
             self.atts['institution'] = institution
 
-        if hostname:
+        if hostname is not None:
             self.atts['hostname'] = hostname
         else:
             self.atts['hostname'] = socket.gethostname()
 
-        if username:
+        if username is not None:
             self.atts['username'] = username
         else:
             self.atts['username'] = getuser()
 
-        if casename:
+        if casename is not None:
             self.atts['casename'] = casename
 
-        if references:
+        if casestr is not None:
+            self.atts['casestr'] = casestr
+
+        if references is not None:
             self.atts['references'] = references
 
-        if version:
+        if version is not None:
             self.atts['version'] = version
         else:
             try:
                 from rvic import version
                 self.atts['version'] = version.short_version
-            except:
+            except ImportError:
                 self.atts['version'] = 'unknown'
 
-        if RvicPourPointsFile:
+        if RvicPourPointsFile is not None:
             self.atts['RvicPourPointsFile'] = RvicPourPointsFile
 
-        if RvicUHFile:
+        if RvicUHFile is not None:
             self.atts['RvicUHFile'] = RvicUHFile
 
-        if RvicFdrFile:
+        if RvicFdrFile is not None:
             self.atts['RvicFdrFile'] = RvicFdrFile
 
-        if RvicDomainFile:
+        if RvicDomainFile is not None:
             self.atts['RvicDomainFile'] = RvicDomainFile
 
     def update(self):
@@ -151,7 +154,7 @@ class NcGlobals:
             'Created: {0}'.format(time_mod.ctime(time_mod.time()))
 
 
-class NcVar:
+class NcVar(object):
     def __init__(self, **kwargs):
         for key, val in iteritems(kwargs):
             setattr(self, key, val)
