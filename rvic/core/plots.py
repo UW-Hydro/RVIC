@@ -14,9 +14,9 @@ try:
     try:
         from mpl_toolkits.basemap import Basemap
         basemap_available = False
-    except:
+    except ImportError:
         basemap_available = False
-except:
+except ImportError:
     matplotlib_available = False
 
 
@@ -31,11 +31,7 @@ def uhs(data, title, case_id, plot_dir):
     """
     Plot diagnostic plot showing all unit hydrographs
     """
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
-                                         case_id.lower().replace(" ", "_"),
-                                         today)
-    pfname = os.path.join(plot_dir, file_name)
+    pfname = _make_filename(title, case_id, plot_dir)
 
     fig = plt.figure()
     plt.plot(data)
@@ -55,11 +51,7 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
     """
     # ---------------------------------------------------------------- #
     # Plot Fractions
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
-                                         case_id.lower().replace(" ", "_"),
-                                         today)
-    pfname = os.path.join(plot_dir, file_name)
+    pfname = _make_filename(title, case_id, plot_dir)
 
     mask = data <= 0.0
     data = np.ma.array(data, mask=mask)
@@ -75,7 +67,8 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
     plt.title(title)
     plt.xlabel('x')
     plt.ylabel('y')
-    # plt.gca().invert_yaxis()
+    plt.ylim([0, dom_y.shape[0]])
+    plt.xlim([0, dom_x.shape[1]])
     fig.savefig(pfname)
     # ---------------------------------------------------------------- #
     return pfname
@@ -89,11 +82,7 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
     """
     # ---------------------------------------------------------------- #
     # Plot Fractions
-    today = date.today().strftime('%Y%m%d')
-    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
-                                         case_id.lower().replace(" ", "_"),
-                                         today)
-    pfname = os.path.join(plot_dir, file_name)
+    pfname = _make_filename(title, case_id, plot_dir)
 
     fig = plt.figure(figsize=(8, 8))
     fig.add_axes([0.1, 0.1, 0.8, 0.8])
@@ -145,12 +134,22 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
 
 
 # -------------------------------------------------------------------- #
-def _fractions_dummy(data, dom_x, dom_y, title, case_id, plot_dir):
+def _make_filename(title, case_id, plot_dir):
+    today = date.today().strftime('%Y%m%d')
+    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
+                                         case_id.lower().replace(" ", "_"),
+                                         today)
+    pfname = os.path.join(plot_dir, file_name)
+    return pfname
+# -------------------------------------------------------------------- #
+
+
+# -------------------------------------------------------------------- #
+def _fractions_dummy(*args):
     """
     Pass on plotting
     """
     pfname = 'None <-- could not import matplotlib'
-    pass
     # ---------------------------------------------------------------- #
     return pfname
 # -------------------------------------------------------------------- #

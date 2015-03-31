@@ -71,7 +71,7 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     # ---------------------------------------------------------------- #
 
     logger.info('-------------------- INITIALIZED RVIC LOG ------------------')
-    logger.info('LOG LEVEL: %s' % log_level)
+    logger.info('LOG LEVEL: %s', log_level)
     logger.info('Logging To Console: %s', verbose)
     logger.info('LOG FILE: %s', log_file)
     logger.info('----------------------------------------------------------\n')

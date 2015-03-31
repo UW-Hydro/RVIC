@@ -17,7 +17,7 @@ log = getLogger(LOG_NAME)
 
 # -------------------------------------------------------------------- #
 # Write the agg netcdf
-def write_agg_netcdf(file_name, agg_data, glob_atts, format, zlib=True,
+def write_agg_netcdf(file_name, agg_data, glob_atts, nc_format, zlib=True,
                      complevel=4, least_significant_digit=None):
     """
     Write output to netCDF.  Writes out a netCDF4 data file containing
@@ -33,8 +33,8 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, format, zlib=True,
 
     # ---------------------------------------------------------------- #
     # Open file
-    f = Dataset(file_name, 'w', format=format)
-    log.info('writing aggregated netcdf: %s' % file_name)
+    f = Dataset(file_name, 'w', format=nc_format)
+    log.info('writing aggregated netcdf: %s', file_name)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -129,7 +129,6 @@ def write_param_file(file_name,
                      source_decomp_ind=None,
                      source_time_offset=None,
                      source2outlet_ind=None,
-                     source_tracer=None,
                      unit_hydrograph=None,
                      zlib=True,
                      complevel=4,
@@ -364,6 +363,6 @@ def write_param_file(file_name,
 
     f.close()
 
-    log.info('Finished writing %s' % file_name)
+    log.info('Finished writing %s', file_name)
     # ---------------------------------------------------------------- #
 # -------------------------------------------------------------------- #

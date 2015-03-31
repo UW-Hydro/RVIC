@@ -11,7 +11,7 @@ from logging import getLogger
 from .log import LOG_NAME
 from .time_utility import ord_to_datetime
 from .share import MMPERMETER, CMPERMETER, WATERDENSITY, TIMEUNITS, SECSPERDAY
-from .pycompat import range
+from .pycompat import pyrange
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -58,7 +58,7 @@ class DataModel(object):
 
         # yearly files
         elif len(start) == 1:
-            for year in range(start[0], end[0] + 1):
+            for year in pyrange(start[0], end[0] + 1):
                 self.files.append(os.path.join(self.path,
                                   file_str.replace('$YYYY',
                                                    "{0:04d}".format(year))))
@@ -219,7 +219,7 @@ class DataModel(object):
                 self.fld_mult[fld] = (WATERDENSITY / CMPERMETER /
                                       self.secs_per_step)
             else:
-                raise ValueError('unknown forcing units')
+                raise ValueError('unknown forcing units: %s' % units)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -301,23 +301,23 @@ class DataModel(object):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
                 forcing['LIQ'] = \
-                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
-                     * self.fld_mult[fld])
+                    (self.fld_mult[fld] *
+                     self.current_fhdl.variables[fld][self.current_tind, :, :])
             else:
                 forcing['LIQ'] += \
-                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
-                     * self.fld_mult[fld])
+                    (self.fld_mult[fld] *
+                     self.current_fhdl.variables[fld][self.current_tind, :, :])
 
         for i, fld in enumerate(self.ice_flds):
             self.current_fhdl.variables[fld].set_auto_maskandscale(False)
             if i == 0:
                 forcing['ICE'] = \
-                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
-                     * self.fld_mult[fld])
+                    (self.fld_mult[fld] *
+                     self.current_fhdl.variables[fld][self.current_tind, :, :])
             else:
                 forcing['ICE'] += \
-                    (self.current_fhdl.variables[fld][self.current_tind, :, :]
-                     * self.fld_mult[fld])
+                    (self.fld_mult[fld] *
+                     self.current_fhdl.variables[fld][self.current_tind, :, :])
 
         # move forward one step
         self.current_tind += 1

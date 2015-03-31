@@ -12,8 +12,8 @@ if PY3:
 
     def itervalues(d):
         return iter(d.values())
-    range = range
-    zip = zip
+    pyrange = range
+    pyzip = zip
     from configparser import SafeConfigParser
 else:
     # Python 2
@@ -26,8 +26,8 @@ else:
 
     def itervalues(d):
         return d.itervalues()
-    range = xrange
-    from itertools import izip as zip
+    pyrange = xrange
+    from itertools import izip as pyzip
     from ConfigParser import SafeConfigParser
 try:
     from cyordereddict import OrderedDict

@@ -13,6 +13,7 @@ from .log import LOG_NAME
 from .share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
 from .share import METERS2PERACRE, METERSPERKM, VALID_CHARS
 from .config import read_config
+from .pycompat import pyzip
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -43,7 +44,7 @@ def latlon2yx(plats, plons, glats, glons):
     points = list(np.vstack((np.array(plats), np.array(plons))).transpose())
 
     mytree = cKDTree(combined)
-    dist, indexes = mytree.query(points, k=1)
+    indexes = mytree.query(points, k=1)[1]
     y, x = np.unravel_index(indexes, glons.shape)
     return y, x
 
@@ -60,22 +61,22 @@ def search_for_channel(source_area, routys, routxs, search=2, tol=10):
     new_ys = np.empty_like(routys)
     new_xs = np.empty_like(routxs)
 
-    for i, (y, x) in enumerate(zip(routys, routxs)):
+    for i, (y, x) in enumerate(pyzip(routys, routxs)):
         area0 = source_area[y, x]
 
-        search_area = source_area[y-search:y+search+1, x-search:x+search+1]
+        search_area = source_area[y - search:y + search + 1,
+                                  x - search:x + search + 1]
 
-        if np.any(search_area > area0*tol):
+        if np.any(search_area > area0 * tol):
             sy, sx = np.unravel_index(search_area.argmax(), search_area.shape)
 
             new_ys[i] = y + sy - search
             new_xs[i] = x + sx - search
 
-            log.debug('Moving pour point to channel y: '
-                      '{0}->{1}, x: {2}->{3}'.format(y, new_ys[i],
-                                                     x, new_xs[i]))
-            log.debug('Source Area has increased from {0}'
-                      ' to {1}'.format(area0, source_area[new_ys[i], new_xs[i]]))
+            log.debug('Moving pour point to channel y: %s->%s, x: %s->%s',
+                      y, new_ys[i], x, new_xs[i])
+            log.debug('Source Area has increased from %s to %s',
+                      area0, source_area[new_ys[i], new_xs[i]])
         else:
             new_ys[i] = y
             new_xs[i] = x
@@ -176,8 +177,8 @@ def clean_dir(directory):
         try:
             if os.path.isfile(file_path):
                 os.unlink(file_path)
-        except:
-            log.exception('Error cleaning file: %s' % file_path)
+        except Exception:
+            log.exception('Error cleaning file: %s', file_path)
     return
 # -------------------------------------------------------------------- #
 
@@ -189,8 +190,8 @@ def clean_file(file_name):
     try:
         if os.path.isfile(file_name):
             os.unlink(file_name)
-    except:
-        log.exception('Error cleaning file: %s' % file_name)
+    except Exception:
+        log.exception('Error cleaning file: %s', file_name)
     return
 # -------------------------------------------------------------------- #
 

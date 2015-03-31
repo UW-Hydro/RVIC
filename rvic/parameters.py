@@ -18,12 +18,12 @@ from .core.write import write_agg_netcdf
 from .core.variables import Point
 from .core.param_file import finish_params
 from .core.config import read_config
-from .core.pycompat import OrderedDict, iteritems, range
+from .core.pycompat import OrderedDict, iteritems, pyrange
 
 try:
     from .core.remap import remap
     remap_available = True
-except:
+except ImportError:
     remap_available = False
 
 
@@ -47,8 +47,8 @@ def parameters(config_file, numofproc=1):
     if numofproc > 1:
         pool = LoggingPool(processes=numofproc)
 
-        for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
-            log.info('On Outlet #{0} of {1}'.format(i + 1, len(outlets)))
+        for i, outlet in enumerate(outlets.values()):
+            log.info('On Outlet #%s of %s', i + 1, len(outlets))
             pool.apply_async(gen_uh_run,
                              args=(uh_box, fdr_data, fdr_vatts, dom_data,
                                    outlet, config_dict, directories),
@@ -59,7 +59,7 @@ def parameters(config_file, numofproc=1):
         outlets = OrderedDict(sorted(list(iteritems(results)),
                               key=lambda t: t[0]))
     else:
-        for name, outlet in iteritems(outlets):
+        for outlet in outlets.values():
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
@@ -116,8 +116,8 @@ def gen_uh_init(config_file):
     try:
         pour_points = pd.read_csv(config_dict['POUR_POINTS']['FILE_NAME'],
                                   comment='#')
-        log.info('Opened Pour Points File: '
-                 '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
+        log.info('Opened Pour Points File: %s',
+                 config_dict['POUR_POINTS']['FILE_NAME'])
         if not (all(x in list(pour_points.keys()) for x in ['lons', 'lats']) or
                 all(x in list(pour_points.keys()) for x in ['x', 'y'])):
             raise ValueError('Pour Points File must include '
@@ -130,8 +130,8 @@ def gen_uh_init(config_file):
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna()
     except Exception as e:
-        log.error('Error opening pour points file: '
-                  '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
+        log.error('Error opening pour points file: %s',
+                  config_dict['POUR_POINTS']['FILE_NAME'])
         log.exception(e)
         raise
     # ---------------------------------------------------------------- #
@@ -146,11 +146,11 @@ def gen_uh_init(config_file):
                                                        skip_header=uh_header,
                                                        delimiter=',',
                                                        unpack=True)
-        log.info('Opened UHbox File: '
-                 '{0}'.format(config_dict['UH_BOX']['FILE_NAME']))
+        log.info('Opened UHbox File: %s',
+                 config_dict['UH_BOX']['FILE_NAME'])
     except:
-        log.exception('Error opening uh_box file: '
-                      '{0}'.format(config_dict['POUR_POINTS']['FILE_NAME']))
+        log.exception('Error opening uh_box file: %s',
+                      config_dict['POUR_POINTS']['FILE_NAME'])
         raise
     # ---------------------------------------------------------------- #
 
@@ -205,7 +205,7 @@ def gen_uh_init(config_file):
         check_ncvars(config_dict['ROUTING'], list(fdr_data.keys()))
         # ---------------------------------------------------------------- #
 
-        log.info('Opened FDR File: {0}'.format(fdr_file))
+        log.info('Opened FDR File: %s', fdr_file)
     except:
         log.exception('Error opening FDR file')
         raise
@@ -215,9 +215,8 @@ def gen_uh_init(config_file):
     # ---------------------------------------------------------------- #
     # Read domain file
     domain = config_dict['DOMAIN']
-    dom_data, _, _ = read_domain(domain)
-    log.info('Opened Domain File: '
-             '{0}'.format(domain['FILE_NAME']))
+    dom_data = read_domain(domain)[0]
+    log.info('Opened Domain File: %s', domain['FILE_NAME'])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -277,7 +276,7 @@ def gen_uh_init(config_file):
                                  glats=dom_data[domain['LATITUDE_VAR']],
                                  glons=dom_data[domain['LONGITUDE_VAR']])
 
-        for i in range(len(lats)):
+        for i in pyrange(len(lats)):
             if 'names' in list(pour_points.keys()):
                 name = pour_points['names'].values[i]
                 name = name.replace("'", '').replace(" ", "_")
@@ -314,7 +313,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     """
     log = getLogger(LOG_NAME)
 
-    log.info('Running outlet cell id  {0}'.format(outlet.cell_id))
+    log.info('Running outlet cell id %s', outlet.cell_id)
 
     agg_data = {}
     domain = config_dict['DOMAIN']
@@ -337,10 +336,10 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
     # ------------------------------------------------------------ #
     # Loop over pour points
+    n_pour_points = len(outlet.pour_points)
     for j, pour_point in enumerate(outlet.pour_points):
 
-        log.info('On pour_point #{0} of'
-                 ' {1}'.format(j + 1, len(outlet.pour_points)))
+        log.info('On pour_point #%s of %s', j + 1, n_pour_points)
 
         # -------------------------------------------------------- #
         # Make the Unit Hydrograph Grid
@@ -348,12 +347,10 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                          config_dict['ROUTING'])
 
         log.debug('Done routing to pour_point')
-        log.debug('rout_data: {0}, '
-                  '{1}'.format(rout_data['unit_hydrograph'].min(),
-                               rout_data['unit_hydrograph'].max()))
-        log.debug('rout_data sum: {0}, '
-                  '{1}'.format(rout_data['unit_hydrograph'].sum(),
-                               rout_data['fraction'].sum()))
+        log.debug('rout_data: %s, %s', rout_data['unit_hydrograph'].min(),
+                  rout_data['unit_hydrograph'].max())
+        log.debug('rout_data sum: %s, %s', rout_data['unit_hydrograph'].sum(),
+                  rout_data['fraction'].sum())
 
         # -------------------------------------------------------- #
 
@@ -369,9 +366,9 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                                      pad=options['AGG_PAD'],
                                      maskandnorm=True)
 
-                log.debug('agg_data: {0}, '
-                          '{1}'.format(agg_data['unit_hydrograph'].min(),
-                                       agg_data['unit_hydrograph'].max()))
+                log.debug('agg_data: %s, %s',
+                          agg_data['unit_hydrograph'].min(),
+                          agg_data['unit_hydrograph'].max())
         else:
             agg_data = rout_data
         # -------------------------------------------------------- #
@@ -404,10 +401,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
         # -------------------------------------------------------- #
         # Read temporary file #2
-        final_data, _, _ = read_netcdf(temp_file_2,
-                                       variables=['unit_hydrograph',
-                                                  'fraction',
-                                                  dom_lat])
+        final_data = read_netcdf(
+            temp_file_2, variables=['unit_hydrograph', 'fraction', dom_lat])[0]
 
         # -------------------------------------------------------- #
         # Check latitude order, flip if necessary.
@@ -415,8 +410,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
             if final_data[dom_lat][-1] > final_data[dom_lat][0]:
                 var_list = list(final_data.keys())
 
-                log.debug('Remapped inputs came in upside down, flipping {0}'
-                          ' now.'.format(", ".join(var_list)))
+                log.debug('Remapped inputs came in upside down, flipping %s',
+                          ", ".join(var_list))
                 # flip lattiutude and fraction along y axis (axis 0)
                 final_data[dom_lat] = final_data[dom_lat][::-1]
                 final_data['fraction'] = final_data['fraction'][::-1, :]

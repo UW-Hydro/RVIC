@@ -5,6 +5,7 @@
 - [Numpy](http://www.numpy.org)
 - [Scipy](http://www.scipy.org/)
 - [netcdf4-python](https://code.google.com/p/netcdf4-python/)
+- [Pandas](http://pandas.pydata.org/)
 
 If using `REMAP=True`:
 
