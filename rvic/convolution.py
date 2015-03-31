@@ -30,7 +30,7 @@ from .core.pycompat import iteritems
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
-def convolution(config_file, numofproc=1):
+def convolution(config_file):
     """
     Top level driver for RVIC convolution model.
     """
@@ -50,8 +50,7 @@ def convolution(config_file, numofproc=1):
     # ---------------------------------------------------------------- #
     # Run
     time_handle, hist_tapes = convolution_run(hist_tapes, data_model, rout_var,
-                                              dom_data, time_handle,
-                                              directories, config_dict)
+                                              time_handle, directories)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -109,8 +108,7 @@ def convolution_init(config_file):
     # ---------------------------------------------------------------- #
     # Read Domain File
     domain = config_dict['DOMAIN']
-    dom_data, dom_vatts, dom_gatts = read_domain(
-        domain, lat0_is_min=data_model.lat0_is_min)
+    dom_data = read_domain(domain, lat0_is_min=data_model.lat0_is_min)[0]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -222,8 +220,8 @@ def convolution_init(config_file):
 
 
 # -------------------------------------------------------------------- #
-def convolution_run(hist_tapes, data_model, rout_var, dom_data, time_handle,
-                    directories, config_dict):
+def convolution_run(hist_tapes, data_model, rout_var, time_handle,
+                    directories):
     """
     Main run loop for RVIC model.
     """
@@ -337,10 +335,9 @@ def convolution_final(time_handle, hist_tapes):
     # Write final log info
     log.info("-----------------------------------------------------------")
     log.info('Done with streamflow convolution')
-    log.info('Processed %i timesteps' % time_handle.timesteps)
+    log.info('Processed %i timesteps', time_handle.timesteps)
     for name, tape in iteritems(hist_tapes):
-        log.info('Wrote %i history files from %s' % (tape.files_count, name))
-    # log.info('Routed to %i points' % time_handle.points)
+        log.info('Wrote %i history files from %s', tape.files_count, name)
     log.info("-----------------------------------------------------------")
     # ---------------------------------------------------------------- #
 

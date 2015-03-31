@@ -8,15 +8,15 @@ from multiprocessing.pool import Pool
 import traceback
 
 
-def error(msg, *args):
+def error(*args):
     """ Error function"""
-    return multiprocessing.get_logger(LOG_NAME).error(msg, *args)
+    return multiprocessing.get_logger(LOG_NAME).error(*args)
 # -------------------------------------------------------------------- #
 
 
 class LogExceptions(object):
-    def __init__(self, callable):
-        self.__callable = callable
+    def __init__(self, func):
+        self.__callable = func
         return
 
     def __call__(self, *args, **kwargs):
@@ -33,13 +33,12 @@ class LogExceptions(object):
 
         # It was fine, give a normal answer
         return result
-    pass
 # -------------------------------------------------------------------- #
 
 
 class LoggingPool(Pool):
     """Subclass of pool"""
-    def apply_async(self, func, args=(), kwds={}, callback=None):
-        return Pool.apply_async(self, LogExceptions(func), args, kwds,
+    def apply_async(self, func, callback=None, *args, **kwargs):
+        return Pool.apply_async(self, LogExceptions(func), args, kwargs,
                                 callback)
 # -------------------------------------------------------------------- #

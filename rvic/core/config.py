@@ -70,11 +70,11 @@ def config_type(value):
     else:
         try:
             return list(map(float, val_list))
-        except:
+        except (TypeError, ValueError):
             pass
         try:
             return list(map(int, val_list))
-        except:
+        except (TypeError, ValueError):
             return val_list
 # -------------------------------------------------------------------- #
 

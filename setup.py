@@ -1,4 +1,4 @@
- #!/usr/bin/env python
+#!/usr/bin/env python
 import os
 import re
 import sys
@@ -103,7 +103,8 @@ setup(name='rvic',
       author='Joe Hamman',
       author_email='jhamman@hydro.washington.edu',
       install_requires=['scipy >= 0.13', 'numpy >= 1.8',
-                        'netCDF4 >= 1.0.6', 'matplotlib >= 1.3.1'],
+                        'netCDF4 >= 1.0.6', 'matplotlib >= 1.3.1',
+                        'pandas >= 0.15.1'],
       tests_require=['pytest >= 2.5.2'],
       url='https://github.com/jhamman/RVIC',
       test_suite='pytest.collector',
