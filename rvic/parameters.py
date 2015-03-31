@@ -162,7 +162,6 @@ def gen_uh_init(config_file):
     fdr_lon = config_dict['ROUTING']['LONGITUDE_VAR']
     fdr_vel = config_dict['ROUTING']['VELOCITY']
     fdr_dif = config_dict['ROUTING']['DIFFUSION']
-    fdr_area = config_dict['ROUTING']['SOURCE_AREA_VAR']
     try:
         fdr_data, fdr_vatts, _ = read_netcdf(fdr_file)
         fdr_shape = fdr_data[fdr_var].shape
@@ -197,6 +196,13 @@ def gen_uh_init(config_file):
             fdr_data['diffusion'] = np.zeros(fdr_shape) + fdr_dif
             config_dict['ROUTING']['DIFFUSION'] = 'diffusion'
             log.info('Added diffusion grid to fdr_data')
+        if ('SOURCE_AREA_VAR' not in config_dict['ROUTING'] or
+                config_dict['ROUTING']['SOURCE_AREA_VAR'] not in fdr_data):
+            log.warning('Upstream `SOURCE_AREA` was not provided, output '
+                        'source area will be zero.')
+            config_dict['ROUTING']['SOURCE_AREA_VAR'] = 'src_area'
+            fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']] = \
+                np.zeros(fdr_shape)
         # ---------------------------------------------------------------- #
 
         # ---------------------------------------------------------------- #
@@ -263,9 +269,10 @@ def gen_uh_init(config_file):
                                        glons=fdr_data[fdr_lon])
 
         if options['SEARCH_FOR_CHANNEL']:
-            routys, routxs = search_for_channel(fdr_data[fdr_area],
-                                                routys, routxs,
-                                                tol=10, search=2)
+            routys, routxs = search_for_channel(
+                fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']],
+                routys, routxs, tol=10, search=2)
+
             # update lats and lons
             lats = fdr_data[fdr_lat][routys]
             lons = fdr_data[fdr_lon][routxs]
