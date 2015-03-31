@@ -305,9 +305,9 @@ class Rvar(object):
                           self.source_y_ind,
                           self.source_x_ind,
                           self.source_time_offset,
-                          self.unit_hydrograph[tracer][:, :],
+                          self.unit_hydrograph[tracer],
                           aggrunin[tracer],
-                          self.ring[tracer][:, :])
+                          self.ring[tracer])
             # -------------------------------------------------------- #
         # ------------------------------------------------------------ #
 

@@ -207,7 +207,6 @@ def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
 
     # ---------------------------------------------------------------- #
     # Put all the data into agg_data variable and return to main
-    agg_data['timesteps'] = in_data['timesteps']
     agg_data['unit_hydrograph_dt'] = in_data['unit_hydrograph_dt']
     agg_data['lon'] = lons
     agg_data['lat'] = lats

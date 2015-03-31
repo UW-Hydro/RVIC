@@ -157,8 +157,7 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 
     # ---------------------------------------------------------------- #
     # Agregate to output timestep
-    rout_data['unit_hydrograph'], \
-        rout_data['timesteps'] = adjust_uh_timestep(
+    rout_data['unit_hydrograph'] = adjust_uh_timestep(
             uh_s, t_uh, input_interval, rout_dict['OUTPUT_INTERVAL'],
             catchment['x_inds'], catchment['y_inds'])
     # ---------------------------------------------------------------- #
@@ -415,20 +414,18 @@ def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval,
         log.debug('No need to aggregate in time (output_interval = '
                   'input_interval) Skipping the adjust_uh_timestep step')
         uh_out = unit_hydrograph
-        ts_new = np.arange(t_uh)
     elif np.remainder(output_interval, input_interval) == 0:
         log.debug('Aggregating to %i from %i seconds', output_interval,
                   input_interval)
         fac = int(output_interval / input_interval)
         t_uh_out = int(t_uh / fac)
-        ts_new = np.arange(t_uh_out)
         uh_out = np.zeros((t_uh_out, unit_hydrograph.shape[1],
                           unit_hydrograph.shape[2]), dtype=np.float64)
         for (y, x) in zip(y_inds, x_inds):
             for t in range(t_uh_out):
                 uh_out[t, y, x] = unit_hydrograph[t * fac:t * fac + fac,
                                                   y, x].sum()
-    elif np.remainder(input_interval, output_interval):
+    else:
         log.debug('Interpolating unit hydrograph from input_interval: %i to '
                   'output_interval: %i', input_interval, output_interval)
         fac = int(input_interval / output_interval)
@@ -441,5 +438,8 @@ def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval,
         for (y, x) in zip(y_inds, x_inds):
             f = interp1d(ts_orig, unit_hydrograph[:, y, x])
             uh_out[:, y, x] = f(ts_new)
-    return uh_out, ts_new
+
+        # normalize
+        uh_out /= uh_out.sum(axis=0)
+    return uh_out
 # -------------------------------------------------------------------- #
