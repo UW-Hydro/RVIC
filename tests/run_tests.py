@@ -8,6 +8,7 @@ import pytest
 import cProfile
 import pstats
 import io
+from rvic.core.pycompat import OrderedDict
 from rvic import convert, convolution, parameters
 from rvic.core.config import read_config
 from rvic.core.pycompat import PY3, iteritems
@@ -64,6 +65,8 @@ def run_examples(config_file):
     # run tests
     num_tests = len(list(config_dict.keys()))
 
+    test_outcomes = OrderedDict()
+
     for i, (test, test_dict) in enumerate(iteritems(config_dict)):
         print("".center(100, '-'))
         print("Starting Test #{0} of {1}: {2}".format(i + 1, num_tests,
@@ -81,12 +84,27 @@ def run_examples(config_file):
         pr.enable()
 
         if test_dict['function'] == 'convert':
-            convert.convert(test_dict['config_file'])
+            try:
+                convert.convert(test_dict['config_file'])
+                test_outcomes[test] = 'Passed'
+            except Exception as e:
+                print('Error in conversion example: {0}'.format(test))
+                test_outcomes[test] = 'Failed: {0}'.format(e)
         elif test_dict['function'] == 'convolution':
-            convolution.convolution(test_dict['config_file'])
+            try:
+                convolution.convolution(test_dict['config_file'])
+                test_outcomes[test] = 'Passed'
+            except Exception as e:
+                print('Error in convolution example: {0}'.format(test))
+                test_outcomes[test] = 'Failed: {0}'.format(e)
         elif test_dict['function'] == 'parameters':
-            parameters.parameters(test_dict['config_file'],
-                                  numofproc=numofproc)
+            try:
+                parameters.parameters(test_dict['config_file'],
+                                      numofproc=numofproc)
+                test_outcomes[test] = 'Passed'
+            except Exception as e:
+                print('Error in parameters example: {0}'.format(test))
+                test_outcomes[test] = 'Failed: {0}'.format(e)
         else:
             raise ValueError('Unknow function variable: '
                              '{0}'.format(test_dict['function']))
@@ -107,6 +125,10 @@ def run_examples(config_file):
         print("".center(100, '-'))
         print(s.getvalue())
         print("".center(100, '-'))
+
+    print('Done with examples...printing summary')
+    for test, outcome in iteritems(test_outcomes):
+        print('\t{0}: {1}'.format(test, outcome))
 
     return
 

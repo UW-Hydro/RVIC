@@ -49,10 +49,12 @@ def parameters(config_file, numofproc=1):
 
         for i, outlet in enumerate(outlets.values()):
             log.info('On Outlet #%s of %s', i + 1, len(outlets))
-            pool.apply_async(gen_uh_run,
-                             args=(uh_box, fdr_data, fdr_vatts, dom_data,
-                                   outlet, config_dict, directories),
-                             callback=store_result)
+            status = pool.apply_async(gen_uh_run,
+                                      args=(uh_box, fdr_data, fdr_vatts,
+                                            dom_data, outlet, config_dict,
+                                            directories),
+                                      callback=store_result,
+                                      error_callback=pool.terminate)
         pool.close()
         pool.join()
 
@@ -63,6 +65,8 @@ def parameters(config_file, numofproc=1):
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
+    if not len(outlets.keys()) > 0:
+        raise ValueError('outlets in parameters are empty')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -485,6 +489,9 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 
     log.info('In gen_uh_final')
 
+    if not len(outlets.keys()) > 0:
+        raise ValueError('outlets in gen_uh_final are empty')
+
     # ---------------------------------------------------------------- #
     # Write the parameter file
     param_file, today = finish_params(outlets, dom_data, config_dict,
@@ -512,6 +519,8 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 def store_result(result):
     # This is called whenever foo_pool(i) returns a result.
     # result_list is modified only by the main process, not the pool workers.
+    print('in store_result')
+    print('storing result for %s' % result.cell_id)
     results[result.cell_id] = result
 # -------------------------------------------------------------------- #
 results = {}

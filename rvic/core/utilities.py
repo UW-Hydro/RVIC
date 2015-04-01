@@ -63,7 +63,7 @@ def search_for_channel(source_area, routys, routxs, search=1, tol=10):
 
     ysize, xsize = source_area.shape
 
-    for i, (y, x) in enumerate(zip(routys, routxs)):
+    for i, (y, x) in enumerate(pyzip(routys, routxs)):
         area0 = source_area[y, x]
 
         ymin = np.clip(y - search, 0, ysize)
@@ -79,12 +79,10 @@ def search_for_channel(source_area, routys, routxs, search=1, tol=10):
             new_ys[i] = np.clip(y + sy - search, 0, ysize)
             new_xs[i] = np.clip(x + sx - search, 0, xsize)
 
-            log.debug('Moving pour point to channel y: '
-                      '{0}->{1}, x: {2}->{3}'.format(y, new_ys[i],
-                                                     x, new_xs[i]))
-            log.debug('Source Area has increased from {0}'
-                      ' to {1}'.format(area0, source_area[new_ys[i],
-                                       new_xs[i]]))
+            log.debug('Moving pour point to channel y: %s->%s, x: %s->%s',
+                      y, new_ys[i], x, new_xs[i])
+            log.debug('Source Area has increased from %s to %s',
+                      area0, source_area[new_ys[i], new_xs[i]])
         else:
             new_ys[i] = y
             new_xs[i] = x

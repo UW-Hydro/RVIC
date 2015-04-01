@@ -39,9 +39,9 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, nc_format, zlib=True,
 
     # ---------------------------------------------------------------- #
     # set dimensions
-    timesteps = f.createDimension('timesteps', None)
-    lon = f.createDimension('lon', (len(agg_data['lon'])))
-    lat = f.createDimension('lat', (len(agg_data['lat'])))
+    f.createDimension('timesteps', None)
+    f.createDimension('lon', (len(agg_data['lon'])))
+    f.createDimension('lat', (len(agg_data['lat'])))
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -55,7 +55,7 @@ def write_agg_netcdf(file_name, agg_data, glob_atts, nc_format, zlib=True,
 
     timesteps = f.createVariable('timesteps', NC_INT, ('timesteps',),
                                  **ncvaropts)
-    timesteps[:] = agg_data['timesteps']
+    timesteps[:] = np.arange(agg_data['unit_hydrograph'].shape[0])
     for key, val in iteritems(share.timesteps.__dict__):
         if val:
             setattr(timesteps, key, val)
