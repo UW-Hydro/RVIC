@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 import numpy as np
 import os
 import datetime
 from rvic.core.utilities import (latlon2yx, search_for_channel, find_nearest,
                                  write_rpointer, strip_non_ascii,
                                  strip_invalid_char)
-from rvic.core.share import RPOINTER, VALID_CHARS
+from rvic.core.share import RPOINTER
 
 
 def test_latlon2yx():

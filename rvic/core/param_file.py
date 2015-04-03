@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 param_file.py
 """

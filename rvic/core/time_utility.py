@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 time_utility.py
 

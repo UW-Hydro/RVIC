@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Read a set of uhs files and write an RVIC parameter file
 """

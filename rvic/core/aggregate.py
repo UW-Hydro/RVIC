@@ -1,4 +1,4 @@
-#!/usr/local/bin/python
+# -*- coding: utf-8 -*-
 """
 aggregate.py
 """
@@ -50,7 +50,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     # Do the aggregation
     outlets = {}
 
-    for i, (lat, lon) in enumerate(zip(lats, lons)):
+    for i, (lat, lon) in enumerate(pyzip(lats, lons)):
         # Define pour point object
         pour_point = Point(lat=lat,
                            lon=lon,

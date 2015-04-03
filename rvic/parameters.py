@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 RVIC parameter file development driver
 """
