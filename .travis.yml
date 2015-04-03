@@ -14,10 +14,12 @@ before_install:
   # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
   - sudo rm -rf /dev/shm
   - sudo ln -s /run/shm /dev/shm
+  - sudo apt-get cdo
 # Install packages
 install:
   - conda create --yes --name=rvic_test_env python=$TRAVIS_PYTHON_VERSION --file=ci/requirements-2.7.txt
   - source activate rvic_test_env
+  - pip install cdo
   - python setup.py install
 # Run test
 script:
