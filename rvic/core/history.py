@@ -46,7 +46,7 @@ class Tape(object):
                  avgflag='A', units='kg m-2 s-1',
                  file_format='NETCDF4_CLASSIC', outtype='grid',
                  grid_lons=False, grid_lats=False, grid_area=None, out_dir='.',
-                 calendar=None, glob_ats=None, zlib=True, complevel=4,
+                 calendar='standard', glob_ats=None, zlib=True, complevel=4,
                  least_significant_digit=None):
         self._tape_num = tape_num
         self._time_ord = time_ord        # Days since basetime
@@ -88,7 +88,7 @@ class Tape(object):
 
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid
-        if outtype == 'grid':
+        if outtype.lower() == 'grid':
             self._out_data_shape = self._grid_shape
             if type(grid_lons) == np.ndarray and type(grid_lats) == np.ndarray:
                 self._grid_lons = grid_lons
@@ -96,8 +96,10 @@ class Tape(object):
             else:
                 raise ValueError('Must include grid lons / lats if '
                                  'outtype == grid')
-        else:
+        elif outtype.lower() == 'array':
             self._out_data_shape = (self._num_outlets, )
+        else:
+            raise ValueError('Unknown value for outtype: {0}'.format(outtype))
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #

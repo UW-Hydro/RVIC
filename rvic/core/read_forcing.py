@@ -45,7 +45,7 @@ class DataModel(object):
         self.fld_mult = {}
 
         if start:
-            if type(start) == float:
+            if type(start) in [float, int]:
                 start = [int(start)]
                 end = [int(end)]
             else:

@@ -30,6 +30,9 @@ def finish_params(outlets, dom_data, config_dict, directories):
     dom_area = domain['AREA_VAR']
     dom_frac = domain['FRACTION_VAR']
 
+    if not len(outlets.keys()) > 0:
+        raise ValueError('outlets in finish_params are empty')
+
     # ------------------------------------------------------------ #
     # netCDF variable options
     ncvaropts = {}
@@ -303,7 +306,6 @@ def subset(outlets, subset_length=None):
     log.debug('Subset Length:  %s', subset_length)
     log.debug(outlets)
     for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
-        log.debug(i, cell_id, outlet, outlets)
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
             log.debug('Subset Length:  %s', subset_length)

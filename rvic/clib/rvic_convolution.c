@@ -1,7 +1,7 @@
 #include <stdlib.h>
 
 void
-convolve(const int     nsources,                 /*scalar - number of sources*/
+convolve(const int     nsources,               /*scalar - number of sources*/
          const int     noutlets,               /*scalar - length of subset*/
          const int     subset_length,          /*scalar - length of subset*/
          const int     x_size,

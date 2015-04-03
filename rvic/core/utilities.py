@@ -53,7 +53,7 @@ def latlon2yx(plats, plons, glats, glons):
 
 # -------------------------------------------------------------------- #
 # Search neighboring grid cells for channel
-def search_for_channel(source_area, routys, routxs, search=2, tol=10):
+def search_for_channel(source_area, routys, routxs, search=1, tol=10):
     """Search neighboring grid cells for channel"""
 
     log.debug('serching for channel')
@@ -61,17 +61,23 @@ def search_for_channel(source_area, routys, routxs, search=2, tol=10):
     new_ys = np.empty_like(routys)
     new_xs = np.empty_like(routxs)
 
+    ysize, xsize = source_area.shape
+
     for i, (y, x) in enumerate(pyzip(routys, routxs)):
         area0 = source_area[y, x]
 
-        search_area = source_area[y - search:y + search + 1,
-                                  x - search:x + search + 1]
+        ymin = np.clip(y - search, 0, ysize)
+        ymax = np.clip(y + search + 1, 0, ysize)
+        xmin = np.clip(x - search, 0, xsize)
+        xmax = np.clip(x + search, 0, xsize)
 
-        if np.any(search_area > area0 * tol):
+        search_area = source_area[ymin:ymax, xmin:xmax]
+
+        if np.any(search_area / area0 > tol):
             sy, sx = np.unravel_index(search_area.argmax(), search_area.shape)
 
-            new_ys[i] = y + sy - search
-            new_xs[i] = x + sx - search
+            new_ys[i] = np.clip(y + sy - search, 0, ysize)
+            new_xs[i] = np.clip(x + sx - search, 0, xsize)
 
             log.debug('Moving pour point to channel y: %s->%s, x: %s->%s',
                       y, new_ys[i], x, new_xs[i])
