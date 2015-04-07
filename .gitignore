@@ -1,4 +1,12 @@
 *.sublime-*
+TODO
+*~
+Notes
+build
+dist
+notebooks
+rvic.egg-info
+
 
 # Compiled source #
 ###################

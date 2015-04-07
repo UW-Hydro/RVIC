@@ -51,7 +51,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
     outlets = {}
 
     for i, (lat, lon) in enumerate(zip(lats, lons)):
-        # Define pour point object (on )
+        # Define pour point object
         pour_point = Point(lat=lat,
                            lon=lon,
                            domx=domxs[i],
