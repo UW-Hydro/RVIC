@@ -332,7 +332,6 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     dom_lat = domain['LATITUDE_VAR']
     dom_lon = domain['LONGITUDE_VAR']
     dom_mask = domain['LAND_MASK_VAR']
-
     options = config_dict['OPTIONS']
 
     # ------------------------------------------------------------ #
@@ -462,7 +461,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
     # ------------------------------------------------------------ #
     # Add to "adjust fractions structure"
-    y, x = np.nonzero((final_fracs > 0.0) * (dom_data[dom_mask] == 1))
+    y, x = np.nonzero((final_fracs > 0.0) * (dom_data[dom_mask] > np.finfo(np.float).resolution))
     yi = y - y0
     xi = x - x0
 
