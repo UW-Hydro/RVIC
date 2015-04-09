@@ -205,13 +205,14 @@ class DataModel(object):
         # ------------------------------------------------------------ #
         # find multiplier for units all fields will be in liquid flux
         # (kg m-2 s-1)
+        # Todo: use udunits to convert units
         for fld in self.liq_flds:
             units = self.current_fhdl.variables[fld].units
 
             if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1',
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
-            elif units in ['mm', 'MM', 'milimeters', 'Milimeters', 'mm.d-1']:
+            elif units in ['mm', 'MM', 'millimeters', 'Millimeters']:
                 self.fld_mult[fld] = (WATERDENSITY / MMPERMETER /
                                       self.secs_per_step)
             elif units in ['m', 'M', 'meters', 'Meters']:
@@ -298,27 +299,22 @@ class DataModel(object):
         # Get the liquid fluxes
         log.info('getting fluxes for %s (%s)', timestamp, self.current_tind)
         forcing = {}
-        for i, fld in enumerate(self.liq_flds):
-            self.current_fhdl.variables[fld].set_auto_maskandscale(False)
-            if i == 0:
-                forcing['LIQ'] = \
-                    (self.fld_mult[fld] *
-                     self.current_fhdl.variables[fld][self.current_tind, :, :])
-            else:
-                forcing['LIQ'] += \
-                    (self.fld_mult[fld] *
-                     self.current_fhdl.variables[fld][self.current_tind, :, :])
+        for flux, fields in (('LIQ', self.liq_flds), ('ICE', self.ice_flds)):
+            for i, fld in enumerate(fields):
+                # set auto_maskandscale to False to avoid slowdown from numpy
+                # masked array
+                self.current_fhdl.variables[fld].set_auto_maskandscale(False)
+                temp = self.current_fhdl.variables[fld][self.current_tind]
+                fill_val = getattr(self.current_fhdl.variables[fld],
+                                   '_FillValue', None)
+                # replace fill values with numpy.nan
+                if fill_val is not None:
+                    temp[temp == fill_val] = np.nan
 
-        for i, fld in enumerate(self.ice_flds):
-            self.current_fhdl.variables[fld].set_auto_maskandscale(False)
-            if i == 0:
-                forcing['ICE'] = \
-                    (self.fld_mult[fld] *
-                     self.current_fhdl.variables[fld][self.current_tind, :, :])
-            else:
-                forcing['ICE'] += \
-                    (self.fld_mult[fld] *
-                     self.current_fhdl.variables[fld][self.current_tind, :, :])
+                if i == 0:
+                    forcing[flux] = self.fld_mult[fld] * temp
+                else:
+                    forcing[flux] += self.fld_mult[fld] * temp
 
         # move forward one step
         self.current_tind += 1

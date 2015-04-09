@@ -385,6 +385,12 @@ class Tape(object):
             else:
                 self._out_data[field][self._out_data_i, :] = \
                     self._temp_data[field] * self._units_mult
+
+            # Check that all values are valid, if not, exit gracefully
+            if np.isnan(self._out_data[field][self._out_data_i].sum()):
+                raise ValueError('nan found in output field: {0}, most likely '
+                                 'there is a nan/missing/fill value in the'
+                                 'input forcings')
         # ------------------------------------------------------------ #
 
         self._out_times[self._out_data_i] = self._write_ord
