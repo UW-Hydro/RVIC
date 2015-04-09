@@ -211,7 +211,7 @@ class DataModel(object):
             if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1',
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
-            elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
+            elif units in ['mm', 'MM', 'milimeters', 'Milimeters', 'mm.d-1']:
                 self.fld_mult[fld] = (WATERDENSITY / MMPERMETER /
                                       self.secs_per_step)
             elif units in ['m', 'M', 'meters', 'Meters']:
