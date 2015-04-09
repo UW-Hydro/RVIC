@@ -205,13 +205,14 @@ class DataModel(object):
         # ------------------------------------------------------------ #
         # find multiplier for units all fields will be in liquid flux
         # (kg m-2 s-1)
+        # Todo: use udunits to convert units
         for fld in self.liq_flds:
             units = self.current_fhdl.variables[fld].units
 
             if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1',
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
-            elif units in ['mm', 'MM', 'milimeters', 'Milimeters', 'mm.d-1']:
+            elif units in ['mm', 'MM', 'millimeters', 'Millimeters']:
                 self.fld_mult[fld] = (WATERDENSITY / MMPERMETER /
                                       self.secs_per_step)
             elif units in ['m', 'M', 'meters', 'Meters']:
@@ -300,7 +301,7 @@ class DataModel(object):
         forcing = {}
         for flux, fields in (('LIQ', self.liq_flds), ('ICE', self.ice_flds)):
             for i, fld in enumerate(fields):
-                # set auto_maskandscale to False to ovoid slowdown from numpy
+                # set auto_maskandscale to False to avoid slowdown from numpy
                 # masked array
                 self.current_fhdl.variables[fld].set_auto_maskandscale(False)
                 temp = self.current_fhdl.variables[fld][self.current_tind]
