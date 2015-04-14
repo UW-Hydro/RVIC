@@ -87,13 +87,17 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # ---------------------------------------------------------------- #
     # Create the rout_data Dictionary
     rout_data = {'lat': basin['lat'], 'lon': basin['lon'],
-                 'dom_x_min': x_min, 'dom_y_min': y_min,
-                 'dom_x_max': x_max, 'dom_y_max': y_max}
+                 'basiny': pour_point.basiny[0],
+                 'basinx': pour_point.basinx[0]}
     log.debug('Clipping indicies:')
-    log.debug('dom_x_min: %s', rout_data['dom_x_min'])
-    log.debug('dom_x_max: %s', rout_data['dom_x_max'])
-    log.debug('dom_y_min: %s', rout_data['dom_y_min'])
-    log.debug('dom_y_max: %s', rout_data['dom_y_max'])
+    log.debug('rout_x_min: %s', x_min)
+    log.debug('rout_x_max: %s', x_max)
+    log.debug('rout_y_min: %s', y_min)
+    log.debug('rout_y_max: %s', y_max)
+    log.debug('pour_point.basiny: %s', pour_point.basiny)
+    log.debug('pour_point.basinx: %s', pour_point.basinx)
+    # ---------------------------------------------------------------- #
+
     # ---------------------------------------------------------------- #
     # Determine/Set flow direction syntax
     # Flow directions {north, northeast, east, southeast,
@@ -159,8 +163,8 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
     # ---------------------------------------------------------------- #
     # Agregate to output timestep
     rout_data['unit_hydrograph'] = adjust_uh_timestep(
-            uh_s, t_uh, input_interval, rout_dict['OUTPUT_INTERVAL'],
-            catchment['x_inds'], catchment['y_inds'])
+        uh_s, t_uh, input_interval, rout_dict['OUTPUT_INTERVAL'],
+        catchment['x_inds'], catchment['y_inds'])
     # ---------------------------------------------------------------- #
     return rout_data
 # -------------------------------------------------------------------- #
