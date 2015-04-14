@@ -461,8 +461,8 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
         bys, bxs = np.nonzero(agg_data['fraction'])
 
-        ys = bys + pour_point.domy - agg_data['basiny']
-        xs = bxs + pour_point.domx - agg_data['basinx']
+        ys = bys + outlet.domy - agg_data['basiny']
+        xs = bxs + outlet.domx - agg_data['basinx']
 
         if (ys < 0).any() or (xs < 0).any():
             raise ValueError('Negative indicies found when mapping '
