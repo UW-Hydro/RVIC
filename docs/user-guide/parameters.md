@@ -58,7 +58,7 @@ For irregular grids, you need to come up with a netCDF file that contains these 
 - area (in m2 or rad2 or similar)
 - coordinate vars (lon and lat or similar)
 
-*Note: If `REMAP==False`, the resolution of the routing data grid and domain grid must be the same.  Furthermore, the domain grid must be a subset of the routing grid.  RVIC will raise an error if either of these conditions are not met.*
+*Note: If `REMAP==False`, the resolution of the routing data grid and domain grid must be the same.  Furthermore, the domain grid must be a subset of the routing grid.  RVIC will raise an error if either of these conditions is not met.*
 
 ## Pour Points File
 A pour points CSV is needed to develop the parameter file.  This is simply a csv file containing a list of the pour point locations with 2 or 3 columns (required: lons, lats; optional: names/contributing area/etc).  One header row is required.
