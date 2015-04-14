@@ -50,12 +50,12 @@ def parameters(config_file, numofproc=1):
 
         for i, outlet in enumerate(outlets.values()):
             log.info('On Outlet #%s of %s', i + 1, len(outlets))
-            status = pool.apply_async(gen_uh_run,
-                                      args=(uh_box, fdr_data, fdr_vatts,
-                                            dom_data, outlet, config_dict,
-                                            directories),
-                                      callback=store_result,
-                                      error_callback=pool.terminate)
+            pool.apply_async(gen_uh_run,
+                             args=(uh_box, fdr_data, fdr_vatts,
+                                   dom_data, outlet, config_dict,
+                                   directories),
+                             callback=store_result,
+                             error_callback=pool.terminate)
         pool.close()
         pool.join()
 
@@ -237,6 +237,16 @@ def gen_uh_init(config_file):
         log.error('RVIC parameter generation requires REMAP option to be True'
                   ' if AGGREGATE is True')
         raise ValueError('Invalid option')
+
+    # If remap is False, then the resolution needs to match the routing data
+    if not options['REMAP']:
+        domain_res = np.abs(dom_data[domain['LONGITUDE_VAR']][0, 1] -
+                            dom_data[domain['LONGITUDE_VAR']][0, 0])
+        if not np.isclose(fdr_data['resolution'], domain_res):
+            log.error('routing grid resolution: %s', fdr_data['resolution'])
+            log.error('domain grid resolution: %s', domain_res)
+            raise ValueError('If remap is false, domain and routing grid '
+                             'resolutions must match.')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -439,36 +449,40 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
             clean_file(temp_file_2)
         # -------------------------------------------------------- #
 
-        # -------------------------------------------------------- #
-        # Set the domain index offest to zero and use the remapped fraction
-        # as the final fractions
-        y0, x0 = 0, 0
-        final_fracs = final_data['fraction']
-        # -------------------------------------------------------- #
     else:
         # -------------------------------------------------------- #
         # Put the agg data back onto the original grid
-        final_data = agg_data
-        final_fracs = np.zeros_like(fdr_data['velocity'],
-                                    dtype=np.float64)
-        x0 = final_data['dom_x_min']
-        x1 = final_data['dom_x_max']
-        y0 = final_data['dom_y_min']
-        y1 = final_data['dom_y_max']
-        final_fracs[y0:y1, x0:x1] = final_data['fraction']
+        uh_shape = (agg_data['unit_hydrograph'].shape[0], ) + \
+            dom_data[dom_mask].shape
+        final_data = {}
+        final_data['unit_hydrograph'] = np.zeros(uh_shape, dtype=np.float64)
+        final_data['fraction'] = np.zeros(dom_data[dom_mask].shape,
+                                          dtype=np.float64)
+
+        bys, bxs = np.nonzero(agg_data['fraction'])
+
+        ys = bys + outlet.domy - agg_data['basiny']
+        xs = bxs + outlet.domx - agg_data['basinx']
+
+        if (ys < 0).any() or (xs < 0).any():
+            raise ValueError('Negative indicies found when mapping '
+                             '`non-remapped` rout_data to domain grid.')
+
+        final_data['unit_hydrograph'][:, ys, xs] = \
+            agg_data['unit_hydrograph'][:, bys, bxs]
+        final_data['fraction'][ys, xs] = agg_data['fraction'][bys, bxs]
         # -------------------------------------------------------- #
     # ------------------------------------------------------------ #
 
     # ------------------------------------------------------------ #
     # Add to "adjust fractions structure"
-    y, x = np.nonzero((final_fracs > 0.0) * (dom_data[dom_mask] > np.finfo(np.float).resolution))
-    yi = y - y0
-    xi = x - x0
+    y, x = np.nonzero((final_data['fraction'] > 0.) *
+                      (dom_data[dom_mask] > np.finfo(np.float).resolution))
 
     # From final data
     outlet.time = np.arange(final_data['unit_hydrograph'].shape[0])
-    outlet.fractions = final_data['fraction'][yi, xi]
-    outlet.unit_hydrograph = final_data['unit_hydrograph'][:, yi, xi]
+    outlet.fractions = final_data['fraction'][y, x]
+    outlet.unit_hydrograph = final_data['unit_hydrograph'][:, y, x]
 
     # From domain data
     outlet.lon_source = dom_data[dom_lon][y, x]
