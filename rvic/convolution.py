@@ -215,8 +215,7 @@ def convolution_init(config_file):
         tape.write_initial()
     # ---------------------------------------------------------------- #
 
-    return (hist_tapes, data_model, rout_var, dom_data, time_handle,
-            directories, config_dict)
+    return hist_tapes, data_model, rout_var, time_handle, directories
 # -------------------------------------------------------------------- #
 
 

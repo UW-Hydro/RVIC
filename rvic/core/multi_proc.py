@@ -34,7 +34,6 @@ class LogExceptions(object):
 
         # It was fine, give a normal answer
         return result
-    pass
 # -------------------------------------------------------------------- #
 
 
