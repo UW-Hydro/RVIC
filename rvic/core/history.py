@@ -43,7 +43,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Init
     def __init__(self, time_ord, caseid, rvar, tape_num=0,
-                 fincl=['streamflow'], mfilt=1, ndens=2, nhtfrq=0,
+                 fincl=('streamflow'), mfilt=1, ndens=2, nhtfrq=0,
                  avgflag='A', units='kg m-2 s-1',
                  file_format='NETCDF4_CLASSIC', outtype='grid',
                  grid_lons=False, grid_lats=False, grid_area=None, out_dir='.',

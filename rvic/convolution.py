@@ -38,8 +38,8 @@ def convolution(config_file):
 
     # ---------------------------------------------------------------- #
     # Initilize
-    hist_tapes, data_model, rout_var, dom_data,\
-        time_handle, directories, config_dict = convolution_init(config_file)
+    hist_tapes, data_model, rout_var, \
+        time_handle, directories = convolution_init(config_file)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

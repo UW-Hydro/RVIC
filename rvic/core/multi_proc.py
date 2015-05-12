@@ -9,9 +9,9 @@ from multiprocessing.pool import Pool
 import traceback
 
 
-def error(*args):
+def error(msg, *args):
     """ Error function"""
-    return multiprocessing.get_logger(LOG_NAME).error(*args)
+    return multiprocessing.get_logger(LOG_NAME).error(msg, *args)
 # -------------------------------------------------------------------- #
 
 
@@ -34,12 +34,17 @@ class LogExceptions(object):
 
         # It was fine, give a normal answer
         return result
+    pass
 # -------------------------------------------------------------------- #
 
 
 class LoggingPool(Pool):
     """Subclass of pool"""
-    def apply_async(self, func, callback=None, *args, **kwargs):
-        return Pool.apply_async(self, LogExceptions(func), args, kwargs,
+    def apply_async(self, func, args=(), kwds={}, callback=None):
+        return Pool.apply_async(self, LogExceptions(func), args, kwds,
                                 callback)
+
+    # def map_async(self, func, callback=None, *args, **kwargs):
+    #     return Pool.map_async(self, LogExceptions(func), args, kwargs,
+    #                           callback)
 # -------------------------------------------------------------------- #

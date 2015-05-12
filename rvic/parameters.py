@@ -19,13 +19,16 @@ from .core.write import write_agg_netcdf
 from .core.variables import Point
 from .core.param_file import finish_params
 from .core.config import read_config
-from .core.pycompat import OrderedDict, iteritems, pyrange
+from .core.pycompat import iteritems, pyrange
 
 try:
     from .core.remap import remap
     remap_available = True
 except ImportError:
     remap_available = False
+
+# global multiprocessing results container
+results = []
 
 
 # -------------------------------------------------------------------- #
@@ -48,25 +51,22 @@ def parameters(config_file, numofproc=1):
     if numofproc > 1:
         pool = LoggingPool(processes=numofproc)
 
-        for i, outlet in enumerate(outlets.values()):
+        for i, outlet in enumerate(outlets):
             log.info('On Outlet #%s of %s', i + 1, len(outlets))
             pool.apply_async(gen_uh_run,
-                             args=(uh_box, fdr_data, fdr_vatts,
-                                   dom_data, outlet, config_dict,
-                                   directories),
-                             callback=store_result,
-                             error_callback=pool.terminate)
+                             args=(uh_box, fdr_data, fdr_vatts, dom_data,
+                                   outlet, config_dict, directories),
+                             callback=store_result)
         pool.close()
         pool.join()
 
-        outlets = OrderedDict(sorted(list(iteritems(results)),
-                              key=lambda t: t[0]))
+        outlets = sorted(results, key=lambda x: x.cell_id, reverse=True)
     else:
-        for outlet in outlets.values():
+        for outlet in outlets:
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
-    if not len(outlets.keys()) > 0:
+    if not len(outlets) > 0:
         raise ValueError('outlets in parameters are empty')
     # ---------------------------------------------------------------- #
 
@@ -258,7 +258,7 @@ def gen_uh_init(config_file):
                  'pour points and outlet grid cells')
 
     else:
-        outlets = {}
+        outlets = []
         if all(x in list(pour_points.keys()) for x in ['x', 'y',
                                                        'lons', 'lats']):
             lats = pour_points['lats'].values
@@ -503,7 +503,7 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 
     log.info('In gen_uh_final')
 
-    if not len(outlets.keys()) > 0:
+    if not len(outlets) > 0:
         raise ValueError('outlets in gen_uh_final are empty')
 
     # ---------------------------------------------------------------- #
@@ -531,10 +531,8 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 # -------------------------------------------------------------------- #
 # store_result helper function
 def store_result(result):
-    # This is called whenever foo_pool(i) returns a result.
+    # This is called whenever gen_uh_run() returns a result.
     # result_list is modified only by the main process, not the pool workers.
-    print('in store_result')
-    print('storing result for %s' % result.cell_id)
-    results[result.cell_id] = result
+    global results
+    results.append(result)
 # -------------------------------------------------------------------- #
-results = {}
