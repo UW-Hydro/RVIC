@@ -3,7 +3,7 @@ import pandas as pd
 import sys
 import ast
 
-class flow_grid():        
+class flow_grid(object):        
     """
     Container class for holding and manipulating gridded VIC routing data.
     Can be instantiated with optional keyword arguments. These keyword
@@ -67,7 +67,7 @@ class flow_grid():
             pass
 
     def read_input(self, data, data_type='dir', input_type='ascii', band=1,
-                   nodata=0, bbox=None, crs=None, precision=7, **kwargs):
+                   nodata=0, bbox=None, crs=None, **kwargs):
         """
         Reads data into a named attribute of flow_grid
         (name of attribute determined by 'data_type').
@@ -145,7 +145,7 @@ class flow_grid():
                 np.testing.assert_almost_equal(cellsize, self.cellsize)
                 try:
                     np.testing.assert_almost_equal(bbox, self.bbox)
-                except:
+                except AssertionError:
                     data = self.conform(data, bbox, fill=nodata)
                     shape = data.shape
                 assert(shape == self.shape)
@@ -186,7 +186,7 @@ class flow_grid():
                                    self.shape)
         return nearest[1], nearest[0]
 
-    def flowdir(self, data=None, include_edges=True, dirmap=[1,2,3,4,5,6,7,8],
+    def flowdir(self, data=None, include_edges=True, dirmap=(1,2,3,4,5,6,7,8),
                 nodata=0, flat=-1, inplace=True):
         """
         Generates a flow direction grid from a DEM grid.
@@ -248,7 +248,6 @@ class flow_grid():
         body = indices[:, 1:-1, 1:-1]
     
         # initialize output array
-        # TODO self.nodata is no longer a single value
         outmap = np.full(self.shape, nodata, dtype=np.int8)
     
         # select the eight cells surrounding a cell
@@ -300,8 +299,8 @@ class flow_grid():
                 outmap[edge[x]['k']] = np.where(a,b,c)
     
         # If direction numbering isn't default, convert values of output array.
-        if dirmap != [1,2,3,4,5,6,7,8]:
-            dir_d = dict(zip([1,2,3,4,5,6,7,8], dirmap))
+        if dirmap != (1,2,3,4,5,6,7,8):
+            dir_d = dict(zip((1,2,3,4,5,6,7,8), dirmap))
             outmap = pd.DataFrame(outmap).apply(lambda x: x.map(dir_d), axis=1).values
 
         np.place(outmap, dem_mask, nodata)
@@ -312,7 +311,7 @@ class flow_grid():
         else:
             return outmap
 
-    def catchment(self, x, y, pour_value=None, dirmap=[1,2,3,4,5,6,7,8],
+    def catchment(self, x, y, pour_value=None, dirmap=(1,2,3,4,5,6,7,8),
                   nodata=0, xytype='index', recursionlimit=15000, inplace=True):
         """
         Delineates a watershed from a given pour point (x, y).
@@ -360,7 +359,7 @@ class flow_grid():
         try:
             self.cdir = np.pad(self.dir, 1, mode='constant',
                                constant_values=np.asscalar(self.nodata['dir']))
-        except:
+        except ValueError:
             self.cdir = np.pad(self.dir, 1, mode='constant')
 
         # get shape of padded flow direction array, then flatten
@@ -568,7 +567,7 @@ class flow_grid():
             # if inplace is False, return the clipped data
             return data[nz_ix[0]:nz_ix[1], nz_ix[2]:nz_ix[3]]
 
-    def set_bbox(self, new_bbox, precision=7, fillna=True, fill=0): 
+    def set_bbox(self, new_bbox, precision=7): 
         """
         Set the bounding box of the class instance (self.bbox) and clip
         all grids to the new bbox.
