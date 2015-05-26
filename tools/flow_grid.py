@@ -36,6 +36,7 @@ class flow_grid(object):
     acc : flow accumulation grid
     catch : Catchment delineated from 'dir' and a given pour point
     frac : fractional contributing area grid
+
     bbox : The geographical bounding box of the gridded dataset
            (xmin, ymin, xmax, ymax)
     shape : The shape of the gridded data (nrows, ncolumns)
@@ -57,10 +58,8 @@ class flow_grid(object):
                direction grid.
     """
 
-    def __init__(self, conform_data=True, **kwargs):
-        self.conform_data = conform_data
-        self.nodata = {}
-        self.gridlist = []
+    def __init__(self, **kwargs):
+        self.grid_props = {}
         if 'data' in kwargs:
             self.read_input(**kwargs)
         else:
@@ -133,30 +132,76 @@ class flow_grid(object):
 
         # if there are no datasets, initialize bbox, shape,
         # cellsize and crs based on incoming data
-        if len(self.gridlist) < 1:
+        if len(self.grid_props.keys()) < 1:
             self.bbox = bbox
             self.shape = shape
             self.cellsize = cellsize
             self.crs = crs
+            self.mask = np.ones(self.shape, dtype=np.bool)
+            self.shape_min = np.min_scalar_type(max(self.shape))
+            self.size_min = np.min_scalar_type(data.size)
+
         # if there are existing datasets, conform incoming
         # data to bbox
         else:
-            if self.conform_data == True:
+            try:
                 np.testing.assert_almost_equal(cellsize, self.cellsize)
-                try:
-                    np.testing.assert_almost_equal(bbox, self.bbox)
-                except AssertionError:
-                    data = self.conform(data, bbox, fill=nodata)
-                    shape = data.shape
-                assert(shape == self.shape)
-
-        self.shape_min = np.min_scalar_type(max(self.shape))
-        self.size_min = np.min_scalar_type(data.size)
+            except:
+                raise AssertionError('Grid cellsize not equal')
 
         # assign new data to attribute; record nodata value
-        self.gridlist.append(data_type)
-        self.nodata.update({data_type : nodata})
+        self.grid_props.update({data_type : {}})
+        self.grid_props[data_type].update({'bbox' : bbox})
+        self.grid_props[data_type].update({'shape' : shape})
+        self.grid_props[data_type].update({'cellsize' : cellsize})
+        self.grid_props[data_type].update({'nodata' : nodata})
+        self.grid_props[data_type].update({'crs' : crs})
         setattr(self, data_type, data)
+
+    def bbox_indices(self, bbox, shape, precision=7):
+        """
+        Return row and column coordinates of a bounding box at a 
+        given cellsize.
+
+        Parameters
+        ----------
+        bbox : tuple
+               bbox of new data
+        shape : tuple
+                the shape of the 2D array (rows, columns)
+        precision : int
+                    Precision to use when matching geographic coordinates.
+        """
+        rows = np.around(np.linspace(bbox[1], bbox[3],
+               shape[0], endpoint=False)[::-1], precision)
+        cols = np.around(np.linspace(bbox[0], bbox[2],
+               shape[1], endpoint=False), precision)
+        return rows, cols
+
+    def view(self, data_name, mask=True):
+        """
+        Return a copy of a gridded dataset clipped to the bounding box
+        (self.bbox) with cells outside the catchment mask (self.mask)
+        displayed as 'nodata' (self.grid_props[data_name]['nodata']).
+
+        Parameters
+        ----------
+        data_name : string
+                    Name of the dataset to be viewed
+        """
+        selfrows, selfcols = self.bbox_indices(self.bbox, self.shape)
+        rows, cols = self.bbox_indices(self.grid_props[data_name]['bbox'],
+                                       self.grid_props[data_name]['shape'])
+        outview = (pd.DataFrame(getattr(self, data_name),
+                                index=rows, columns=cols)
+                   .reindex(selfrows).reindex_axis(selfcols, axis=1)
+                   .fillna(self.grid_props[data_name]['nodata']).values)
+        if mask:
+            return np.where(self.mask,
+                            outview,
+                            self.grid_props[data_name]['nodata'])
+        else:
+            return outview
 
     def nearest_cell(self, x, y):
         """
@@ -206,13 +251,13 @@ class flow_grid(object):
         # if data not provided, use self.dem
         if data is None:
             if hasattr(self, 'dem'):
-                data = self.dem
+                data = self.view('dem', mask=False)
 
         # generate grid of indices
         indices = np.indices(self.shape, dtype=self.shape_min)
 
         # handle nodata values in dem
-        dem_nodata = self.nodata['dem']
+        dem_nodata = self.grid_props['dem']['nodata']
         dem_mask = (data == dem_nodata)        
         np.place(data, dem_mask, np.iinfo(data.dtype.type).max)
 
@@ -308,6 +353,12 @@ class flow_grid(object):
         
         if inplace == True:
             self.dir = outmap
+            self.grid_props.update({'dir' : {}})
+            self.grid_props['dir'].update({'bbox' : self.bbox})
+            self.grid_props['dir'].update({'shape' : self.shape})
+            self.grid_props['dir'].update({'cellsize' : self.cellsize})
+            self.grid_props['dir'].update({'nodata' : nodata})
+            self.grid_props['dir'].update({'crs' : self.crs})
         else:
             return outmap
 
@@ -357,10 +408,10 @@ class flow_grid(object):
         # pad the flow direction grid with a rim of 'nodata' cells
         # easy way to prevent catchment search from going out of bounds
         try:
-            self.cdir = np.pad(self.dir, 1, mode='constant',
-                               constant_values=np.asscalar(self.nodata['dir']))
+            self.cdir = np.pad(self.view('dir', mask=False), 1, mode='constant',
+                               constant_values=np.asscalar(self.grid_props['dir']['nodata']))
         except ValueError:
-            self.cdir = np.pad(self.dir, 1, mode='constant')
+            self.cdir = np.pad(self.view('dir', mask=False), 1, mode='constant')
 
         # get shape of padded flow direction array, then flatten
         padshape = self.cdir.shape
@@ -419,8 +470,12 @@ class flow_grid(object):
         # if inplace is True, update attributes
         if inplace == True:
             self.catch = outcatch
-            self.nodata.update({'catch' : nodata})
-            self.gridlist.append('catch')
+            self.grid_props.update({'catch' : {}})
+            self.grid_props['catch'].update({'bbox' : self.bbox})
+            self.grid_props['catch'].update({'shape' : self.shape})
+            self.grid_props['catch'].update({'cellsize' : self.cellsize})
+            self.grid_props['catch'].update({'nodata' : nodata})
+            self.grid_props['catch'].update({'crs' : self.crs})
         else:
             return outcatch
 
@@ -453,24 +508,18 @@ class flow_grid(object):
         # create DataFrames for self and other with geographic coordinates
         # as row and column labels. entries in selfdf represent cell indices.
         selfdf = pd.DataFrame(
-                np.arange(self.dir.size).reshape(self.shape),
+                np.arange(self.view('dir', mask=False).size).reshape(self.shape),
                 index=np.linspace(self.bbox[1], self.bbox[3],
                                   self.shape[0], endpoint=False)[::-1],
                 columns=np.linspace(self.bbox[0], self.bbox[2],
                                     self.shape[1], endpoint=False)
                 )
-        otherdf = pd.DataFrame(
-                other.dir,
-                index=np.linspace(other.bbox[1], other.bbox[3],
-                                  other.shape[0], endpoint=False)[::-1],
-                columns=np.linspace(other.bbox[0], other.bbox[2],
-                                    other.shape[1], endpoint=False)
-                )
+        otherrows, othercols = self.bbox_indices(other.bbox, other.shape)
 
         # reindex self to other based on column labels and fill nulls with
         # nearest neighbor
-        result = (selfdf.reindex(otherdf.index, method='nearest')
-                  .reindex_axis(otherdf.columns, axis=1, method='nearest'))
+        result = (selfdf.reindex(otherrows, method='nearest')
+                  .reindex_axis(othercols, axis=1, method='nearest'))
 
         # mask cells not in catchment of 'other'
         result = result.values[np.where(other.catch != 0, True, False)]
@@ -486,56 +535,20 @@ class flow_grid(object):
         # if inplace is True, set class attributes
         if inplace == True:
             self.frac = result
-            self.nodata.update({'frac' : nodata})
-            self.gridlist.append('frac')
+            self.grid_props.update({'frac' : {}})
+            self.grid_props['frac'].update({'bbox' : self.bbox})
+            self.grid_props['frac'].update({'shape' : self.shape})
+            self.grid_props['frac'].update({'cellsize' : self.cellsize})
+            self.grid_props['frac'].update({'nodata' : nodata})
+            self.grid_props['frac'].update({'crs' : self.crs})
         else:
             return result
-
-    def conform(self, data, bbox, precision=7, fillna=True, fill=0):
-        """
-        Conform data to existing bbox.
-
-        Parameters
-        ----------
-        data : numpy ndarray
-               Data to be conformed.
-        bbox : tuple
-               bbox of new data
-        precision : int
-                    Precision to use when matching geographic coordinates.
-        fillna : bool
-                 Whether to fill nulls.
-        fill : int or float
-               Fill value to use.
-        """
-
-        # create arrays representing coordinates of existing grids
-        selfrows = np.around(np.linspace(self.bbox[1], self.bbox[3],
-                   self.shape[0], endpoint=False)[::-1], precision)
-        selfcols = np.around(np.linspace(self.bbox[0], self.bbox[2],
-                   self.shape[1], endpoint=False), precision)
-
-        # create arrays representing coordinates of new grid
-        rows = np.around(np.linspace(bbox[1], bbox[3], data.shape[0],
-                                     endpoint=False)[::-1], precision)
-        cols = np.around(np.linspace(bbox[0], bbox[2], data.shape[1],
-                                     endpoint=False), precision)
-
-        # reindex new grid to existing grids
-        data = pd.DataFrame(data, index=rows, columns=cols)
-        data = data.reindex(selfrows).reindex_axis(selfcols, axis=1)
-
-        # if there is area with no overlap, fill nulls
-        if fillna == True:
-            return data.fillna(fill).values
-        else:
-            return data.values
 
     def clip_nodata(self, data_name, inplace=True, precision=7, **kwargs):
         """
         Clip grid to bbox representing the smallest area that contains all
-        non-null data. If inplace is True, will also set self.bbox to this
-        value and clip all other grids to the same extent.
+        non-null data for a given dataset. If inplace is True, will set 
+        self.bbox to the bbox generated by this method.
 
         Parameters
         ----------
@@ -546,8 +559,8 @@ class flow_grid(object):
         """
 
         # get class attributes
-        data = getattr(self, data_name)
-        nodata = self.nodata[data_name]
+        data = self.view(data_name)
+        nodata = self.grid_props[data_name]['nodata']
 
         # get bbox of nonzero entries
         nz = np.nonzero(data != nodata)
@@ -555,10 +568,7 @@ class flow_grid(object):
 
         # if inplace is True, clip all grids to new bbox and set self.bbox
         if inplace == True:
-            selfrows = np.around(np.linspace(self.bbox[1], self.bbox[3],
-                       self.shape[0], endpoint=False)[::-1],precision)
-            selfcols = np.around(np.linspace(self.bbox[0], self.bbox[2],
-                       self.shape[1], endpoint=False), precision)
+            selfrows, selfcols = self.bbox_indices(self.bbox, self.shape, precision=7)
             new_bbox = (selfcols[nz_ix[2]], selfrows[nz_ix[1]],
                         selfcols[nz_ix[3]], selfrows[nz_ix[0]])
             # set self.bbox to clipped bbox
@@ -569,8 +579,7 @@ class flow_grid(object):
 
     def set_bbox(self, new_bbox, precision=7): 
         """
-        Set the bounding box of the class instance (self.bbox) and clip
-        all grids to the new bbox.
+        Set the bounding box of the class instance (self.bbox).
 
         Parameters
         ----------
@@ -586,33 +595,28 @@ class flow_grid(object):
         # round new bbox to proper precision
         new_bbox = np.around(new_bbox, precision)
 
-        # construct arrays representing coordinates of existing grids
-        selfrows = np.around(np.linspace(self.bbox[1], self.bbox[3],
-                   self.shape[0], endpoint=False)[::-1], precision)
-        selfcols = np.around(np.linspace(self.bbox[0], self.bbox[2],
-                   self.shape[1], endpoint=False), precision)
+        # construct arrays representing old bbox coords
+        selfrows, selfcols = self.bbox_indices(self.bbox, self.shape)
 
         # construct arrays representing coordinates of new grid
-        rows = (pd.Series(selfrows, index=selfrows)
-                .loc[new_bbox[3]:new_bbox[1]].values)
-        cols = (pd.Series(selfcols, index=selfcols)
-                .loc[new_bbox[0]:new_bbox[2]].values)
-
-        # clip existing grids to new bbox
-        for i in self.gridlist:
-            data = pd.DataFrame(getattr(self, i),
-                                index=selfrows, columns=selfcols)
-            data = (data.reindex(rows).reindex_axis(cols, axis=1)
-                        .fillna(self.nodata[i]).values)
-            setattr(self, i, data)
-        
+        nrows = (new_bbox[3] - new_bbox[1])/self.cellsize
+        ncols = (new_bbox[2] - new_bbox[0])/self.cellsize
+        np.testing.assert_almost_equal(nrows, int(nrows))
+        np.testing.assert_almost_equal(ncols, int(ncols))
+        rows = np.linspace(new_bbox[1], new_bbox[3], int(nrows), endpoint=False)
+        cols = np.linspace(new_bbox[0], new_bbox[2], int(ncols), endpoint=False)
+ 
         # set class attributes
         self.bbox = tuple(new_bbox)
         self.shape = tuple([len(rows), len(cols)])
+        if hasattr(self, 'catch'):
+            self.catchment_mask()
+        else:
+            self.mask = np.ones(self.shape, dtype=np.bool)
 
     def set_nodata(self, data_name, new_nodata, old_nodata=None):
         """
-        Change nodata value of dataset.
+        Change nodata value of a dataset.
 
         Parameters
         ----------
@@ -621,18 +625,19 @@ class flow_grid(object):
         new_nodata : int or float
                      New nodata value to use
         old_nodata : int or float (optional)
-                     If none provided, defaults to self.nodata[data_name]
+                     If none provided, defaults to self.grid_props[data_name]['nodata']
         """
 
         if old_nodata is None:
-            old_nodata = self.nodata[data_name]
+            old_nodata = self.grid_props[data_name]['nodata']
         data = getattr(self, data_name)
         np.place(data, data==old_nodata, new_nodata)
-        self.nodata.update({data_name : new_nodata})
+        self.grid_props[data_name]['nodata'] = new_nodata
 
-    def catchment_mask(self, to_mask, mask_source='catch'):
+    def catchment_mask(self, mask_source='catch'):
         """
-        Masks grid cells not included in catchment.
+        Masks grid cells not included in catchment. The catchment mask is saved
+        to self.mask.
 
         Parameters
         ----------
@@ -641,13 +646,8 @@ class flow_grid(object):
         mask_source : string (optional)
                       dataset on which mask is based (defaults to 'catch')
         """
-
-        mask = (getattr(self, mask_source) == self.nodata[mask_source])
-        if isinstance(to_mask, str):
-            np.place(getattr(self, to_mask), mask, self.nodata[to_mask])
-        elif isinstance(to_mask, (list, tuple, np.ndarray)):
-            for i in to_mask:
-                np.place(getattr(self, i), mask, self.nodata[i])
+        self.mask = (self.view(mask_source, mask=False) != 
+                     self.grid_props[mask_source]['nodata'])
 
     def to_ascii(self, data_name=None, file_name=None, delimiter=' ', **kwargs):
         """
@@ -664,9 +664,9 @@ class flow_grid(object):
                     Delimiter to use
         """
         if data_name is None:
-            data_name = self.gridlist
+            data_name = self.grid_props.keys()
         if file_name is None:
-            file_name = self.gridlist
+            file_name = self.grid_props.keys()
 
         if isinstance(data_name, str):
             data_name = [data_name]
@@ -674,16 +674,11 @@ class flow_grid(object):
             file_name = [file_name]
 
         for i, j in zip(data_name, file_name):
-            header = """ncols         %s\n
-                        nrows         %s\n
-                        xllcorner     %s\n
-                        yllcorner     %s\n
-                        cellsize      %s\n
-                        NODATA_value  %s\n""" % (self.shape[1],
-                                               self.shape[0],
-                                               self.bbox[0],
-                                               self.bbox[1],
-                                               self.cellsize,
-                                               self.nodata[i])
-            np.savetxt(j, getattr(self, i),
-                       delimiter=delimiter, header=header, **kwargs)
+            header = """ncols         %s\nnrows         %s\nxllcorner     %s\nyllcorner     %s\ncellsize      %s\nNODATA_value  %s""" % (self.shape[1],
+                                             self.shape[0],
+                                             self.bbox[0],
+                                             self.bbox[1],
+                                             self.cellsize,
+                                             self.grid_props[i]['nodata'])
+            np.savetxt(j, self.view(i), delimiter=delimiter, header=header, 
+                       comments='', **kwargs)
