@@ -559,7 +559,7 @@ class flow_grid(object):
         """
 
         # get class attributes
-        data = self.view(data_name)
+        data = getattr(self, data_name)
         nodata = self.grid_props[data_name]['nodata']
 
         # get bbox of nonzero entries
@@ -568,7 +568,7 @@ class flow_grid(object):
 
         # if inplace is True, clip all grids to new bbox and set self.bbox
         if inplace == True:
-            selfrows, selfcols = self.bbox_indices(self.bbox, self.shape, precision=7)
+            selfrows, selfcols = self.bbox_indices(self.grid_props[data_name]['bbox'], self.grid_props[data_name]['shape'], precision=7)
             new_bbox = (selfcols[nz_ix[2]], selfrows[nz_ix[1]],
                         selfcols[nz_ix[3]], selfrows[nz_ix[0]])
             # set self.bbox to clipped bbox
@@ -579,7 +579,9 @@ class flow_grid(object):
 
     def set_bbox(self, new_bbox, precision=7): 
         """
-        Set the bounding box of the class instance (self.bbox).
+        Set the bounding box of the class instance (self.bbox). If the new
+        bbox is not alignable to self.cellsize, each entry  is automatically
+        rounded down such that the bbox is alignable.
 
         Parameters
         ----------
@@ -592,8 +594,17 @@ class flow_grid(object):
         fill : int or float
                Fill value to use.
         """
-        # round new bbox to proper precision
-        new_bbox = np.around(new_bbox, precision)
+
+        # check if alignable, and if not, round unaligned bbox entries to nearest cell
+        new_bbox = np.asarray(new_bbox)
+        err = np.abs(new_bbox) % self.cellsize
+        try:
+            np.testing.assert_almost_equal(err, np.zeros(len(new_bbox)))
+        except AssertionError:
+            off_idx = np.where(np.around(err, precision) != np.zeros(len(new_bbox)))
+            direction = np.where(new_bbox > 0.0, 1, -1)
+            new_bbox = new_bbox - err*direction
+            print('Unalignable bbox provided, rounding to %s' % (new_bbox))
 
         # construct arrays representing old bbox coords
         selfrows, selfcols = self.bbox_indices(self.bbox, self.shape)
@@ -601,10 +612,10 @@ class flow_grid(object):
         # construct arrays representing coordinates of new grid
         nrows = (new_bbox[3] - new_bbox[1])/self.cellsize
         ncols = (new_bbox[2] - new_bbox[0])/self.cellsize
-        np.testing.assert_almost_equal(nrows, int(nrows))
-        np.testing.assert_almost_equal(ncols, int(ncols))
-        rows = np.linspace(new_bbox[1], new_bbox[3], int(nrows), endpoint=False)
-        cols = np.linspace(new_bbox[0], new_bbox[2], int(ncols), endpoint=False)
+        np.testing.assert_almost_equal(nrows, round(nrows))
+        np.testing.assert_almost_equal(ncols, round(ncols))
+        rows = np.linspace(new_bbox[1], new_bbox[3], round(nrows), endpoint=False)
+        cols = np.linspace(new_bbox[0], new_bbox[2], round(ncols), endpoint=False)
  
         # set class attributes
         self.bbox = tuple(new_bbox)
