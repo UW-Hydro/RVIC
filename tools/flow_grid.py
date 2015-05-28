@@ -130,9 +130,8 @@ class GridProc(object):
 
         Parameters
         ----------
-        data : File name (string) or numpy ndarray
-               If data is from a file, 'input_type' should be set to the
-               appropriate value ('ascii' or 'raster').
+        data : string
+               File name or path.
         data_name : 'dem', 'dir', 'acc' or other string
                      Name of dataset. Will determine the name of the attribute
                      representing the gridded data. Default values are used
@@ -158,16 +157,15 @@ class GridProc(object):
         nodata = data.dtype.type(nodata)
         self.add_data(data, data_name, bbox, shape, cellsize, crs, nodata)
 
-    def read_raster(self, data_name, band=1, **kwargs):
+    def read_raster(self, data, data_name, band=1, **kwargs):
         """
         Reads data from a raster file into a named attribute of flow_grid
         (name of attribute determined by 'data_name').
 
         Parameters
         ----------
-        data : File name (string) or numpy ndarray
-               If data is from a file, 'input_type' should be set to the
-               appropriate value ('ascii' or 'raster').
+        data : string
+               File name or path.
         data_name : 'dem', 'dir', 'acc' or other string
                      Name of dataset. Will determine the name of the attribute
                      representing the gridded data. Default values are used
@@ -479,7 +477,7 @@ class GridProc(object):
         # flattened indices to self.collect
         def catchment_search(j):
             self.collect = np.append(self.collect, j)
-            selection = select_surround_ravel(j)
+            selection = self._select_surround_ravel(j, padshape)
             next_idx = selection[np.where(self.cdir[selection] == dirmap)]
             if next_idx.any():
                 return catchment_search(next_idx)
