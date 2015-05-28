@@ -3,136 +3,101 @@ import pandas as pd
 import sys
 import ast
 
-class flow_grid(object):        
+
+class GridProc(object):
     """
     Container class for holding and manipulating gridded VIC routing data.
-    Can be instantiated with optional keyword arguments. These keyword
-    arguments will be used to add a dataset (dem, flowdir, accumulation)
-    to the flow_grid instance.
 
-    Parameters
+    Attributes
     ----------
-    data : string or numpy ndarray (optional)
-           Data to be read. Can either be a file name or an array.
-           If data is from a file, 'input_type' should be set to the
-           appropriate value ('ascii' or 'raster').
-    data_type : 'dem', 'dir', 'acc' (optional)
-                 How to interpret the input data:
-                     'dem' : digital elevation data
-                     'dir' : flow direction data
-                     'acc' : flow accumulation (upstream area) data
-                
-    input_type : 'raster', 'ascii' or 'array' (optional)
-                 Type of input data.
-    band : int (optional)
-           For raster data, the band number to read.
-    nodata : int or float (optional)
-             Value indicating no data.
-
-    Attributes (Optional)
-    ---------------------
-    dem : digital elevation grid
-    dir : flow direction grid
-    acc : flow accumulation grid
-    catch : Catchment delineated from 'dir' and a given pour point
-    frac : fractional contributing area grid
-
-    bbox : The geographical bounding box of the gridded dataset
+    bbox : The geographical bounding box for viewing the gridded data
            (xmin, ymin, xmax, ymax)
     shape : The shape of the gridded data (nrows, ncolumns)
     cellsize : The length/width of each grid cell (assumed to be square).
-    nodata : The value to use for gridcells with no data.
+    grid_props : dict containing metadata for each gridded dataset.
 
     Methods
     -------
-    read_input : add a gridded dataset (dem, flowdir, accumulation) 
+    read_input : add a gridded dataset (dem, flowdir, accumulation)
                  to flow_grid instance.
     nearest_cell : Returns the index (column, row) of the cell closest
                    to a given geographical coordinate (x, y).
     flowdir : Generate a flow direction grid from a given digital elevation
-              dataset (dem).
+              dataset (dem). Does not currently handle flats.
     catchment : Delineate the watershed for a given pour point (x, y)
                 or (column, row).
     fraction : Generate the fractional contributing area for a coarse
                scale flow direction grid based on a fine-scale flow
                direction grid.
+
+    Reserved Datasets
+    -----------------
+    dem : digital elevation grid
+    dir : flow direction grid
+    acc : flow accumulation grid
+    catch : Catchment delineated from 'dir' and a given pour point
+    frac : fractional contributing area grid
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         self.grid_props = {}
-        if 'data' in kwargs:
-            self.read_input(**kwargs)
-        else:
-            pass
 
-    def read_input(self, data, data_type='dir', input_type='ascii', band=1,
-                   nodata=0, bbox=None, crs=None, **kwargs):
+    def add_data(self, data, data_name, bbox=None, shape=None, cellsize=None,
+            crs=None, nodata=None, **kwargs):
         """
-        Reads data into a named attribute of flow_grid
-        (name of attribute determined by 'data_type').
+        A generic method for adding data into a FlowGrid instance.
+        Inserts data into a named attribute of FlowGrid (name of attribute
+        determined by 'data_name').
 
         Parameters
         ----------
-        data : File name (string) or numpy ndarray
+        data : numpy ndarray
                If data is from a file, 'input_type' should be set to the
                appropriate value ('ascii' or 'raster').
-        data_type : 'dem', 'dir', 'acc' or other string
+        data_name : 'dem', 'dir', 'acc' or other string
                      Name of dataset. Will determine the name of the attribute
                      representing the gridded data. Default values are used
                      internally by some class methods:
                          'dem' : digital elevation data
                          'dir' : flow direction data
                          'acc' : flow accumulation (upstream area) data
-                    
-        input_type : 'raster', 'ascii' or 'array'
-                     Type of input data.
-        band : int
-               For raster data, the band number to read.
+
+        bbox : tuple
+               Bounding box of data.
+        shape : tuple
+                Shape (rows, columns) of data.
+        cellsize : float or int
+                   Cellsize of gridded data.
+        crs : dict
+              Coordinate reference system of gridded data.
         nodata : int or float
                  Value indicating no data.
-        bbox : tuple or list
-               Bounding box, if none provided.
 
         """
-
-        # read ascii file
-        if input_type == 'ascii':
-            with open(data) as header:
-                ncols = int(header.readline().split()[1])
-                nrows = int(header.readline().split()[1])
-                xll = ast.literal_eval(header.readline().split()[1])
-                yll = ast.literal_eval(header.readline().split()[1])
-                cellsize = ast.literal_eval(header.readline().split()[1])
-                nodata = ast.literal_eval(header.readline().split()[1])
-                shape = (nrows, ncols)
-                bbox = (xll, yll, xll + ncols*cellsize, yll + nrows*cellsize)
-            data = np.loadtxt(data, skiprows=6, **kwargs)
-            nodata = data.dtype.type(nodata)
-
-        # read raster file
-        if input_type == 'raster':
-            import rasterio
-            f = rasterio.open(data)
-            crs = f.crs
-            bbox = tuple(f.bounds)
-            shape = f.shape
-            cellsize = f.affine[0]
-            nodata = f.nodatavals[0]
-            if len(f.indexes) > 1:
-                data = np.ma.filled(f.read_band(band))
-            else:
-                data = np.ma.filled(f.read())
-                f.close()
-                data = data.reshape(shape)
-            nodata = data.dtype.type(nodata)
-
-        # read numpy array
-        if input_type == 'array':
-            shape = data.shape
+        if not isinstance(data, np.ndarray):
+            raise TypeError('Input data must be ndarray')
 
         # if there are no datasets, initialize bbox, shape,
         # cellsize and crs based on incoming data
-        if len(self.grid_props.keys()) < 1:
+        if len(self.grid_props) < 1:
+
+            # check validity of bbox
+            if ((hasattr(bbox, "__len__")) and (not isinstance(bbox, str))
+                    and (len(bbox) == 4)):
+                bbox = tuple(bbox)
+            else:
+                raise TypeError('bbox must be a tuple of length 4.')
+            # check validity of shape
+            if ((hasattr(shape, "__len__")) and (not isinstance(shape, str))
+                    and (len(shape) == 2) and (isinstance(sum(shape), int))):
+                shape = tuple(shape)
+            else:
+                raise TypeError('shape must be a tuple of ints of length 2.')
+            # check validity of cellsize
+            if not isinstance(cellsize, (int, float)):
+                raise TypeError('cellsize must be an int or float.')
+
+            # initialize instance metadata
             self.bbox = bbox
             self.shape = shape
             self.cellsize = cellsize
@@ -150,17 +115,91 @@ class flow_grid(object):
                 raise AssertionError('Grid cellsize not equal')
 
         # assign new data to attribute; record nodata value
-        self.grid_props.update({data_type : {}})
-        self.grid_props[data_type].update({'bbox' : bbox})
-        self.grid_props[data_type].update({'shape' : shape})
-        self.grid_props[data_type].update({'cellsize' : cellsize})
-        self.grid_props[data_type].update({'nodata' : nodata})
-        self.grid_props[data_type].update({'crs' : crs})
-        setattr(self, data_type, data)
+        self.grid_props.update({data_name : {}})
+        self.grid_props[data_name].update({'bbox' : bbox})
+        self.grid_props[data_name].update({'shape' : shape})
+        self.grid_props[data_name].update({'cellsize' : cellsize})
+        self.grid_props[data_name].update({'nodata' : nodata})
+        self.grid_props[data_name].update({'crs' : crs})
+        setattr(self, data_name, data)
+
+    def read_ascii(self, data, data_name, skiprows=6, **kwargs):
+        """
+        Reads data from an ascii file into a named attribute of flow_grid
+        (name of attribute determined by 'data_name').
+
+        Parameters
+        ----------
+        data : File name (string) or numpy ndarray
+               If data is from a file, 'input_type' should be set to the
+               appropriate value ('ascii' or 'raster').
+        data_name : 'dem', 'dir', 'acc' or other string
+                     Name of dataset. Will determine the name of the attribute
+                     representing the gridded data. Default values are used
+                     internally by some class methods:
+                         'dem' : digital elevation data
+                         'dir' : flow direction data
+                         'acc' : flow accumulation (upstream area) data
+        skiprows : The number of rows taken up by the header.
+
+        Additional keyword arguments are passed to numpy.loadtxt()
+        """
+
+        with open(data) as header:
+            ncols = int(header.readline().split()[1])
+            nrows = int(header.readline().split()[1])
+            xll = ast.literal_eval(header.readline().split()[1])
+            yll = ast.literal_eval(header.readline().split()[1])
+            cellsize = ast.literal_eval(header.readline().split()[1])
+            nodata = ast.literal_eval(header.readline().split()[1])
+            shape = (nrows, ncols)
+            bbox = (xll, yll, xll + ncols * cellsize, yll + nrows * cellsize)
+        data = np.loadtxt(data, skiprows=skiprows, **kwargs)
+        nodata = data.dtype.type(nodata)
+        self.add_data(data, data_name, bbox, shape, cellsize, crs, nodata)
+
+    def read_raster(self, data_name, band=1, **kwargs):
+        """
+        Reads data from a raster file into a named attribute of flow_grid
+        (name of attribute determined by 'data_name').
+
+        Parameters
+        ----------
+        data : File name (string) or numpy ndarray
+               If data is from a file, 'input_type' should be set to the
+               appropriate value ('ascii' or 'raster').
+        data_name : 'dem', 'dir', 'acc' or other string
+                     Name of dataset. Will determine the name of the attribute
+                     representing the gridded data. Default values are used
+                     internally by some class methods:
+                         'dem' : digital elevation data
+                         'dir' : flow direction data
+                         'acc' : flow accumulation (upstream area) data
+        band : int
+               The band number to read.
+
+        Additional keyword arguments are passed to rasterio.open()
+        """
+        # read raster file
+        import rasterio
+        f = rasterio.open(data, **kwargs)
+        crs = f.crs
+        bbox = tuple(f.bounds)
+        shape = f.shape
+        cellsize = f.affine[0]
+        nodata = f.nodatavals[0]
+        if len(f.indexes) > 1:
+            data = np.ma.filled(f.read_band(band))
+        else:
+            data = np.ma.filled(f.read())
+            f.close()
+            data = data.reshape(shape)
+        nodata = data.dtype.type(nodata)
+        self.add_data(data, data_name, bbox, shape, cellsize, crs, nodata)
 
     def bbox_indices(self, bbox, shape, precision=7):
         """
-        Return row and column coordinates of a bounding box at a 
+        Return row and column coordinates of a bounding box at a
         given cellsize.
 
         Parameters
@@ -187,7 +226,9 @@ class flow_grid(object):
         Parameters
         ----------
         data_name : string
-                    Name of the dataset to be viewed
+                    Name of the dataset to be viewed.
+        mask : bool
+               Whether or not to "mask" the view using self.mask.
         """
         selfrows, selfcols = self.bbox_indices(self.bbox, self.shape)
         rows, cols = self.bbox_indices(self.grid_props[data_name]['bbox'],
@@ -218,21 +259,21 @@ class flow_grid(object):
 
         # create coordinate grid of cell centroids based on bbox
         coords = np.meshgrid(
-            np.linspace(self.bbox[0] + self.cellsize/2.0,
-                        self.bbox[2] + self.cellsize/2.0,
+            np.linspace(self.bbox[0] + self.cellsize / 2.0,
+                        self.bbox[2] + self.cellsize / 2.0,
                         self.shape[1], endpoint=False),
-            np.linspace(self.bbox[1] + self.cellsize/2.0,
-                        self.bbox[3] + self.cellsize/2.0,
+            np.linspace(self.bbox[1] + self.cellsize / 2.0,
+                        self.bbox[3] + self.cellsize / 2.0,
                         self.shape[0], endpoint=False)[::-1])
 
         # select nearest cell based on euclidian distance
-        nearest = np.unravel_index(np.argmin(np.sqrt((
-                                   coords[0] - x)**2 + (coords[1] - y)**2)),
-                                   self.shape)
+        nearest = np.unravel_index(
+            np.argmin(np.sqrt((coords[0] - x) ** 2 + (coords[1] - y) ** 2)),
+            self.shape)
         return nearest[1], nearest[0]
 
-    def flowdir(self, data=None, include_edges=True, dirmap=(1,2,3,4,5,6,7,8),
-                nodata=0, flat=-1, inplace=True):
+    def flowdir(self, data_name=None, include_edges=True, nodata=0, flat=-1,
+            dirmap=(1, 2, 3, 4, 5, 6, 7, 8), inplace=True):
         """
         Generates a flow direction grid from a DEM grid.
 
@@ -242,116 +283,114 @@ class flow_grid(object):
                Array representing DEM grid
         include_edges : bool
                         Whether to include outer rim of grid.
-        dirmap : list or tuple
+        nodata : int
+                 value to indicate nodata in output array.
+        flat : int
+               value to indicate flat areas in output array.
+        dirmap : list or tuple (length 8)
                  List of integer values representing the following
                  cardinal and intercardinal directions (in order):
                  [N, NE, E, SE, S, SW, W, NW]
+        inplace : bool
+                  If True, write output array to self.dir
         """
 
+        if len(dirmap) != 8:
+            raise AssertionError('dirmap must be a sequence of length 8')
+
         # if data not provided, use self.dem
-        if data is None:
+        if data_name is None:
             if hasattr(self, 'dem'):
                 data = self.view('dem', mask=False)
+        elif isinstance(data_name, str):
+            data = self.view(data_name, mask=False)
+        else:
+            raise TypeError('data_name must be string type.')
 
         # generate grid of indices
         indices = np.indices(self.shape, dtype=self.shape_min)
 
         # handle nodata values in dem
         dem_nodata = self.grid_props['dem']['nodata']
-        dem_mask = (data == dem_nodata)        
+        dem_mask = (data == dem_nodata)
         np.place(data, dem_mask, np.iinfo(data.dtype.type).max)
 
         # initialize indices of corners
-        corner = {
-        'nw' : {'k' : tuple(indices[:,0,0]),
-                'v' : [[0,1,1], [1,1,0]],
-                'pad': np.array([3,4,5])},
-        'ne' : {'k' : tuple(indices[:,0,-1]),
-                'v' : [[1,1,0], [-1,-2,-2]],
-                'pad': np.array([5,6,7])},
-        'sw' : {'k' : tuple(indices[:,-1,0]),
-                'v' : [[-2,-2,-1], [0,1,1]],
-                'pad': np.array([1,2,3])},
-        'se' : {'k' : tuple(indices[:,-1,-1]),
-                'v' : [[-1,-2,-2], [-2,-2,-1]],
-                'pad': np.array([7,8,1])}
+        corners = {
+        'nw' : {'k' : tuple(indices[:, 0, 0]),
+                'v' : [[0, 1, 1],  [1, 1, 0]],
+                'pad': np.array([3, 4, 5])},
+        'ne' : {'k' : tuple(indices[:, 0, -1]),
+                'v' : [[1, 1, 0],  [-1, -2, -2]],
+                'pad': np.array([5, 6, 7])},
+        'sw' : {'k' : tuple(indices[:, -1, 0]),
+                'v' : [[-2, -2, -1],  [0, 1, 1]],
+                'pad': np.array([1, 2, 3])},
+        'se' : {'k' : tuple(indices[:, -1, -1]),
+                'v' : [[-1, -2, -2],  [-2, -2, -1]],
+                'pad': np.array([7, 8, 1])}
         }
-    
+
         # initialize indices of edges
-        edge = {
-        'n' : {'k' : tuple(indices[:,0,1:-1]),
-               'pad' : np.array([3,4,5,6,7])},
-        'w' : {'k' : tuple(indices[:,1:-1,0]),
-               'pad' : np.array([1,2,3,4,5])},
-        'e' : {'k' : tuple(indices[:,1:-1,-1]),
-               'pad' : np.array([1,5,6,7,8])},
-        's' : {'k' : tuple(indices[:,-1,1:-1]),
-               'pad' : np.array([1,2,3,7,8])}
+        edges = {
+        'n' : {'k' : tuple(indices[:, 0, 1:-1]),
+               'pad' : np.array([3, 4, 5, 6, 7])},
+        'w' : {'k' : tuple(indices[:, 1:-1, 0]),
+               'pad' : np.array([1, 2, 3, 4, 5])},
+        'e' : {'k' : tuple(indices[:, 1:-1, -1]),
+               'pad' : np.array([1, 5, 6, 7, 8])},
+        's' : {'k' : tuple(indices[:, -1, 1:-1]),
+               'pad' : np.array([1, 2, 3, 7, 8])}
         }
-    
+
         # initialize indices of body (all cells except edges and corners)
         body = indices[:, 1:-1, 1:-1]
-    
+
         # initialize output array
         outmap = np.full(self.shape, nodata, dtype=np.int8)
-    
-        # select the eight cells surrounding a cell
-        def select_surround(i, j):
-            return ([i-1, i-1, i+0, i+1, i+1, i+1, i+0, i-1],
-                   [j+0, j+1, j+1, j+1, j+0, j-1, j-1, j-1])
-    
-        # select the five cells surrounding an edge cell
-        def select_edge_sur(k):
-            i,j = edge[k]['k']
-            if k == 'n':
-                return [i+0, i+1, i+1, i+1, i+0], [j+1, j+1, j+0, j-1, j-1]
-            elif k =='e':
-                return [i-1, i+1, i+1, i+0, i-1], [j+0, j+0, j-1, j-1, j-1]
-            elif k =='s':
-                return [i-1, i-1, i+0, i+0, i-1], [j+0, j+1, j+1, j-1, j-1]
-            elif k == 'w':
-                return [i-1, i-1, i+0, i+1, i+1], [j+0, j+1, j+1, j+1, j+0]
-     
+
         # for each entry in "body" determine flow direction based
         # on steepest neighboring slope
         for i, j in np.nditer(tuple(body), flags=['external_loop']):
-            dat = data[i,j]
-            sur = data[select_surround(i,j)]
+            dat = data[i, j]
+            sur = data[self._select_surround(i, j)]
             a = ((dat - sur) > 0).any(axis=0)
             b = np.argmax((dat - sur), axis=0) + 1
             c = flat
-            outmap[i,j] = np.where(a,b,c)
+            outmap[i, j] = np.where(a, b, c)
 
         # determine flow direction for edges and corners, if desired
-        if include_edges == True:
+        if include_edges:
 
             # fill corners
-            for i in corner.keys():
-                dat = data[corner[i]['k']]
-                sur = data[corner[i]['v']]
+            for corner in corners.keys():
+                dat = data[corners[corner]['k']]
+                sur = data[corners[corner]['v']]
                 if ((dat - sur) > 0).any():
-                    outmap[corner[i]['k']] = corner[i]['pad'][np.argmax(dat - sur)]
+                    outmap[corners[corner]['k']] = \
+                            corners[corner]['pad'][np.argmax(dat - sur)]
                 else:
-                    outmap[corner[i]['k']] = flat
+                    outmap[corners[corner]['k']] = flat
 
             # fill edges
-            for x in edge.keys():
-                dat = data[edge[x]['k']]
-                sur = data[select_edge_sur(x)]
+            for edge in edges.keys():
+                dat = data[edges[edge]['k']]
+                sur = data[self._select_edge_sur(edges, edge)]
                 a = ((dat - sur) > 0).any(axis=0)
-                b = edge[x]['pad'][np.argmax((dat - sur), axis=0)]
+                b = edges[edge]['pad'][np.argmax((dat - sur), axis=0)]
                 c = flat
-                outmap[edge[x]['k']] = np.where(a,b,c)
-    
+                outmap[edges[edge]['k']] = np.where(a, b, c)
+
         # If direction numbering isn't default, convert values of output array.
-        if dirmap != (1,2,3,4,5,6,7,8):
-            dir_d = dict(zip((1,2,3,4,5,6,7,8), dirmap))
-            outmap = pd.DataFrame(outmap).apply(lambda x: x.map(dir_d), axis=1).values
+        if dirmap != (1, 2, 3, 4, 5, 6, 7, 8):
+            dir_d = dict(zip((1, 2, 3, 4, 5, 6, 7, 8), dirmap))
+            outmap = (pd.DataFrame(outmap)
+                      .apply(lambda x: x.map(dir_d), axis=1).values)
 
         np.place(outmap, dem_mask, nodata)
-        np.place(data, dem_mask, dem_nodata)        
-        
-        if inplace == True:
+        np.place(data, dem_mask, dem_nodata)
+
+        if inplace:
             self.dir = outmap
             self.grid_props.update({'dir' : {}})
             self.grid_props['dir'].update({'bbox' : self.bbox})
@@ -362,11 +401,11 @@ class flow_grid(object):
         else:
             return outmap
 
-    def catchment(self, x, y, pour_value=None, dirmap=(1,2,3,4,5,6,7,8),
+    def catchment(self, x, y, pour_value=None, dirmap=(1, 2, 3, 4, 5, 6, 7, 8),
                   nodata=0, xytype='index', recursionlimit=15000, inplace=True):
         """
         Delineates a watershed from a given pour point (x, y).
-        Returns a grid 
+        Returns a grid
 
         Parameters
         ----------
@@ -380,10 +419,10 @@ class flow_grid(object):
         dirmap : list or tuple
                  List of integer values representing the following
                  cardinal directions (in order):
-                 [N, NE, E, SE, S, SW, W, NW] 
+                 [N, NE, E, SE, S, SW, W, NW]
         xytype : 'index' or 'label'
                  How to interpret parameters 'x' and 'y'.
-                     'index' : x and y represent the column and row 
+                     'index' : x and y represent the column and row
                                indices of the pour point.
                      'label' : x and y represent geographic coordinates
                                (will be passed to self.nearest_cell).
@@ -416,12 +455,12 @@ class flow_grid(object):
         # get shape of padded flow direction array, then flatten
         padshape = self.cdir.shape
         self.cdir = self.cdir.ravel()
-        
+
         # get the flattened index of the pour point
-        pour_point = np.ravel_multi_index(np.array([y+1, x+1]), padshape)
+        pour_point = np.ravel_multi_index(np.array([y + 1, x + 1]), padshape)
 
         # reorder direction mapping to work with select_surround_ravel()
-        dirmap = np.array(dirmap)[[4,5,6,7,0,1,2,3]].tolist()
+        dirmap = np.array(dirmap)[[4, 5, 6, 7, 0, 1, 2, 3]].tolist()
 
         # select cells surrounding a given cell for a flattened array
         # used by catchment_search()
@@ -465,10 +504,13 @@ class flow_grid(object):
 
         # if pour point needs to be a special value, set it
         if pour_value is not None:
-            outcatch[y,x] = pour_value 
+            outcatch[y, x] = pour_value
+
+        # reset recursion limit
+        sys.setrecursionlimit(1000)
 
         # if inplace is True, update attributes
-        if inplace == True:
+        if inplace:
             self.catch = outcatch
             self.grid_props.update({'catch' : {}})
             self.grid_props['catch'].update({'bbox' : self.bbox})
@@ -492,7 +534,9 @@ class flow_grid(object):
                 positive integer. Grid cell boundaries must have some overlap.
                 Must have attributes 'dir' and 'catch' (i.e. must have a flow
                 direction grid, along with a delineated catchment).
-                
+        nodata : int or float
+                 value to indicate no data in output array.
+
         inplace : bool (optional)
                   If True, appends fraction grid to attribute 'frac'.
         """
@@ -503,7 +547,7 @@ class flow_grid(object):
         assert hasattr(other, 'catch')
 
         # set scale ratio
-        cell_ratio = int(self.cellsize/other.cellsize)
+        cell_ratio = int(self.cellsize / other.cellsize)
 
         # create DataFrames for self and other with geographic coordinates
         # as row and column labels. entries in selfdf represent cell indices.
@@ -526,14 +570,14 @@ class flow_grid(object):
 
         # count remaining indices and divide by the original number of indices
         result = ((np.bincount(result, minlength=selfdf.size)
-                  .astype(float)/(cell_ratio**2)).reshape(selfdf.shape))
+                  .astype(float) / (cell_ratio ** 2)).reshape(selfdf.shape))
 
         # replace 0 with nodata value
         if nodata != 0:
             np.place(result, result == 0, nodata)
 
         # if inplace is True, set class attributes
-        if inplace == True:
+        if inplace:
             self.frac = result
             self.grid_props.update({'frac' : {}})
             self.grid_props['frac'].update({'bbox' : self.bbox})
@@ -544,16 +588,18 @@ class flow_grid(object):
         else:
             return result
 
-    def clip_nodata(self, data_name, inplace=True, precision=7, **kwargs):
+    def clip_nodata(self, data_name, precision=7, inplace=True, **kwargs):
         """
         Clip grid to bbox representing the smallest area that contains all
-        non-null data for a given dataset. If inplace is True, will set 
+        non-null data for a given dataset. If inplace is True, will set
         self.bbox to the bbox generated by this method.
 
         Parameters
         ----------
         data_name : numpy ndarray
                     Name of attribute to base the clip on.
+        inplace : bool
+                  If True, update bbox to conform to clip.
         precision : int
                     Precision to use when matching geographic coordinates.
         """
@@ -567,7 +613,7 @@ class flow_grid(object):
         nz_ix = (nz[0].min(), nz[0].max(), nz[1].min(), nz[1].max())
 
         # if inplace is True, clip all grids to new bbox and set self.bbox
-        if inplace == True:
+        if inplace:
             selfrows, selfcols = self.bbox_indices(self.grid_props[data_name]['bbox'], self.grid_props[data_name]['shape'], precision=7)
             new_bbox = (selfcols[nz_ix[2]], selfrows[nz_ix[1]],
                         selfcols[nz_ix[3]], selfrows[nz_ix[0]])
@@ -577,7 +623,7 @@ class flow_grid(object):
             # if inplace is False, return the clipped data
             return data[nz_ix[0]:nz_ix[1], nz_ix[2]:nz_ix[3]]
 
-    def set_bbox(self, new_bbox, precision=7): 
+    def set_bbox(self, new_bbox, precision=7):
         """
         Set the bounding box of the class instance (self.bbox). If the new
         bbox is not alignable to self.cellsize, each entry  is automatically
@@ -589,13 +635,16 @@ class flow_grid(object):
                    New bbox to use (xmin, ymin, xmax, ymax)
         precision : int
                     Precision to use when matching geographic coordinates.
-        fillna : bool
-                 Whether to fill nulls.
-        fill : int or float
-               Fill value to use.
         """
 
-        # check if alignable, and if not, round unaligned bbox entries to nearest cell
+        # check validity of new bbox
+        if ((hasattr(new_bbox, "__len__")) and (not isinstance(new_bbox, str))
+                and (len(new_bbox) == 4)):
+            new_bbox = tuple(new_bbox)
+        else:
+            raise TypeError('new_bbox must be a tuple of length 4.')
+
+        # check if alignable; if not, round unaligned bbox entries to nearest
         new_bbox = np.asarray(new_bbox)
         err = np.abs(new_bbox) % self.cellsize
         try:
@@ -603,20 +652,20 @@ class flow_grid(object):
         except AssertionError:
             off_idx = np.where(np.around(err, precision) != np.zeros(len(new_bbox)))
             direction = np.where(new_bbox > 0.0, 1, -1)
-            new_bbox = new_bbox - err*direction
+            new_bbox = new_bbox - (err * direction)
             print('Unalignable bbox provided, rounding to %s' % (new_bbox))
 
         # construct arrays representing old bbox coords
         selfrows, selfcols = self.bbox_indices(self.bbox, self.shape)
 
         # construct arrays representing coordinates of new grid
-        nrows = (new_bbox[3] - new_bbox[1])/self.cellsize
-        ncols = (new_bbox[2] - new_bbox[0])/self.cellsize
+        nrows = (new_bbox[3] - new_bbox[1]) / self.cellsize
+        ncols = (new_bbox[2] - new_bbox[0]) / self.cellsize
         np.testing.assert_almost_equal(nrows, round(nrows))
         np.testing.assert_almost_equal(ncols, round(ncols))
         rows = np.linspace(new_bbox[1], new_bbox[3], round(nrows), endpoint=False)
         cols = np.linspace(new_bbox[0], new_bbox[2], round(ncols), endpoint=False)
- 
+
         # set class attributes
         self.bbox = tuple(new_bbox)
         self.shape = tuple([len(rows), len(cols)])
@@ -636,13 +685,14 @@ class flow_grid(object):
         new_nodata : int or float
                      New nodata value to use
         old_nodata : int or float (optional)
-                     If none provided, defaults to self.grid_props[data_name]['nodata']
+                     If none provided, defaults to
+                     self.grid_props[data_name]['nodata']
         """
 
         if old_nodata is None:
             old_nodata = self.grid_props[data_name]['nodata']
         data = getattr(self, data_name)
-        np.place(data, data==old_nodata, new_nodata)
+        np.place(data, data == old_nodata, new_nodata)
         self.grid_props[data_name]['nodata'] = new_nodata
 
     def catchment_mask(self, mask_source='catch'):
@@ -657,7 +707,7 @@ class flow_grid(object):
         mask_source : string (optional)
                       dataset on which mask is based (defaults to 'catch')
         """
-        self.mask = (self.view(mask_source, mask=False) != 
+        self.mask = (self.view(mask_source, mask=False) !=
                      self.grid_props[mask_source]['nodata'])
 
     def to_ascii(self, data_name=None, file_name=None, delimiter=' ', **kwargs):
@@ -684,12 +734,51 @@ class flow_grid(object):
         if isinstance(file_name, str):
             file_name = [file_name]
 
-        for i, j in zip(data_name, file_name):
+        for in_name, out_name in zip(data_name, file_name):
             header = """ncols         %s\nnrows         %s\nxllcorner     %s\nyllcorner     %s\ncellsize      %s\nNODATA_value  %s""" % (self.shape[1],
                                              self.shape[0],
                                              self.bbox[0],
                                              self.bbox[1],
                                              self.cellsize,
-                                             self.grid_props[i]['nodata'])
-            np.savetxt(j, self.view(i), delimiter=delimiter, header=header, 
-                       comments='', **kwargs)
+                                             self.grid_props[in_name]['nodata'])
+            np.savetxt(out_name, self.view(in_name), delimiter=delimiter,
+                    header=header, comments='', **kwargs)
+
+
+    def _select_surround(self, i, j):
+        """
+        select the eight indices surrounding a given index.
+        """
+        return ([i - 1, i - 1, i + 0, i + 1, i + 1, i + 1, i + 0, i - 1],
+                [j + 0, j + 1, j + 1, j + 1, j + 0, j - 1, j - 1, j - 1])
+
+    def _select_edge_sur(self, edges, k):
+        """
+        select the five cell indices surrounding each edge cell.
+        """
+        i, j = edges[k]['k']
+        if k == 'n':
+            return ([i + 0, i + 1, i + 1, i + 1, i + 0],
+                    [j + 1, j + 1, j + 0, j - 1, j - 1])
+        elif k == 'e':
+            return ([i - 1, i + 1, i + 1, i + 0, i - 1],
+                    [j + 0, j + 0, j - 1, j - 1, j - 1])
+        elif k == 's':
+            return ([i - 1, i - 1, i + 0, i + 0, i - 1],
+                    [j + 0, j + 1, j + 1, j - 1, j - 1])
+        elif k == 'w':
+            return ([i - 1, i - 1, i + 0, i + 1, i + 1],
+                    [j + 0, j + 1, j + 1, j + 1, j + 0])
+
+    def _select_surround_ravel(self, i, shape):
+        """
+        select the eight indices surrounding a flattened index.
+        """
+        return np.array([i + 0 - shape[1],
+                         i + 1 - shape[1],
+                         i + 1 + 0,
+                         i + 1 + shape[1],
+                         i + 0 + shape[1],
+                         i - 1 + shape[1],
+                         i - 1 + 0,
+                         i - 1 - shape[1]]).T
