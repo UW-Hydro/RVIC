@@ -9,29 +9,56 @@ class GridProc(object):
     Container class for holding and manipulating gridded VIC routing data.
 
     Attributes
-    ----------
+    ==========
     bbox : The geographical bounding box for viewing the gridded data
-           (xmin, ymin, xmax, ymax)
-    shape : The shape of the gridded data (nrows, ncolumns)
+           (xmin, ymin, xmax, ymax).
+    shape : The shape of the bbox (nrows, ncolumns) at the given cellsize.
     cellsize : The length/width of each grid cell (assumed to be square).
     grid_props : dict containing metadata for each gridded dataset.
+    mask : A boolean array used to mask certain grid cells in the bbox;
+           may be used to indicate which cells lie inside a catchment.
 
     Methods
-    -------
-    read_input : add a gridded dataset (dem, flowdir, accumulation)
-                 to flow_grid instance.
-    nearest_cell : Returns the index (column, row) of the cell closest
-                   to a given geographical coordinate (x, y).
-    flowdir : Generate a flow direction grid from a given digital elevation
-              dataset (dem). Does not currently handle flats.
-    catchment : Delineate the watershed for a given pour point (x, y)
-                or (column, row).
-    fraction : Generate the fractional contributing area for a coarse
-               scale flow direction grid based on a fine-scale flow
-               direction grid.
+    =======
+        --------
+        File I/O
+        --------
+        add_data : Add a gridded dataset (dem, flowdir, accumulation)
+                   to GridProc instance (generic method).
+        read_ascii : Read an ascii grid from a file and add it to a
+                     GridProc instance.
+        read_raster : Read a raster file and add the data to a GridProc
+                      instance.
+        to_ascii : Writes current "view" of gridded datasets to ascii file.
+        ----------
+        Hydrologic
+        ----------
+        flowdir : Generate a flow direction grid from a given digital elevation
+                  dataset (dem). Does not currently handle flats.
+        catchment : Delineate the watershed for a given pour point (x, y)
+                    or (column, row).
+        fraction : Generate the fractional contributing area for a coarse
+                   scale flow direction grid based on a fine-scale flow
+                   direction grid.
+        ---------------
+        Data Processing
+        ---------------
+        view : Returns a "view" of a dataset within the bounding box specified
+               by self.bbox (can optionally be masked with self.mask).
+        set_bbox : Sets the bbox of the current "view" (self.bbox).
+        set_nodata : Sets the nodata value for a given dataset.
+        bbox_indices : Returns arrays containing the geographic coordinates
+                       of the grid's rows and columns for the current "view".
+        nearest_cell : Returns the index (column, row) of the cell closest
+                       to a given geographical coordinate (x, y).
+        clip_to : Clip the bbox to the smallest area containing all non-
+                  null gridcells for a provided dataset (defaults to
+                  self.catch).
+        catchment_mask : Updates self.mask to mask all gricells not inside the
+                         catchment (given by self.catch).
 
-    Reserved Datasets
-    -----------------
+    Reserved Dataset Names
+    ======================
     dem : digital elevation grid
     dir : flow direction grid
     acc : flow accumulation grid
@@ -39,32 +66,34 @@ class GridProc(object):
     frac : fractional contributing area grid
     """
 
+
     def __init__(self):
         self.grid_props = {}
 
+
     def add_data(self, data, data_name, bbox=None, shape=None, cellsize=None,
-            crs=None, nodata=None, **kwargs):
+            crs=None, nodata=None):
         """
-        A generic method for adding data into a FlowGrid instance.
-        Inserts data into a named attribute of FlowGrid (name of attribute
-        determined by 'data_name').
+        A generic method for adding data into a GridProc instance.
+        Inserts data into a named attribute of GridProc (name of attribute
+        determined by keyword 'data_name').
 
         Parameters
         ----------
         data : numpy ndarray
-               If data is from a file, 'input_type' should be set to the
-               appropriate value ('ascii' or 'raster').
-        data_name : 'dem', 'dir', 'acc' or other string
+               Data to be inserted into GridProc instance.
+        data_name : string
                      Name of dataset. Will determine the name of the attribute
                      representing the gridded data. Default values are used
                      internally by some class methods:
                          'dem' : digital elevation data
                          'dir' : flow direction data
                          'acc' : flow accumulation (upstream area) data
-
-        bbox : tuple
+                         'catch' : catchment grid
+                         'frac' : fractional contributing area
+        bbox : tuple (length 4)
                Bounding box of data.
-        shape : tuple
+        shape : tuple of ints (length 2)
                 Shape (rows, columns) of data.
         cellsize : float or int
                    Cellsize of gridded data.
@@ -72,7 +101,6 @@ class GridProc(object):
               Coordinate reference system of gridded data.
         nodata : int or float
                  Value indicating no data.
-
         """
         if not isinstance(data, np.ndarray):
             raise TypeError('Input data must be ndarray')
@@ -123,23 +151,29 @@ class GridProc(object):
         self.grid_props[data_name].update({'crs' : crs})
         setattr(self, data_name, data)
 
-    def read_ascii(self, data, data_name, skiprows=6, **kwargs):
+
+    def read_ascii(self, data, data_name, skiprows=6, crs=None, **kwargs):
         """
-        Reads data from an ascii file into a named attribute of flow_grid
-        (name of attribute determined by 'data_name').
+        Reads data from an ascii file into a named attribute of GridProc
+        instance (name of attribute determined by 'data_name').
 
         Parameters
         ----------
         data : string
                File name or path.
-        data_name : 'dem', 'dir', 'acc' or other string
+        data_name : string
                      Name of dataset. Will determine the name of the attribute
                      representing the gridded data. Default values are used
                      internally by some class methods:
                          'dem' : digital elevation data
                          'dir' : flow direction data
                          'acc' : flow accumulation (upstream area) data
-        skiprows : The number of rows taken up by the header.
+                         'catch' : catchment grid
+                         'frac' : fractional contributing area
+        skiprows : int (optional)
+                   The number of rows taken up by the header (defaults to 6).
+        crs : dict (optional)
+              Coordinate reference system of ascii data.
 
         Additional keyword arguments are passed to numpy.loadtxt()
         """
@@ -157,22 +191,25 @@ class GridProc(object):
         nodata = data.dtype.type(nodata)
         self.add_data(data, data_name, bbox, shape, cellsize, crs, nodata)
 
+
     def read_raster(self, data, data_name, band=1, **kwargs):
         """
-        Reads data from a raster file into a named attribute of flow_grid
-        (name of attribute determined by 'data_name').
+        Reads data from a raster file into a named attribute of GridProc
+        (name of attribute determined by keyword 'data_name').
 
         Parameters
         ----------
         data : string
                File name or path.
-        data_name : 'dem', 'dir', 'acc' or other string
+        data_name : string
                      Name of dataset. Will determine the name of the attribute
                      representing the gridded data. Default values are used
                      internally by some class methods:
                          'dem' : digital elevation data
                          'dir' : flow direction data
                          'acc' : flow accumulation (upstream area) data
+                         'catch' : catchment grid
+                         'frac' : fractional contributing area
         band : int
                The band number to read.
 
@@ -195,6 +232,7 @@ class GridProc(object):
         nodata = data.dtype.type(nodata)
         self.add_data(data, data_name, bbox, shape, cellsize, crs, nodata)
 
+
     def bbox_indices(self, bbox, shape, precision=7):
         """
         Return row and column coordinates of a bounding box at a
@@ -202,10 +240,10 @@ class GridProc(object):
 
         Parameters
         ----------
-        bbox : tuple
-               bbox of new data
-        shape : tuple
-                the shape of the 2D array (rows, columns)
+        bbox : tuple of floats or ints (length 4)
+               bbox of new data.
+        shape : tuple of ints (length 2)
+                The shape of the 2D array (rows, columns).
         precision : int
                     Precision to use when matching geographic coordinates.
         """
@@ -215,18 +253,19 @@ class GridProc(object):
                shape[1], endpoint=False), precision)
         return rows, cols
 
+
     def view(self, data_name, mask=True):
         """
         Return a copy of a gridded dataset clipped to the bounding box
         (self.bbox) with cells outside the catchment mask (self.mask)
-        displayed as 'nodata' (self.grid_props[data_name]['nodata']).
+        optionally displayed as 'nodata' (self.grid_props[data_name]['nodata'])
 
         Parameters
         ----------
         data_name : string
                     Name of the dataset to be viewed.
         mask : bool
-               Whether or not to "mask" the view using self.mask.
+               If True, "mask" the view using self.mask.
         """
         selfrows, selfcols = self.bbox_indices(self.bbox, self.shape)
         rows, cols = self.bbox_indices(self.grid_props[data_name]['bbox'],
@@ -241,6 +280,7 @@ class GridProc(object):
                             self.grid_props[data_name]['nodata'])
         else:
             return outview
+
 
     def nearest_cell(self, x, y):
         """
@@ -270,6 +310,7 @@ class GridProc(object):
             self.shape)
         return nearest[1], nearest[0]
 
+
     def flowdir(self, data_name=None, include_edges=True, nodata=0, flat=-1,
             dirmap=(1, 2, 3, 4, 5, 6, 7, 8), inplace=True):
         """
@@ -277,14 +318,14 @@ class GridProc(object):
 
         Parameters
         ----------
-        data : numpy ndarray
-               Array representing DEM grid
+        data_name : string
+                    Name of attribute containing dem data.
         include_edges : bool
-                        Whether to include outer rim of grid.
+                        If True, include outer rim of grid.
         nodata : int
-                 value to indicate nodata in output array.
+                 Value to indicate nodata in output array.
         flat : int
-               value to indicate flat areas in output array.
+               Value to indicate flat areas in output array.
         dirmap : list or tuple (length 8)
                  List of integer values representing the following
                  cardinal and intercardinal directions (in order):
@@ -399,11 +440,11 @@ class GridProc(object):
         else:
             return outmap
 
+
     def catchment(self, x, y, pour_value=None, dirmap=(1, 2, 3, 4, 5, 6, 7, 8),
                   nodata=0, xytype='index', recursionlimit=15000, inplace=True):
         """
         Delineates a watershed from a given pour point (x, y).
-        Returns a grid
 
         Parameters
         ----------
@@ -414,10 +455,12 @@ class GridProc(object):
         pour_value : int or None
                      If not None, value to represent pour point in catchment
                      grid (required by some programs).
-        dirmap : list or tuple
+        dirmap : list or tuple (length 8)
                  List of integer values representing the following
-                 cardinal directions (in order):
+                 cardinal and intercardinal directions (in order):
                  [N, NE, E, SE, S, SW, W, NW]
+        nodata : int
+                 Value to indicate nodata in output array.
         xytype : 'index' or 'label'
                  How to interpret parameters 'x' and 'y'.
                      'index' : x and y represent the column and row
@@ -430,6 +473,9 @@ class GridProc(object):
         inplace : bool
                   If True, catchment will be written to attribute 'catch'.
         """
+
+        if len(dirmap) != 8:
+            raise AssertionError('dirmap must be a sequence of length 8')
 
         # if xytype is 'label', delineate catchment based on cell nearest
         # to given geographic coordinate
@@ -444,11 +490,14 @@ class GridProc(object):
 
         # pad the flow direction grid with a rim of 'nodata' cells
         # easy way to prevent catchment search from going out of bounds
+        # TODO: Need better way of doing this
         try:
-            self.cdir = np.pad(self.view('dir', mask=False), 1, mode='constant',
-                               constant_values=np.asscalar(self.grid_props['dir']['nodata']))
+            self.cdir = np.pad(self.view('dir', mask=False),
+                1, mode='constant',
+                constant_values=np.asscalar(self.grid_props['dir']['nodata']))
         except ValueError:
-            self.cdir = np.pad(self.view('dir', mask=False), 1, mode='constant')
+            self.cdir = np.pad(self.view('dir', mask=False),
+                1, mode='constant')
 
         # get shape of padded flow direction array, then flatten
         padshape = self.cdir.shape
@@ -459,18 +508,6 @@ class GridProc(object):
 
         # reorder direction mapping to work with select_surround_ravel()
         dirmap = np.array(dirmap)[[4, 5, 6, 7, 0, 1, 2, 3]].tolist()
-
-        # select cells surrounding a given cell for a flattened array
-        # used by catchment_search()
-        def select_surround_ravel(i):
-            return np.array([i + 0 - padshape[1],
-                             i + 1 - padshape[1],
-                             i + 1 + 0,
-                             i + 1 + padshape[1],
-                             i + 0 + padshape[1],
-                             i - 1 + padshape[1],
-                             i - 1 + 0,
-                             i - 1 - padshape[1]]).T
 
         # for each cell j, recursively search through grid to determine
         # if surrounding cells are in the contributing area, then add
@@ -519,6 +556,7 @@ class GridProc(object):
         else:
             return outcatch
 
+
     def fraction(self, other, nodata=0, inplace=True):
         """
         Generates a grid representing the fractional contributing area for a
@@ -526,15 +564,14 @@ class GridProc(object):
 
         Parameters
         ----------
-        other : flow_grid instance
-                Another flow_grid instance containing fine-scale flow direction
+        other : GridProc instance
+                Another GridProc instance containing fine-scale flow direction
                 data. The ratio of self.cellsize/other.cellsize must be a
                 positive integer. Grid cell boundaries must have some overlap.
                 Must have attributes 'dir' and 'catch' (i.e. must have a flow
                 direction grid, along with a delineated catchment).
         nodata : int or float
-                 value to indicate no data in output array.
-
+                 Value to indicate no data in output array.
         inplace : bool (optional)
                   If True, appends fraction grid to attribute 'frac'.
         """
@@ -545,16 +582,20 @@ class GridProc(object):
         assert hasattr(other, 'catch')
 
         # set scale ratio
-        cell_ratio = int(self.cellsize / other.cellsize)
+        raw_ratio = self.cellsize / other.cellsize
+        if np.allclose(int(round(raw_ratio)), raw_ratio):
+            cell_ratio = int(round(raw_ratio))
+        else:
+            raise ValueError('Ratio of cell sizes must be an integer')
 
         # create DataFrames for self and other with geographic coordinates
         # as row and column labels. entries in selfdf represent cell indices.
         selfdf = pd.DataFrame(
-                np.arange(self.view('dir', mask=False).size).reshape(self.shape),
-                index=np.linspace(self.bbox[1], self.bbox[3],
-                                  self.shape[0], endpoint=False)[::-1],
-                columns=np.linspace(self.bbox[0], self.bbox[2],
-                                    self.shape[1], endpoint=False)
+            np.arange(self.view('dir', mask=False).size).reshape(self.shape),
+            index=np.linspace(self.bbox[1], self.bbox[3],
+                              self.shape[0], endpoint=False)[::-1],
+            columns=np.linspace(self.bbox[0], self.bbox[2],
+                                self.shape[1], endpoint=False)
                 )
         otherrows, othercols = self.bbox_indices(other.bbox, other.shape)
 
@@ -562,13 +603,20 @@ class GridProc(object):
         # nearest neighbor
         result = (selfdf.reindex(otherrows, method='nearest')
                   .reindex_axis(othercols, axis=1, method='nearest'))
+        initial_counts = np.bincount(result.values.ravel(),
+                                     minlength=selfdf.size).astype(float)
 
         # mask cells not in catchment of 'other'
-        result = result.values[np.where(other.catch != 0, True, False)]
+        result = result.values[np.where(other.view('catch') !=
+            other.grid_props['catch']['nodata'], True, False)]
+        final_counts = np.bincount(result, minlength=selfdf.size).astype(float)
 
         # count remaining indices and divide by the original number of indices
-        result = ((np.bincount(result, minlength=selfdf.size)
-                  .astype(float) / (cell_ratio ** 2)).reshape(selfdf.shape))
+        result = (final_counts / initial_counts).reshape(selfdf.shape)
+
+        # take care of nans
+        if np.isnan(result).any():
+            result = pd.DataFrame(result).fillna(0).values.astype(float)
 
         # replace 0 with nodata value
         if nodata != 0:
@@ -586,7 +634,8 @@ class GridProc(object):
         else:
             return result
 
-    def clip_nodata(self, data_name, precision=7, inplace=True, **kwargs):
+
+    def clip_to(self, data_name, precision=7, inplace=True, **kwargs):
         """
         Clip grid to bbox representing the smallest area that contains all
         non-null data for a given dataset. If inplace is True, will set
@@ -600,6 +649,8 @@ class GridProc(object):
                   If True, update bbox to conform to clip.
         precision : int
                     Precision to use when matching geographic coordinates.
+
+        Other keyword arguments are passed to self.set_bbox
         """
 
         # get class attributes
@@ -612,7 +663,10 @@ class GridProc(object):
 
         # if inplace is True, clip all grids to new bbox and set self.bbox
         if inplace:
-            selfrows, selfcols = self.bbox_indices(self.grid_props[data_name]['bbox'], self.grid_props[data_name]['shape'], precision=7)
+            selfrows, selfcols = \
+                    self.bbox_indices(self.grid_props[data_name]['bbox'],
+                                      self.grid_props[data_name]['shape'],
+                                      precision=7)
             new_bbox = (selfcols[nz_ix[2]], selfrows[nz_ix[1]],
                         selfcols[nz_ix[3]], selfrows[nz_ix[0]])
             # set self.bbox to clipped bbox
@@ -621,16 +675,17 @@ class GridProc(object):
             # if inplace is False, return the clipped data
             return data[nz_ix[0]:nz_ix[1], nz_ix[2]:nz_ix[3]]
 
+
     def set_bbox(self, new_bbox, precision=7):
         """
         Set the bounding box of the class instance (self.bbox). If the new
-        bbox is not alignable to self.cellsize, each entry  is automatically
-        rounded down such that the bbox is alignable.
+        bbox is not alignable to self.cellsize, each entry is automatically
+        rounded such that the bbox is alignable.
 
         Parameters
         ----------
         new_bbox : tuple
-                   New bbox to use (xmin, ymin, xmax, ymax)
+                   New bbox to use (xmin, ymin, xmax, ymax).
         precision : int
                     Precision to use when matching geographic coordinates.
         """
@@ -648,7 +703,6 @@ class GridProc(object):
         try:
             np.testing.assert_almost_equal(err, np.zeros(len(new_bbox)))
         except AssertionError:
-            off_idx = np.where(np.around(err, precision) != np.zeros(len(new_bbox)))
             direction = np.where(new_bbox > 0.0, 1, -1)
             new_bbox = new_bbox - (err * direction)
             print('Unalignable bbox provided, rounding to %s' % (new_bbox))
@@ -661,8 +715,10 @@ class GridProc(object):
         ncols = (new_bbox[2] - new_bbox[0]) / self.cellsize
         np.testing.assert_almost_equal(nrows, round(nrows))
         np.testing.assert_almost_equal(ncols, round(ncols))
-        rows = np.linspace(new_bbox[1], new_bbox[3], round(nrows), endpoint=False)
-        cols = np.linspace(new_bbox[0], new_bbox[2], round(ncols), endpoint=False)
+        rows = np.linspace(new_bbox[1], new_bbox[3],
+                           round(nrows), endpoint=False)
+        cols = np.linspace(new_bbox[0], new_bbox[2],
+                           round(ncols), endpoint=False)
 
         # set class attributes
         self.bbox = tuple(new_bbox)
@@ -672,6 +728,7 @@ class GridProc(object):
         else:
             self.mask = np.ones(self.shape, dtype=np.bool)
 
+
     def set_nodata(self, data_name, new_nodata, old_nodata=None):
         """
         Change nodata value of a dataset.
@@ -679,9 +736,9 @@ class GridProc(object):
         Parameters
         ----------
         data_name : string
-                    Attribute name of dataset to change
+                    Attribute name of dataset to change.
         new_nodata : int or float
-                     New nodata value to use
+                     New nodata value to use.
         old_nodata : int or float (optional)
                      If none provided, defaults to
                      self.grid_props[data_name]['nodata']
@@ -693,6 +750,7 @@ class GridProc(object):
         np.place(data, data == old_nodata, new_nodata)
         self.grid_props[data_name]['nodata'] = new_nodata
 
+
     def catchment_mask(self, mask_source='catch'):
         """
         Masks grid cells not included in catchment. The catchment mask is saved
@@ -701,26 +759,30 @@ class GridProc(object):
         Parameters
         ----------
         to_mask : string
-                  name of dataset to mask
+                  Name of dataset to mask
         mask_source : string (optional)
-                      dataset on which mask is based (defaults to 'catch')
+                      Dataset on which mask is based (defaults to 'catch')
         """
         self.mask = (self.view(mask_source, mask=False) !=
                      self.grid_props[mask_source]['nodata'])
 
+
     def to_ascii(self, data_name=None, file_name=None, delimiter=' ', **kwargs):
         """
-        Writes grid data to ascii grid files.
+        Writes current "view" of grid data to ascii grid files.
 
         Parameters
         ----------
         data_name : string or list-like (optional)
                     Attribute name(s) of datasets to write. Defaults to all
                     grid dataset names.
-        file_name : string or list-like
-                    Name(s) of file(s) to write to
-        delimiter : string
-                    Delimiter to use
+        file_name : string or list-like (optional)
+                    Name(s) of file(s) to write to (defaults to attribute
+                    name).
+        delimiter : string (optional)
+                    Delimiter to use in output file (defaults to ' ')
+
+        Additional keyword arguments are passed to numpy.savetxt
         """
         if data_name is None:
             data_name = self.grid_props.keys()
@@ -745,14 +807,15 @@ class GridProc(object):
 
     def _select_surround(self, i, j):
         """
-        select the eight indices surrounding a given index.
+        Select the eight indices surrounding a given index.
         """
         return ([i - 1, i - 1, i + 0, i + 1, i + 1, i + 1, i + 0, i - 1],
                 [j + 0, j + 1, j + 1, j + 1, j + 0, j - 1, j - 1, j - 1])
 
+
     def _select_edge_sur(self, edges, k):
         """
-        select the five cell indices surrounding each edge cell.
+        Select the five cell indices surrounding each edge cell.
         """
         i, j = edges[k]['k']
         if k == 'n':
@@ -768,9 +831,10 @@ class GridProc(object):
             return ([i - 1, i - 1, i + 0, i + 1, i + 1],
                     [j + 0, j + 1, j + 1, j + 1, j + 0])
 
+
     def _select_surround_ravel(self, i, shape):
         """
-        select the eight indices surrounding a flattened index.
+        Select the eight indices surrounding a flattened index.
         """
         return np.array([i + 0 - shape[1],
                          i + 1 - shape[1],
