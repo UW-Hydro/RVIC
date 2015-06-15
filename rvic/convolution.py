@@ -34,6 +34,11 @@ from .core.pycompat import iteritems
 def convolution(config_file):
     """
     Top level driver for RVIC convolution model.
+
+    Parameters
+    ----------
+    config_file : str
+        Path to RVIC convolution configuration file.
     """
 
     # ---------------------------------------------------------------- #
@@ -66,9 +71,40 @@ def convolution(config_file):
 # Initialize RVIC
 def convolution_init(config_file):
     """
-    - Read Grid File
-    - Load the unit hydrograph files (put into point_dict)
-    - Load the initial state file and put it in convolution rings
+    Initialize the RVIC convolution routine
+
+    This function performs these main tasks:
+        - Reads the configuration file
+        - Sets up the RVIC case directories
+        - Copies all input files to the case directory
+        - Initializes the logging
+        - Read domain file
+        - Load the RVIC parameter file
+        - Load the initial state file and put it in convolution rings
+        - Setup time and history file objects
+
+    Parameters
+    ----------
+    config_file : str
+        Path to RVIC convolution configuration file.
+
+    Returns
+    ----------
+    hist_tapes : OrderedDict
+        Ordered dictionary of History objects
+    data_model : DataModel
+        DataModel instance containing the forcings
+    rout_var : Rvar
+        Rvar instance containing the RVIC parameters / unit hydrographs
+    dom_data : dict
+        Dictionary of arrays of mask, fraction, lats, lons, etc.
+        This dictionary includes all the variables from the domain netCDF file.
+    time_handle : Dtime
+        Dtime instance containing information about run length, time
+    directories : dict
+        Dictionary of directories created by this function.
+    config_dict : dict
+        Dictionary of values from the configuration file.
     """
 
     # ---------------------------------------------------------------- #
@@ -225,6 +261,26 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
                     directories):
     """
     Main run loop for RVIC model.
+
+    Parameters
+    ----------
+    hist_tapes : OrderedDict
+        Ordered dictionary of History objects
+    data_model : DataModel
+        DataModel instance containing the forcings
+    rout_var : Rvar
+        Rvar instance containing the RVIC parameters / unit hydrographs
+    time_handle : Dtime
+        Dtime instance containing information about run length, time
+    directories : dict
+        Dictionary of directories created by this function.
+
+    Returns
+    ----------
+    time_handle : Dtime
+        Dtime instance containing information about run length, time
+    hist_tapes : OrderedDict
+        Ordered dictionary of History objects
     """
 
     data2tape = {}
@@ -325,7 +381,15 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
 # -------------------------------------------------------------------- #
 # Final
 def convolution_final(time_handle, hist_tapes):
-    """ Finalize RVIC Convolution"""
+    """ Finalize RVIC Convolution
+
+    Parameters
+    ----------
+    time_handle : Dtime
+        Dtime instance containing information about run length, time
+    hist_tapes : OrderedDict
+        Ordered dictionary of History objects
+    """
     # ---------------------------------------------------------------- #
     # Start log
     log = getLogger(LOG_NAME)
