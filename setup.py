@@ -52,7 +52,7 @@ else:
     for cmd in ['git', 'git.cmd']:
         try:
             pipe = subprocess.Popen(
-                [cmd, "describe", "--always", "--match", "v[0-9]*"],
+                [cmd, 'describe', '--always', '--match', 'v[0-9]*'],
                 stdout=subprocess.PIPE)
             (so, serr) = pipe.communicate()
             if pipe.returncode == 0:
@@ -77,11 +77,11 @@ else:
         if sys.version_info[0] >= 3:
             rev = rev.decode('ascii')
 
-        if not rev.startswith('v') and re.match("[a-zA-Z0-9]{7,9}", rev):
+        if not rev.startswith('v') and re.match('[a-zA-Z0-9]{7,9}', rev):
             # partial clone, manually construct version string
             # this is the format before we started using git-describe
             # to get an ordering on dev version strings.
-            rev = "v%s.dev-%s" % (VERSION, rev)
+            rev = 'v%s.dev-%s' % (VERSION, rev)
 
         # Strip leading v from tags format "vx.y.z" to get th version string
         FULLVERSION = rev.lstrip('v')

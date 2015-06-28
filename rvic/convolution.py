@@ -398,12 +398,12 @@ def convolution_final(time_handle, hist_tapes):
 
     # ---------------------------------------------------------------- #
     # Write final log info
-    log.info("-----------------------------------------------------------")
+    log.info('-----------------------------------------------------------')
     log.info('Done with streamflow convolution')
     log.info('Processed %i timesteps', time_handle.timesteps)
     for name, tape in iteritems(hist_tapes):
         log.info('Wrote %i history files from %s', tape.files_count, name)
-    log.info("-----------------------------------------------------------")
+    log.info('-----------------------------------------------------------')
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
