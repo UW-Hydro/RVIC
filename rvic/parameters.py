@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 RVIC parameter file development driver
-"""
+'''
 import os
 import numpy as np
 import pandas as pd
@@ -89,7 +89,7 @@ def parameters(config_file, numofproc=1):
 
 
 def gen_uh_init(config_file):
-    """Initialize RVIC parameters scrpt.
+    '''Initialize RVIC parameters scrpt.
 
     This function:
         - Reads the configuration file
@@ -122,7 +122,7 @@ def gen_uh_init(config_file):
         Dictionary of values from the configuration file.
     directories : dict
         Dictionary of directories created by this function.
-    """
+    '''
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
@@ -373,7 +373,7 @@ def gen_uh_init(config_file):
 
 def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                directories):
-    """
+    '''
     Develop unit hydrographs for one outlet `Point`.
 
     Parameters
@@ -399,7 +399,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     ----------
     outlet: Point
         Point object with unit hydrographs.
-    """
+    '''
     log = getLogger(LOG_NAME)
 
     log.info('Running outlet cell id %s', outlet.cell_id)
@@ -563,7 +563,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
 
 def gen_uh_final(outlets, dom_data, config_dict, directories):
-    """
+    '''
     Make the RVIC Parameter File
 
     Parameters
@@ -577,7 +577,7 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
         Dictionary of values from the configuration file.
     directories : dict
         Dictionary of directories created by gen_uh_init.
-    """
+    '''
     log = getLogger(LOG_NAME)
 
     log.info('In gen_uh_final')

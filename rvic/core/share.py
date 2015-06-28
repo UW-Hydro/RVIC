@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 share.py
-"""
+'''
 import sys
 import socket
 import string
@@ -66,7 +66,7 @@ CALENDAR_KEYS = {0: ['None'],
                  5: ['360_day'],
                  6: ['julian']}
 
-VALID_CHARS = "-_. %s%s" % (string.ascii_letters, string.digits)
+VALID_CHARS = '-_. %s%s' % (string.ascii_letters, string.digits)
 
 
 # ----------------------- NETCDF VARIABLES --------------------------------- #
@@ -340,7 +340,7 @@ hpindex = NcVar(long_name='History pointer index',
                 units='units')
 
 avgflag = NcVar(long_name='Averaging flag',
-                units='"A=Average, X=Maximum, M=Minimum, I=Instantaneous')
+                units='A=Average, X=Maximum, M=Minimum, I=Instantaneous')
 
 name = NcVar(long_name='Fieldnames')
 

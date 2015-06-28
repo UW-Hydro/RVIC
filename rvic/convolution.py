@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 This is the convolution routine developed in preparation in coupling RVIC to
 CESM.  Eventually, this will be the offline RVIC model.
 
@@ -13,7 +13,7 @@ Changed input file type to standard RVIC parameter file
 Made necessary changes to run routines to accept the new parameter file
 structure.
 Major updates to the...
-"""
+'''
 import os
 from collections import OrderedDict
 from logging import getLogger
@@ -32,14 +32,14 @@ from .core.pycompat import iteritems
 # -------------------------------------------------------------------- #
 # Top Level Driver
 def convolution(config_file):
-    """
+    '''
     Top level driver for RVIC convolution model.
 
     Parameters
     ----------
     config_file : str
         Path to RVIC convolution configuration file.
-    """
+    '''
 
     # ---------------------------------------------------------------- #
     # Initilize
@@ -70,7 +70,7 @@ def convolution(config_file):
 # -------------------------------------------------------------------- #
 # Initialize RVIC
 def convolution_init(config_file):
-    """
+    '''
     Initialize the RVIC convolution routine
 
     This function performs these main tasks:
@@ -105,7 +105,7 @@ def convolution_init(config_file):
         Dictionary of directories created by this function.
     config_dict : dict
         Dictionary of values from the configuration file.
-    """
+    '''
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
@@ -259,7 +259,7 @@ def convolution_init(config_file):
 # -------------------------------------------------------------------- #
 def convolution_run(hist_tapes, data_model, rout_var, time_handle,
                     directories):
-    """
+    '''
     Main run loop for RVIC model.
 
     Parameters
@@ -281,7 +281,7 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
         Dtime instance containing information about run length, time
     hist_tapes : OrderedDict
         Ordered dictionary of History objects
-    """
+    '''
 
     data2tape = {}
     aggrunin = {}
@@ -381,7 +381,7 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
 # -------------------------------------------------------------------- #
 # Final
 def convolution_final(time_handle, hist_tapes):
-    """ Finalize RVIC Convolution
+    '''Finalize RVIC Convolution
 
     Parameters
     ----------
@@ -389,7 +389,7 @@ def convolution_final(time_handle, hist_tapes):
         Dtime instance containing information about run length, time
     hist_tapes : OrderedDict
         Ordered dictionary of History objects
-    """
+    '''
     # ---------------------------------------------------------------- #
     # Start log
     log = getLogger(LOG_NAME)

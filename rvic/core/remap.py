@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 remap.py
-"""
+'''
 
 import os
 from cdo import Cdo
@@ -19,7 +19,7 @@ log = getLogger(LOG_NAME)
 # Remap a file using CDO
 def remap(grid_file, in_file, out_file, operator='remapcon',
           remap_options=None):
-    """Remap infile using cdo"""
+    '''Remap infile using cdo'''
 
     log.info('Remapping %s to %s', in_file, out_file)
 

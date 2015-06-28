@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 aggregate.py
-"""
+'''
 
 import numpy as np
 from .share import FILLVALUE_F
@@ -20,9 +20,9 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # Find target cells for pour points
 def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
-    """
+    '''
     Group pour points by domain grid outlet cell
-    """
+    '''
     lons = pour_points['lons']
     lats = pour_points['lats']
     dom_lon = dom_data[config_dict['DOMAIN']['LONGITUDE_VAR']]
@@ -114,11 +114,11 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
 # -------------------------------------------------------------------- #
 # Aggregate the UH grids
 def aggregate(in_data, agg_data, res=0, pad=0, maskandnorm=False):
-    """
+    '''
     Add the two data sets together and return the combined arrays.
     Expand the horizontal dimensions as necessary to fit in_data with agg_data.
     The two data sets must include the coordinate variables lon,lat, and time.
-    """
+    '''
 
     # ---------------------------------------------------------------- #
     # find range of coordinates

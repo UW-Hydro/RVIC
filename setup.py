@@ -23,10 +23,10 @@ write_version = True
 
 # -------------------------------------------------------------------- #
 def write_version_py(filename=None):
-    cnt = """\
+    cnt = '''\
 version = '%s'
 short_version = '%s'
-"""
+'''
     if not filename:
         filename = os.path.join(
             os.path.dirname(__file__), 'rvic', 'version.py')

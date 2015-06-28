@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 plots.py
-"""
+'''
 import os
 import logging
 from .log import LOG_NAME
@@ -29,9 +29,9 @@ log = logging.getLogger(LOG_NAME)
 
 # -------------------------------------------------------------------- #
 def uhs(data, title, case_id, plot_dir):
-    """
+    '''
     Plot diagnostic plot showing all unit hydrographs
-    """
+    '''
     pfname = _make_filename(title, case_id, plot_dir)
 
     fig = plt.figure()
@@ -47,9 +47,9 @@ def uhs(data, title, case_id, plot_dir):
 
 # -------------------------------------------------------------------- #
 def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
-    """
+    '''
     Plot diagnostic plots of fraction variables
-    """
+    '''
     # ---------------------------------------------------------------- #
     # Plot Fractions
     pfname = _make_filename(title, case_id, plot_dir)
@@ -78,9 +78,9 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
 
 # -------------------------------------------------------------------- #
 def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
-    """
+    '''
     Plot diagnostic plots of fraction variables using Basemap
-    """
+    '''
     # ---------------------------------------------------------------- #
     # Plot Fractions
     pfname = _make_filename(title, case_id, plot_dir)
@@ -126,7 +126,7 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
 
     x, y = m(dom_x, dom_y)  # compute map proj coordinates.
     cs = m.pcolormesh(x, y, data, cmap=cmap)
-    m.colorbar(cs, location='right', pad="5%")
+    m.colorbar(cs, location='right', pad='5%')
     plt.title(title)
     fig.savefig(pfname)
     # ---------------------------------------------------------------- #
@@ -137,8 +137,8 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
 # -------------------------------------------------------------------- #
 def _make_filename(title, case_id, plot_dir):
     today = date.today().strftime('%Y%m%d')
-    file_name = "{0}_{1}_{2}.png".format(title.lower().replace(" ", "_"),
-                                         case_id.lower().replace(" ", "_"),
+    file_name = '{0}_{1}_{2}.png'.format(title.lower().replace(' ', '_'),
+                                         case_id.lower().replace(' ', '_'),
                                          today)
     pfname = os.path.join(plot_dir, file_name)
     return pfname
@@ -147,12 +147,10 @@ def _make_filename(title, case_id, plot_dir):
 
 # -------------------------------------------------------------------- #
 def _fractions_dummy(*args):
-    """
+    '''
     Pass on plotting
-    """
-    pfname = 'None <-- could not import matplotlib'
-    # ---------------------------------------------------------------- #
-    return pfname
+    '''
+    return 'None <-- could not import matplotlib'
 # -------------------------------------------------------------------- #
 
 # -------------------------------------------------------------------- #

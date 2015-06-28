@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 convolution_wrapper.py
 
 ctypes wrapper for rvic_convolution.c
 
 gcc -shared -o rvic_convolution.so rvic_convolution.c
-"""
+'''
 
 import os
 import sysconfig
