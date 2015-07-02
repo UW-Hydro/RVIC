@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 Read a set of uhs files and write an RVIC parameter file
-"""
+'''
 
 from logging import getLogger
 from .core.log import init_logger, close_logger, LOG_NAME
@@ -114,9 +114,9 @@ def uhs2param_run(dom_data, outlets, config_dict):
 # -------------------------------------------------------------------- #
 #
 def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
-    """
+    '''
     Make the RVIC Parameter File
-    """
+    '''
 
     log = getLogger(LOG_NAME)
 

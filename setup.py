@@ -23,10 +23,10 @@ write_version = True
 
 # -------------------------------------------------------------------- #
 def write_version_py(filename=None):
-    cnt = """\
+    cnt = '''\
 version = '%s'
 short_version = '%s'
-"""
+'''
     if not filename:
         filename = os.path.join(
             os.path.dirname(__file__), 'rvic', 'version.py')
@@ -52,7 +52,7 @@ else:
     for cmd in ['git', 'git.cmd']:
         try:
             pipe = subprocess.Popen(
-                [cmd, "describe", "--always", "--match", "v[0-9]*"],
+                [cmd, 'describe', '--always', '--match', 'v[0-9]*'],
                 stdout=subprocess.PIPE)
             (so, serr) = pipe.communicate()
             if pipe.returncode == 0:
@@ -77,11 +77,11 @@ else:
         if sys.version_info[0] >= 3:
             rev = rev.decode('ascii')
 
-        if not rev.startswith('v') and re.match("[a-zA-Z0-9]{7,9}", rev):
+        if not rev.startswith('v') and re.match('[a-zA-Z0-9]{7,9}', rev):
             # partial clone, manually construct version string
             # this is the format before we started using git-describe
             # to get an ordering on dev version strings.
-            rev = "v%s.dev-%s" % (VERSION, rev)
+            rev = 'v%s.dev-%s' % (VERSION, rev)
 
         # Strip leading v from tags format "vx.y.z" to get th version string
         FULLVERSION = rev.lstrip('v')
@@ -101,12 +101,12 @@ setup(name='rvic',
                        'original model of Lohmann, et al., 1996, Tellus, '
                        '48(A), 708-721',
       author='Joe Hamman',
-      author_email='jhamman@hydro.washington.edu',
+      author_email='jhamman1@uw.edu',
       install_requires=['scipy >= 0.13', 'numpy >= 1.8',
                         'netCDF4 >= 1.0.6', 'matplotlib >= 1.3.1',
                         'pandas >= 0.15.1'],
       tests_require=['pytest >= 2.5.2'],
-      url='https://github.com/jhamman/RVIC',
+      url='https://github.com/UW-Hydro/RVIC',
       test_suite='pytest.collector',
       packages=['rvic', 'rvic.core'],
       py_modules=['rvic.parameters', 'rvic.convolution', 'rvic.convert'],

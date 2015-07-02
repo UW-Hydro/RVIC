@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 config.py
 
-"""
+'''
 
 import os
 from .pycompat import OrderedDict, SafeConfigParser
@@ -28,9 +28,9 @@ class ParametersConfig(Config):
 # -------------------------------------------------------------------- #
 # Read the Configuration File
 def read_config(config_file):
-    """
+    '''
     Return a dictionary with subdictionaries of all configFile options/values
-    """
+    '''
     config = SafeConfigParser()
     config.optionxform = str
     config.read(config_file)
@@ -49,10 +49,10 @@ def read_config(config_file):
 # -------------------------------------------------------------------- #
 # Find the type of the config options
 def config_type(value):
-    """
+    '''
     Parse the type of the configuration file option.
     First see the value is a bool, then try float, finally return a string.
-    """
+    '''
     val_list = [x.strip() for x in value.split(',')]
     if len(val_list) == 1:
         value = val_list[0]
@@ -82,7 +82,7 @@ def config_type(value):
 
 # -------------------------------------------------------------------- #
 def isfloat(x):
-    """Test of value is a float"""
+    '''Test of value is a float'''
     try:
         float(x)
     except ValueError:
@@ -94,7 +94,7 @@ def isfloat(x):
 
 # -------------------------------------------------------------------- #
 def isint(x):
-    """Test if value is an integer"""
+    '''Test if value is an integer'''
     try:
         a = float(x)
         b = int(a)

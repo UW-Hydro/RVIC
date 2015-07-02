@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 time_utility.py
 
 time units conventions:
     - Timesteps are in seconds (unit_hydrograph_dt)
     - Time ordinal is in days (time_ord)
-"""
+'''
 import numpy as np
 from netCDF4 import num2date, date2num
 from datetime import datetime
@@ -24,7 +24,7 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # RVIC Time Class
 class Dtime(object):
-    """ A Time Module for handling flags and timesteps """
+    '''A Time Class for handling flags and timesteps '''
 
     # ---------------------------------------------------------------- #
     # Setup Dtim object
@@ -215,10 +215,10 @@ class Dtime(object):
 
 # -------------------------------------------------------------------- #
 def ord_to_datetime(time, units, calendar='standard'):
-    """
+    '''
     netCDF4.num2date yields a fake datetime object, this function converts
     converts that back to a real datetime object
-    """
+    '''
     # this is the netCDF4.datetime object
     # if the calendar is standard, t is already a real datetime object
     if type(time) == np.ndarray:
