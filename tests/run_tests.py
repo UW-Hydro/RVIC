@@ -106,7 +106,7 @@ def run_examples(config_file):
                 print('Error in parameters example: {0}'.format(test))
                 test_outcomes[test] = 'Failed: {0}'.format(e)
         else:
-            raise ValueError('Unknow function variable: '
+            raise ValueError('Unknown function variable: '
                              '{0}'.format(test_dict['function']))
 
         pr.disable()
