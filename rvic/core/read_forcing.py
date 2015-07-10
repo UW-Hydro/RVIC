@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 read_forcings.py
-"""
+'''
 
 import os
 import numpy as np
@@ -23,7 +23,7 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # Data Model
 class DataModel(object):
-    """ RVIC Forcing Data Model Class"""
+    '''RVIC Forcing Data Model Class'''
 
     # ---------------------------------------------------------------- #
     # Initialize
@@ -62,7 +62,7 @@ class DataModel(object):
             for year in pyrange(start[0], end[0] + 1):
                 self.files.append(os.path.join(self.path,
                                   file_str.replace('$YYYY',
-                                                   "{0:04d}".format(year))))
+                                                   '{0:04d}'.format(year))))
 
         # Monthly
         elif len(start) == 2:
@@ -74,8 +74,8 @@ class DataModel(object):
                         self.path,
                         file_str.replace(
                             '$YYYY',
-                            "{0:04d}".format(year)).replace(
-                                '$MM', "{0:02d}".format(month))))
+                            '{0:04d}'.format(year)).replace(
+                                '$MM', '{0:02d}'.format(month))))
                 if year == end[0] and month == end[1]:
                     break
                 else:
@@ -96,11 +96,11 @@ class DataModel(object):
                         self.path,
                         file_str.replace(
                             '$YYYY',
-                            "{0:04d}".format(year)).replace(
+                            '{0:04d}'.format(year)).replace(
                                 '$MM',
-                                "{0:02d}".format(month)).replace(
+                                '{0:02d}'.format(month)).replace(
                                     '$DD',
-                                    "{0:02d}".format(day))))
+                                    '{0:02d}'.format(day))))
                 if year == end[0] and month == end[1] and day == end[2]:
                     break
                 else:
@@ -174,7 +174,7 @@ class DataModel(object):
 
     # ---------------------------------------------------------------- #
     def start(self, timestamp, rout_var):
-        """ Initialize the first files inputs"""
+        '''Initialize the first files inputs'''
         # ------------------------------------------------------------ #
         # find and open first file
         self.ordtime = date2num(timestamp, self.time_units,
@@ -248,7 +248,7 @@ class DataModel(object):
 
     # ---------------------------------------------------------------- #
     def read(self, timestamp):
-        """ Read the current timestamp from the data stream """
+        '''Read the current timestamp from the data stream '''
 
         # ------------------------------------------------------------ #
         # Get the current data index location

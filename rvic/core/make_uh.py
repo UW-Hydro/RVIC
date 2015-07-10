@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 make_uh.py
 
 PROGRAM rout, Python-Version, written by Joe Hamman winter 2012/2013
@@ -14,7 +14,7 @@ REVISION HISTORY
 July 2013, Joe Hamman
 Removed read and write functions to make more modular.
 Now called from make_parameters.py
-"""
+'''
 
 import numpy as np
 import logging
@@ -32,10 +32,10 @@ log = logging.getLogger(LOG_NAME)
 
 # -------------------------------------------------------------------- #
 def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
-    """
+    '''
     Make the Unit Hydrograph Grid
-    """
-    log.info("Starting routing program for point: %s", pour_point)
+    '''
+    log.info('Starting routing program for point: %s', pour_point)
     # ---------------------------------------------------------------- #
     # Unpack a few structures
     uh_t = uh_box['time']
@@ -173,9 +173,9 @@ def rout(pour_point, uh_box, fdr_data, fdr_atts, rout_dict):
 # -------------------------------------------------------------------- #
 # Find the Timestep from the uh box
 def find_ts(uh_t):
-    """
+    '''
     Determines the (input_interval) based on the timestep given in uhfile
-    """
+    '''
     input_interval = uh_t[1] - uh_t[0]
     log.debug('Input Timestep = %i seconds', input_interval)
     return input_interval
@@ -185,11 +185,11 @@ def find_ts(uh_t):
 # -------------------------------------------------------------------- #
 # Read the flow direction file
 def read_direction(fdr, dy, dx):
-    """
+    '''
     Reads the direction file and makes two grids (to_x) and (to_y).
     The input grids follow the 1-8 or 1-128 grid directions as shown below.
     val = direction  [to_y][to_x]
-    """
+    '''
     log.debug('Reading direction input and finding target row/columns')
 
     to_y = np.zeros_like(fdr, dtype=np.int16)
@@ -212,7 +212,7 @@ def read_direction(fdr, dy, dx):
 # -------------------------------------------------------------------- #
 # Search the catchment
 def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
-    """
+    '''
     Find all cells upstream of pour point.  Retrun a dictionary with x_inds,
     yinds, and #of cell to downstream pour point.  All are sorted the by the
     latter. For each x,y pair, the flow path is followed until either the
@@ -220,7 +220,7 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     (if (yy==pour_point.basiny and xx==pour_point.basinx):)
     or the flowpath leads outside of grid.
     *** Does not handle wrapped coordinates. ***
-    """
+    '''
     log.debug('Searching catchment')
 
     (len_y, len_x) = to_x.shape
@@ -298,8 +298,8 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
 
     count = len(cyinds)
 
-    log.debug("Found %i upstream grid cells from present station", count)
-    log.debug("Expected at most %i upstream grid cells from present station",
+    log.debug('Found %i upstream grid cells from present station', count)
+    log.debug('Expected at most %i upstream grid cells from present station',
               bsize)
 
     if count > bsize:
@@ -320,10 +320,10 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
 # -------------------------------------------------------------------- #
 # Make uh Grid
 def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
-    """
+    '''
     Calculate the impulse response function for grid cells using equation 15
     from Lohmann, et al. (1996) Tellus article.  Return 3d uh grid.
-    """
+    '''
     log.debug('Making uh for each cell')
 
     uh = np.zeros((t_cell, xmask.shape[0], xmask.shape[1]), dtype=np.float64)
@@ -347,11 +347,11 @@ def make_uh(dt, t_cell, y_inds, x_inds, velocity, diffusion, xmask):
 # Make uh river
 def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point, y_inds,
                        x_inds, count_ds):
-    """
+    '''
     Calculate impulse response function for river routing.  Starts at
     downstream point incrementally moves upstream.
-    """
-    log.debug("Making uh_river grid....")
+    '''
+    log.debug('Making uh_river grid....')
     y_ind = pour_point.basiny
     x_ind = pour_point.basinx
 
@@ -380,11 +380,11 @@ def make_grid_uh_river(t_uh, t_cell, uh, to_y, to_x, pour_point, y_inds,
 # Make grid uh
 def make_grid_uh(t_uh, t_cell, uh_river, uh_box, to_y, to_x, y_inds, x_inds,
                  count_ds):
-    """
+    '''
     Combines the uh_box with downstream cell uh_river.  Cell [0] is given the
     uh_box without river routing
-    """
-    log.debug("Making unit_hydrograph grid")
+    '''
+    log.debug('Making unit_hydrograph grid')
 
     unit_hydrograph = np.zeros((t_uh, uh_river.shape[1], uh_river.shape[2]))
     irf_temp = np.zeros(t_uh + t_cell, dtype=np.float64)
@@ -409,11 +409,11 @@ def make_grid_uh(t_uh, t_cell, uh_river, uh_box, to_y, to_x, y_inds, x_inds,
 # Adjust the timestep
 def adjust_uh_timestep(unit_hydrograph, t_uh, input_interval, output_interval,
                        x_inds, y_inds):
-    """
+    '''
     Aggregates to timestep (output_interval).  output_interval must be a
     multiple of input_interval.  This function is not setup to disaggregate
     the Unit Hydrographs to a output_interval<input_interval.
-    """
+    '''
     if output_interval == input_interval:
         log.debug('No need to aggregate in time (output_interval = '
                   'input_interval) Skipping the adjust_uh_timestep step')

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 multi_proc.py
-"""
+'''
 
 from .log import LOG_NAME
 import multiprocessing
@@ -10,7 +10,7 @@ import traceback
 
 
 def error(*args):
-    """ Error function"""
+    '''Error function'''
     return multiprocessing.get_logger(LOG_NAME).error(*args)
 # -------------------------------------------------------------------- #
 
@@ -38,7 +38,7 @@ class LogExceptions(object):
 
 
 class LoggingPool(Pool):
-    """Subclass of pool"""
+    '''Subclass of pool'''
     def apply_async(self, func, callback=None, *args, **kwargs):
         return Pool.apply_async(self, LogExceptions(func), args, kwargs,
                                 callback)

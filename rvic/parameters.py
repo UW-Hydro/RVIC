@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 RVIC parameter file development driver
-"""
+'''
 import os
 import numpy as np
 import pandas as pd
@@ -31,6 +31,16 @@ except ImportError:
 # -------------------------------------------------------------------- #
 # Top level driver
 def parameters(config_file, numofproc=1):
+    '''
+    Top level function for RVIC parameter generation function.
+
+    Parameters
+    ----------
+    config_file : str
+        Path to RVIC parameters configuration file.
+    numofproc : int
+        Number of processors to use when developing RVIC parameters.
+    '''
 
     # ---------------------------------------------------------------- #
     # Initilize
@@ -79,7 +89,40 @@ def parameters(config_file, numofproc=1):
 
 
 def gen_uh_init(config_file):
-    """Initialize RVIC parameter"""
+    '''Initialize RVIC parameters script.
+
+    This function:
+        - Reads the configuration file
+        - Sets up the RVIC case directories
+        - Copies all input files to the case directory
+        - Initializes the logging
+        - Reads the pour-points, uh-box, FDR, and domain files
+        - Aggregates pour points into outlet grid cells
+
+    Parameters
+    ----------
+    config_file : str
+        Path to RVIC parameters configuration file.
+
+    Returns
+    ----------
+    uh_box : numpy.ndarray
+        UH-box array.
+    fdr_data : dict
+        Dictionary of arrays of flow direction, velocity, diffusion, etc.
+        This dictionary includes all the variables from the FDR netCDF file.
+    fdr_vatts : dict
+        Dictionary of attributes from the FDR netCDF file.
+    dom_data : dict
+        Dictionary of arrays of mask, fraction, lats, lons, etc.
+        This dictionary includes all the variables from the domain netCDF file.
+    outlets : dict
+        Dictionary of outlet `Point` objects.
+    config_dict : dict
+        Dictionary of values from the configuration file.
+    directories : dict
+        Dictionary of directories created by this function.
+    '''
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
@@ -301,7 +344,7 @@ def gen_uh_init(config_file):
         for i in pyrange(len(lats)):
             if 'names' in list(pour_points.keys()):
                 name = pour_points['names'].values[i]
-                name = name.replace("'", '').replace(" ", "_")
+                name = name.replace("'", '').replace(' ', '_')
             else:
                 # fill name filed with p-outlet_num
                 name = 'p-{0}'.format(i)
@@ -330,9 +373,33 @@ def gen_uh_init(config_file):
 
 def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                directories):
-    """
-    Run Genuh_run
-    """
+    '''
+    Develop unit hydrographs for one outlet `Point`.
+
+    Parameters
+    ----------
+    uh_box : numpy.ndarray
+        UH-box array.
+    fdr_data : dict
+        Dictionary of arrays of flow direction, velocity, diffusion, etc.
+        This dictionary includes all the variables from the FDR netCDF file.
+    fdr_vatts : dict
+        Dictionary of attributes from the FDR netCDF file.
+    dom_data : dict
+        Dictionary of arrays of mask, fraction, lats, lons, etc.
+        This dictionary includes all the variables from the domain netCDF file.
+    outlet : Point
+        Outlet Point
+    config_dict : dict
+        Dictionary of values from the configuration file.
+    directories : dict
+        Dictionary of directories created by gen_uh_init.
+
+    Returns
+    ----------
+    outlet: Point
+        Point object with unit hydrographs.
+    '''
     log = getLogger(LOG_NAME)
 
     log.info('Running outlet cell id %s', outlet.cell_id)
@@ -407,7 +474,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
         temp_file_1 = os.path.join(
             directories['aggregated'],
-            'aggUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
+            'aggUH_{0}.nc'.format(outlet.name.replace(' ', '_')))
 
         write_agg_netcdf(temp_file_1, agg_data, glob_atts,
                          options['NETCDF_FORMAT'], **ncvaropts)
@@ -416,7 +483,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
         # Remap temporary file #1 to temporary file #2
         temp_file_2 = os.path.join(
             directories['remapped'],
-            'remapUH_{0}.nc'.format(outlet.name.replace(" ", "_")))
+            'remapUH_{0}.nc'.format(outlet.name.replace(' ', '_')))
 
         remap(domain['FILE_NAME'], temp_file_1, temp_file_2)
 
@@ -432,7 +499,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
                 var_list = list(final_data.keys())
 
                 log.debug('Remapped inputs came in upside down, flipping %s',
-                          ", ".join(var_list))
+                          ', '.join(var_list))
                 # flip lattiutude and fraction along y axis (axis 0)
                 final_data[dom_lat] = final_data[dom_lat][::-1]
                 final_data['fraction'] = final_data['fraction'][::-1, :]
@@ -475,7 +542,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     # ------------------------------------------------------------ #
 
     # ------------------------------------------------------------ #
-    # Add to "adjust fractions structure"
+    # Add to 'adjust fractions structure'
     y, x = np.nonzero((final_data['fraction'] > 0.) *
                       (dom_data[dom_mask] > np.finfo(np.float).resolution))
 
@@ -496,9 +563,21 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
 
 
 def gen_uh_final(outlets, dom_data, config_dict, directories):
-    """
+    '''
     Make the RVIC Parameter File
-    """
+
+    Parameters
+    ----------
+    outlets : dict
+        Dictionary of outlet `Point` objects.
+    dom_data : dict
+        Dictionary of arrays of mask, fraction, lats, lons, etc.
+        This dictionary includes all the variables from the domain netCDF file.
+    config_dict : dict
+        Dictionary of values from the configuration file.
+    directories : dict
+        Dictionary of directories created by gen_uh_init.
+    '''
     log = getLogger(LOG_NAME)
 
     log.info('In gen_uh_final')
@@ -531,8 +610,23 @@ def gen_uh_final(outlets, dom_data, config_dict, directories):
 # -------------------------------------------------------------------- #
 # store_result helper function
 def store_result(result):
-    # This is called whenever foo_pool(i) returns a result.
-    # result_list is modified only by the main process, not the pool workers.
+    '''
+    Store values returned by a multiprocessing.pool member.
+
+    This is called whenever foo_pool(i) returns a result.
+    result_list is modified only by the main process, not the pool workers.
+
+    Parameters
+    ----------
+    result : object
+        Result to append to the global `results` list
+
+    Globals
+    ----------
+    results : list
+        Global results container for multiprocessing results to be appended to.
+    '''
+
     print('in store_result')
     print('storing result for %s' % result.cell_id)
     results[result.cell_id] = result

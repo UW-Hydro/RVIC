@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 write.py
-"""
+'''
 
 import numpy as np
 from netCDF4 import Dataset, stringtochar
@@ -20,11 +20,11 @@ log = getLogger(LOG_NAME)
 # Write the agg netcdf
 def write_agg_netcdf(file_name, agg_data, glob_atts, nc_format, zlib=True,
                      complevel=4, least_significant_digit=None):
-    """
+    '''
     Write output to netCDF.  Writes out a netCDF4 data file containing
     the UH_S and fractions and a full set of history and description
     attributes.
-    """
+    '''
     # ---------------------------------------------------------------- #
     # netCDF variable options
     ncvaropts = {'zlib': zlib,
@@ -135,7 +135,7 @@ def write_param_file(file_name,
                      complevel=4,
                      least_significant_digit=None):
 
-    """ Write a standard RVIC Parameter file """
+    '''Write a standard RVIC Parameter file '''
 
     # ---------------------------------------------------------------- #
     # netCDF variable options
@@ -170,7 +170,7 @@ def write_param_file(file_name,
     for key, val in iteritems(glob_atts.atts):
         if val:
             setattr(f, key, val)
-    f.featureType = "timeSeries"
+    f.featureType = 'timeSeries'
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
