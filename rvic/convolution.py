@@ -119,8 +119,7 @@ def convolution_init(config_file):
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
-    # Copy Inputs to $case_dir/inputs and update configuration
-    # config_dict = copy_inputs(config_file, directories['inputs'])
+    # unpack options
     options = config_dict['OPTIONS']
     # ---------------------------------------------------------------- #
 

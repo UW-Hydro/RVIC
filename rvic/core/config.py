@@ -82,7 +82,7 @@ def config_type(value):
 
 # -------------------------------------------------------------------- #
 def isfloat(x):
-    '''Test of value is a float'''
+    '''Test if value is a float'''
     try:
         float(x)
     except ValueError:
