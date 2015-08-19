@@ -534,5 +534,8 @@ def store_result(result):
     # This is called whenever gen_uh_run() returns a result.
     # result_list is modified only by the main process, not the pool workers.
     global results
-    results.append(result)
+    if result[0]:
+        results.append(result[1])
+    else:
+        raise(result[1])
 # -------------------------------------------------------------------- #

@@ -38,12 +38,8 @@ class LogExceptions(object):
 
 
 class LoggingPool(Pool):
-    """Subclass of pool"""
+    """Subclass of multiprocessing.pool.Pool"""
     def apply_async(self, func, args=(), kwds={}, callback=None):
         return Pool.apply_async(self, LogExceptions(func), args, kwds,
                                 callback)
-
-    # def map_async(self, func, callback=None, *args, **kwargs):
-    #     return Pool.map_async(self, LogExceptions(func), args, kwargs,
-    #                           callback)
 # -------------------------------------------------------------------- #
