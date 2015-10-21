@@ -60,11 +60,12 @@ def parameters(config_file, numofproc=1):
             # Store the result
             results.append(result)
 
+        # Close the pool
+        pool.close()
+
         # Check that everything worked
         [result.get() for result in results]
 
-        # Close the pool
-        pool.close()
         pool.join()
 
         outlets = OrderedDict(sorted(list(iteritems(results)),
@@ -74,7 +75,7 @@ def parameters(config_file, numofproc=1):
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
-    if not len(outlets.keys()) > 0:
+    if not outlets:
         raise ValueError('outlets in parameters are empty')
     # ---------------------------------------------------------------- #
 
