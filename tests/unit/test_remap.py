@@ -1,10 +1,10 @@
 import pytest
 try:
+    from rvic.core.remap import remap
     from cdo import CDOException
     cdo_unavailable = False
 except ImportError:
     cdo_unavailable = True
-from rvic.core.remap import remap
 
 
 @pytest.mark.skipif(cdo_unavailable, reason='cdo not installed')
