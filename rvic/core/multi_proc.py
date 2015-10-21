@@ -10,7 +10,7 @@ import traceback
 
 
 def error(*args):
-    """ Error function"""
+    """Error function"""
     return multiprocessing.get_logger(LOG_NAME).error(*args)
 # -------------------------------------------------------------------- #
 
@@ -38,8 +38,18 @@ class LogExceptions(object):
 
 
 class LoggingPool(Pool):
-    """Subclass of pool"""
-    def apply_async(self, func, callback=None, *args, **kwargs):
-        return Pool.apply_async(self, LogExceptions(func), args, kwargs,
-                                callback)
+    __doc__ = 'RVIC Logging Subclass of pool\n' + Pool.__doc__
+
+    @property
+    def has_logging(self):
+        # just for testing
+        return True
+
+    def apply_async(self, func, callback=None,  error_callback=None,
+                    *args, **kwds):
+        """Overloaded Pool.apply_async to support Logging"""
+        return Pool.apply_async(self, func, args=args, kwds=kwds,
+                                callback=callback,
+                                error_callback=error_callback)
+
 # -------------------------------------------------------------------- #

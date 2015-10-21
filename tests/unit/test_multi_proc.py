@@ -1,7 +1,29 @@
-from rvic.core.multi_proc import LogExceptions
+from rvic.core.multi_proc import LogExceptions, LoggingPool
+import pytest
+
+
+def go_and_raise():
+    print(1)
+    raise Exception()
+    print(2)
 
 
 def test_create_log_exceptions():
     LogExceptions(callable)
 
-# error and logging pool not easily testing in unit test.
+
+def test_create_logging_pool():
+    n = 2
+    p = LoggingPool(processes=n)
+    assert hasattr(p, 'apply_async')
+    assert p._processes == n
+    assert p.has_logging
+
+
+def test_logging_pool_raises():
+    p = LoggingPool(processes=2)
+
+    with pytest.raises(Exception):
+        p.apply_async(go_and_raise)
+        p.close()
+        p.join()
