@@ -2,10 +2,14 @@ language: python
 sudo: false # use container based build
 notifications:
   email: false
-python:
-  - "2.7"
-  - "3.4"
-  - "3.5"
+
+matrix:
+  fast_finish: true
+  include:
+    - python: 2.7
+    - python: 3.4
+    - python: 3.5
+
 # Setup anaconda
 before_install:
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
