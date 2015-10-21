@@ -23,8 +23,8 @@ before_install:
 install:
   - conda create --yes --name=test python=$TRAVIS_PYTHON_VERSION numpy scipy pandas netcdf4 matplotlib pytest
   - source activate test
-  - conda install -c https://conda.anaconda.org/ioos cdo
-  - pip install cdo
+  # - conda install -c https://conda.anaconda.org/ioos cdo
+  # - pip install cdo
   - python setup.py install
 # Run test
 script:
