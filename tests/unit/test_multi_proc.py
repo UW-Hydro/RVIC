@@ -24,6 +24,7 @@ def test_logging_pool_raises():
     p = LoggingPool(processes=2)
 
     with pytest.raises(Exception):
-        p.apply_async(go_and_raise)
+        x = p.apply_async(go_and_raise)
+        x.get()
         p.close()
         p.join()
