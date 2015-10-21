@@ -1,4 +1,5 @@
 import pytest
+from rvic.core.multi_proc import LoggingPool, LogExceptions
 
 
 def go_and_raise():
