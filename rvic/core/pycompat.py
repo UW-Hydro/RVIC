@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+'''module to support compatability between Python 2 and Python 3 and to handle
+default and optional packages'''
+
 import sys
 
-PY3 = sys.version_info[0] >= 3
+py3 = sys.version_info[0] >= 3
 
-if PY3:
+if py3:
     basestring = str
     unicode_type = str
     bytes_type = bytes

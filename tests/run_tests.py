@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""RVIC command line testing interface"""
+'''RVIC command line testing interface'''
 
 import os
 import sys
@@ -12,35 +12,34 @@ import io
 from rvic.core.pycompat import OrderedDict
 from rvic import convert, convolution, parameters
 from rvic.core.config import read_config
-from rvic.core.pycompat import PY3, iteritems
+from rvic.core.pycompat import py3, iteritems
 
 if not os.environ.get('RVIC_TEST_DIR'):
     print('\n$RVIC_TEST_DIR not set.')
-    os.environ["RVIC_TEST_DIR"] = os.path.abspath(os.path.dirname(__file__))
+    os.environ['RVIC_TEST_DIR'] = os.path.abspath(os.path.dirname(__file__))
     print('Setting to run_tests.py dir: '
-          '{0}\n'.format(os.environ["RVIC_TEST_DIR"]))
+          '{0}\n'.format(os.environ['RVIC_TEST_DIR']))
 if not os.environ.get('WORKDIR'):
     print('\n$WORKDIR not set.')
-    os.environ["WORKDIR"] = os.environ["RVIC_TEST_DIR"]
+    os.environ['WORKDIR'] = os.environ['RVIC_TEST_DIR']
     print('Setting to output run_tests.py dir to $WORKDIR: '
-          '{0}\n'.format(os.environ["WORKDIR"]))
+          '{0}\n'.format(os.environ['WORKDIR']))
 
 
 # -------------------------------------------------------------------- #
 def main():
-    """
+    '''
     Run RVIC tests
-    """
-    exit_code = 0
+    '''
     # Parse arguments
     parser = argparse.ArgumentParser(description='Test script for RVIC')
 
-    parser.add_argument("test_set", type=str,
-                        help="Test set to run",
+    parser.add_argument('test_set', type=str,
+                        help='Test set to run',
                         choices=['all', 'unit', 'examples'],
                         default=['all'], nargs='+')
-    parser.add_argument("--examples", type=str,
-                        help="examples configuration file",
+    parser.add_argument('--examples', type=str,
+                        help='examples configuration file',
                         default='examples/examples.cfg')
     args = parser.parse_args()
 
@@ -58,7 +57,7 @@ def main():
 
 # -------------------------------------------------------------------- #
 def run_examples(config_file):
-    """ Run examples from config file """
+    ''' Run examples from config file '''
     # ---------------------------------------------------------------- #
     # Read Configuration files
     config_dict = read_config(config_file)
@@ -71,12 +70,12 @@ def run_examples(config_file):
     test_outcomes = OrderedDict()
 
     for i, (test, test_dict) in enumerate(iteritems(config_dict)):
-        print("".center(100, '-'))
-        print("Starting Test #{0} of {1}: {2}".format(i + 1, num_tests,
+        print(''.center(100, '-'))
+        print('Starting Test #{0} of {1}: {2}'.format(i + 1, num_tests,
                                                       test).center(100))
-        desc = textwrap.fill(", ".join(test_dict['description']), 100)
-        print("Description: {0}".format(desc))
-        print("".center(100, '-'))
+        desc = textwrap.fill(', '.join(test_dict['description']), 100)
+        print('Description: {0}'.format(desc))
+        print(''.center(100, '-'))
 
         if 'processors' in test_dict:
             numofproc = test_dict['processors']
@@ -109,11 +108,11 @@ def run_examples(config_file):
                 print('Error in parameters example: {0}'.format(test))
                 test_outcomes[test] = 'Failed: {0}'.format(e)
         else:
-            raise ValueError('Unknow function variable: '
+            raise ValueError('Unknown function variable: '
                              '{0}'.format(test_dict['function']))
 
         pr.disable()
-        if PY3:
+        if py3:
             s = io.StringIO()
         else:
             s = io.BytesIO()
@@ -121,13 +120,13 @@ def run_examples(config_file):
         ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
         ps.print_stats()
 
-        print("".center(100, '-'))
-        print("Done With Test #{0} of {1}: {2}".format(i + 1, num_tests,
+        print(''.center(100, '-'))
+        print('Done With Test #{0} of {1}: {2}'.format(i + 1, num_tests,
                                                        test).center(100))
-        print(".....Printing Profile Information.....".center(100))
-        print("".center(100, '-'))
+        print('.....Printing Profile Information.....'.center(100))
+        print(''.center(100, '-'))
         print(s.getvalue())
-        print("".center(100, '-'))
+        print(''.center(100, '-'))
 
     print('Done with examples...printing summary')
     for test, outcome in iteritems(test_outcomes):
@@ -137,6 +136,6 @@ def run_examples(config_file):
 
 
 # -------------------------------------------------------------------- #
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
 # -------------------------------------------------------------------- #

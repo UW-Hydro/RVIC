@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 history.py
 
 Summary:
@@ -13,7 +13,7 @@ Summary:
         - __next_write_out_data: method to determine when to write the out_data
         container
         - finish: method to close all remaining history tapes.
-"""
+'''
 
 import os
 import numpy as np
@@ -38,7 +38,7 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # RVIC History File Object
 class Tape(object):
-    """ History Tape Object"""
+    ''' History Tape Object'''
 
     # ---------------------------------------------------------------- #
     # Init
@@ -166,27 +166,27 @@ class Tape(object):
         # Determine the format of the output filename
         if self._avgflag == 'I':
             self._fname_format = os.path.join(
-                out_dir, "%s.rvic.h%s%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" %
+                out_dir, '%s.rvic.h%s%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc' %
                 (self._caseid, self._tape_num, self._avgflag.lower()))
         else:
             if self._nhtfrq == 0:
                 self._fname_format = os.path.join(
                     out_dir,
-                    "%s.rvic.h%s%s.%%Y-%%m.nc" %
+                    '%s.rvic.h%s%s.%%Y-%%m.nc' %
                     (self._caseid, self._tape_num, self._avgflag.lower()))
             elif (self._nhtfrq == -24) or (nhtfrq * self._dt == SECSPERDAY):
                 self._fname_format = os.path.join(
                     out_dir,
-                    "%s.rvic.h%s%s.%%Y-%%m-%%d.nc" %
+                    '%s.rvic.h%s%s.%%Y-%%m-%%d.nc' %
                     (self._caseid, self._tape_num, self._avgflag.lower()))
             else:
                 self._fname_format = os.path.join(
                     out_dir,
-                    "%s.rvic.h%s%s.%%Y-%%m-%%d-%%H.nc" %
+                    '%s.rvic.h%s%s.%%Y-%%m-%%d-%%H.nc' %
                     (self._caseid, self._tape_num, self._avgflag.lower()))
         self._rest_fname_format = os.path.join(
             out_dir,
-            "%s.rvic.rh%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc" %
+            '%s.rvic.rh%s.%%Y-%%m-%%d-%%H-%%M-%%S.nc' %
             (self._caseid, self._tape_num))
         # ------------------------------------------------------------ #
 
@@ -229,7 +229,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Update the history tapes with new fluxes
     def update(self, data2tape, time_ord):
-        """ Update the tape with new data"""
+        ''' Update the tape with new data'''
 
         # ------------------------------------------------------------ #
         # Check that the time_ord is in sync
@@ -296,7 +296,7 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     def __next_write_out_data(self):
-        """determine the maximum size of out_data"""
+        '''determine the maximum size of out_data'''
 
         log.debug('determining size of out_data')
 
@@ -414,7 +414,7 @@ class Tape(object):
 
     # ---------------------------------------------------------------- #
     def finish(self):
-        """write out_data"""
+        '''write out_data'''
         log.debug('finishing tape %s', self._tape_num)
         if self._out_data_has_values:
             if self._outtype == 'grid':
@@ -428,7 +428,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Get import rvar fields
     def __get_rvar(self, rvar):
-        """ Get the rvar Fields that are useful for writing output """
+        ''' Get the rvar Fields that are useful for writing output '''
         self._dt = rvar.unit_hydrograph_dt
         self._num_outlets = rvar.n_outlets
         self._outlet_decomp_ind = rvar.outlet_decomp_ind
@@ -443,7 +443,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Determine next write time
     def __next_update_out_data(self):
-        """ Determine the count for when the next write should occur """
+        ''' Determine the count for when the next write should occur '''
         # ------------------------------------------------------------ #
         # If monthly, write at (YYYY,MM,1,0,0)
         # b0 is first timestep of next period
@@ -498,7 +498,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Average fields
     def __average(self):
-        """ Take the average based on the number of accumulated timesteps """
+        ''' Take the average based on the number of accumulated timesteps '''
         for field in self._fincl:
             self._temp_data[field] /= self._count
     # ---------------------------------------------------------------- #
@@ -506,7 +506,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Write grid style history file
     def __write_grid(self):
-        """ Write history file """
+        ''' Write history file '''
 
         # ------------------------------------------------------------ #
         # Open file
@@ -592,7 +592,7 @@ class Tape(object):
                     setattr(var, key, val)
             var.units = self._units
             if self._grid_lons.ndim > 1:
-                var.coordinates = " ".join(coords)
+                var.coordinates = ' '.join(coords)
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -609,7 +609,7 @@ class Tape(object):
     # ---------------------------------------------------------------- #
     # Write array style history file
     def __write_array(self):
-        """ Write history file """
+        ''' Write history file '''
 
         # ------------------------------------------------------------ #
         # Open file
@@ -717,7 +717,7 @@ class Tape(object):
         for key, val in iteritems(self._glob_ats.atts):
             if val:
                 setattr(f, key, val)
-        f.featureType = "timeSeries"
+        f.featureType = 'timeSeries'
         # ------------------------------------------------------------ #
         f.close()
         log.info('Finished writing %s', self.filename)

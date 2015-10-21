@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 utilities.py
-"""
+'''
 import os
 import tarfile
 from scipy.spatial import cKDTree
@@ -25,7 +25,7 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # find x y coordinates
 def latlon2yx(plats, plons, glats, glons):
-    """find y x coordinates """
+    '''find y x coordinates '''
 
     # use astronomical conventions for longitude
     # (i.e. negative longitudes to the east of 0)
@@ -55,7 +55,7 @@ def latlon2yx(plats, plons, glats, glons):
 # -------------------------------------------------------------------- #
 # Search neighboring grid cells for channel
 def search_for_channel(source_area, routys, routxs, search=1, tol=10):
-    """Search neighboring grid cells for channel"""
+    '''Search neighboring grid cells for channel'''
 
     log.debug('serching for channel, tol: %f, search: %i', tol, search)
 
@@ -97,7 +97,7 @@ def search_for_channel(source_area, routys, routxs, search=1, tol=10):
 # -------------------------------------------------------------------- #
 # Write rpointer file
 def write_rpointer(restart_dir, restart_file, timestamp):
-    """ Write a configuration file with restart file and time """
+    ''' Write a configuration file with restart file and time '''
     rpointer_file = os.path.join(restart_dir, RPOINTER)
 
     config = SafeConfigParser()
@@ -118,12 +118,12 @@ def write_rpointer(restart_dir, restart_file, timestamp):
 # -------------------------------------------------------------------- #
 # A helper function to read a netcdf file
 def read_netcdf(nc_file, variables=None, coords=None):
-    """
+    '''
     Read data from input netCDF. Will read all variables if none provided.
     Will also return all variable attributes.
     Both variables (data and attributes) are returned as dictionaries named
     by variable
-    """
+    '''
 
     f = Dataset(nc_file, 'r')
 
@@ -155,9 +155,9 @@ def read_netcdf(nc_file, variables=None, coords=None):
 # -------------------------------------------------------------------- #
 # Check to make sure all the expected variables are present in the dictionary
 def check_ncvars(config_section, nckeys):
-    """
+    '''
     Make sure the variables listed in the config file are present in the netcdf
-    """
+    '''
     for key, value in iteritems(config_section):
         if key.endswith('var'):
             if value not in nckeys:
@@ -172,7 +172,7 @@ def check_ncvars(config_section, nckeys):
 # -------------------------------------------------------------------- #
 # Find the index of the the nearest value
 def find_nearest(array, value):
-    """ Find the index location in (array) with value nearest to (value)"""
+    ''' Find the index location in (array) with value nearest to (value)'''
     return np.abs(array - value).argmin()
 # -------------------------------------------------------------------- #
 
@@ -180,7 +180,7 @@ def find_nearest(array, value):
 # -------------------------------------------------------------------- #
 # Delete all the files in a directory
 def clean_dir(directory):
-    """ Clean all files in a directory"""
+    ''' Clean all files in a directory'''
     for file_name in os.listdir(directory):
         file_path = os.path.join(directory, file_name)
         try:
@@ -195,7 +195,7 @@ def clean_dir(directory):
 # -------------------------------------------------------------------- #
 # Delete a particular file
 def clean_file(file_name):
-    """ Delete the file"""
+    ''' Delete the file'''
     try:
         if os.path.isfile(file_name):
             os.unlink(file_name)
@@ -208,7 +208,7 @@ def clean_file(file_name):
 # -------------------------------------------------------------------- #
 # Make a set of directories
 def make_directories(rundir, subdir_names):
-    """Make rvic directory structure"""
+    '''Make rvic directory structure'''
     if not os.path.exists(rundir):
         os.makedirs(rundir)
 
@@ -263,7 +263,7 @@ def copy_inputs(config_file, inputs_dir):
 
 # -------------------------------------------------------------------- #
 def tar_inputs(inputs, suffix='', tar_type='tar'):
-    """ Tar the inputss directory or file at the end of a run"""
+    ''' Tar the inputss directory or file at the end of a run'''
     # ---------------------------------------------------------------- #
     # Make the TarFile
     if tar_type == 'tar':
@@ -309,10 +309,10 @@ def tar_inputs(inputs, suffix='', tar_type='tar'):
 # -------------------------------------------------------------------- #
 # Read the domain
 def read_domain(domain_dict, lat0_is_min=False):
-    """
+    '''
     Read the domain file and return all the variables and attributes.
     Area is returned in m2
-    """
+    '''
     dom_data, dom_vatts, dom_gatts = read_netcdf(domain_dict['FILE_NAME'])
 
     check_ncvars(domain_dict, list(dom_data.keys()))
@@ -356,24 +356,24 @@ def read_domain(domain_dict, lat0_is_min=False):
     dom_area = domain_dict['AREA_VAR']
     area_units = dom_vatts[dom_area]['units']
 
-    if area_units in ["rad2", "radians2", "radian2", "radian^2", "rad^2",
-                      "radians^2", "rads^2", "radians squared",
-                      "square-radians"]:
+    if area_units in ['rad2', 'radians2', 'radian2', 'radian^2', 'rad^2',
+                      'radians^2', 'rads^2', 'radians squared',
+                      'square-radians']:
         dom_data[dom_area] = dom_data[dom_area] * EARTHRADIUS * EARTHRADIUS
-    elif area_units in ["m2", "m^2", "meters^2", "meters2", "square-meters",
-                        "meters squared"]:
+    elif area_units in ['m2', 'm^2', 'meters^2', 'meters2', 'square-meters',
+                        'meters squared']:
         dom_data[dom_area] = dom_data[dom_area]
-    elif area_units in ["km2", "km^2", "kilometers^2", "kilometers2",
-                        "square-kilometers", "kilometers squared"]:
+    elif area_units in ['km2', 'km^2', 'kilometers^2', 'kilometers2',
+                        'square-kilometers', 'kilometers squared']:
         dom_data[dom_area] = dom_data[dom_area] * METERSPERKM * METERSPERKM
-    elif area_units in ["mi2", "mi^2", "miles^2", "miles", "square-miles",
-                        "miles squared"]:
+    elif area_units in ['mi2', 'mi^2', 'miles^2', 'miles', 'square-miles',
+                        'miles squared']:
         dom_data[dom_area] = dom_data[dom_area] * METERSPERMILE * METERSPERMILE
-    elif area_units in ["acres", "ac", "ac."]:
+    elif area_units in ['acres', 'ac', 'ac.']:
         dom_data[dom_area] = dom_data[dom_area] * METERS2PERACRE
     else:
-        log.warning("WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN "
-                    "SQUARE METERS",
+        log.warning('WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN '
+                    'SQUARE METERS',
                     dom_data[domain_dict['AREA_VAR']]['units'])
     # ---------------------------------------------------------------- #
     return dom_data, dom_vatts, dom_gatts

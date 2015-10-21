@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 convert.py
-"""
+'''
 import os
 import re
 import numpy as np
@@ -20,10 +20,10 @@ log = logging.getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # read station file
 def read_station_file(file_name, dom_data, config_dict):
-    """
+    '''
     Read a standard routing station file
     http://www.hydro.washington.edu/Lettenmaier/Models/VIC/Documentation/Routing/StationLocation.shtml
-    """
+    '''
     outlets = {}
 
     f = open(file_name, 'r')
@@ -76,7 +76,7 @@ def read_station_file(file_name, dom_data, config_dict):
 # -------------------------------------------------------------------- #
 # Read uhs files
 def read_uhs_files(outlets, dom_data, config_dict):
-    """
+    '''
     Read a standard routing uh_s file
     Format:
     line0: num_sources
@@ -84,7 +84,7 @@ def read_uhs_files(outlets, dom_data, config_dict):
     line2: unit_hydrograph_time_series
     line1: ...
     line2: ...
-    """
+    '''
     if config_dict['UHS_FILES']['ROUT_PROGRAM'] == 'C':
         for cell_id, outlet in iteritems(outlets):
             log.info('Reading outlet %i: %s', cell_id, outlet.name)

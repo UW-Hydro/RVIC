@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 variables.py
-"""
+'''
 import os
 import numpy as np
 from netCDF4 import Dataset, date2num, stringtochar
@@ -47,19 +47,19 @@ class Point(object):
         return
 
     def __str__(self):
-        return ("Point({0}, lat:{1:3.4f}, lon:{2:3.4f}, y:{3:d}, "
-                "x:{4:d})".format(self.name, self.lat, self.lon, self.domy,
+        return ('Point({0}, lat:{1:3.4f}, lon:{2:3.4f}, y:{3:d}, '
+                'x:{4:d})'.format(self.name, self.lat, self.lon, self.domy,
                                   self.domx))
 
     def __repr__(self):
-        return ("    -- Point --    \n"
-                "name:\t{0}\n"
-                "lat:\t{1:3.4f}\n"
-                "lon:\t{2:3.4f}\n"
-                "domy:\t{3:d}\n"
-                "domx:\t{4:d}\n"
-                "routy:\t{5:d}\n"
-                "routx:\t{6:d}\n".format(self.name, self.lat, self.lon,
+        return ('    -- Point --    \n'
+                'name:\t{0}\n'
+                'lat:\t{1:3.4f}\n'
+                'lon:\t{2:3.4f}\n'
+                'domy:\t{3:d}\n'
+                'domx:\t{4:d}\n'
+                'routy:\t{5:d}\n'
+                'routx:\t{6:d}\n'.format(self.name, self.lat, self.lon,
                                          self.domy, self.domx,
                                          self.routy, self.routx))
 # -------------------------------------------------------------------- #
@@ -68,7 +68,7 @@ class Point(object):
 # -------------------------------------------------------------------- #
 # Rvar Object
 class Rvar(object):
-    """ Creates a RVIC structure """
+    ''' Creates a RVIC structure '''
 
     # ---------------------------------------------------------------- #
     # Initialize
@@ -136,7 +136,7 @@ class Rvar(object):
 
         self._calendar = calendar
         self.__fname_format = os.path.join(
-            out_dir, "%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc" % (case_name))
+            out_dir, '%s.r.%%Y-%%m-%%d-%%H-%%M-%%S.nc' % (case_name))
 
         # ------------------------------------------------------------ #
         # CESM calendar key (only NO_LEAP_C, GREGORIAN are supported in CESM)
@@ -159,9 +159,9 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
     # Check that dom file matches
     def _check_domain_file(self, domain_file):
-        """
+        '''
         Confirm that the dom files match in the parameter and domain files
-        """
+        '''
         input_file = os.path.split(domain_file)[1]
         log.info('domain_file: %s', input_file)
         log.info('Parameter RvicDomainFile: %s', self.RvicDomainFile)
@@ -175,7 +175,7 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     def set_domain(self, dom_data, domain, lat0_is_min):
-        """ Set the domain size """
+        ''' Set the domain size '''
         self._check_domain_file(domain['FILE_NAME'])
 
         self.domain_shape = dom_data[domain['LAND_MASK_VAR']].shape
@@ -199,9 +199,9 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
     # Flip the y index order
     def _flip_y_inds(self):
-        """
+        '''
         Flip the y index order
-        """
+        '''
         self.source_y_ind = self.ysize - self.source_y_ind - 1
         self.outlet_y_ind = self.ysize - self.outlet_y_ind - 1
     # ---------------------------------------------------------------- #
@@ -262,13 +262,13 @@ class Rvar(object):
     # ---------------------------------------------------------------- #
     # Convolve
     def convolve(self, aggrunin, time_ord):
-        """
+        '''
         This convoluition funciton works by looping over all points and doing
         the convolution one timestep at a time.  This is accomplished by
         creating a convolution ring.  Contributing flow from each timestep is
         added to the convolution ring.  The convolution ring is saved as the
         state.  The first column of values in the ring are the current runoff.
-        """
+        '''
         # ------------------------------------------------------------ #
         # Check that the time_ord is in sync
         # This is the time at the start of the current step (end of last step)
@@ -324,11 +324,11 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     def get_time_mode(self, cpl_secs_per_step):
-        """
+        '''
         Determine the relationship between the coupling period and the unit-
         hydrograph period.  In cases where they do not match, the model will
         aggregate the appropriate quantities before/after the confolution step.
-        """
+        '''
 
         log.info('Coupling Timestep is (seconds): %s', cpl_secs_per_step)
         log.info('RVIC Timestep is (seconds): %s', self.unit_hydrograph_dt)
@@ -339,7 +339,7 @@ class Rvar(object):
         else:
             log.error('unit_hydrograph_dt must be a multiple of the '
                       'cpl_secs_per_step')
-            raise ValueError("Stopped due to error in determining agg_tsteps")
+            raise ValueError('Stopped due to error in determining agg_tsteps')
 
         log.info('RVIC will run 1 time for every %i coupling periods',
                  self.agg_tsteps)
@@ -347,7 +347,7 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     def get_rof(self):
-        """Extract the current rof"""
+        '''Extract the current rof'''
         rof = {}
         for tracer in RVIC_TRACERS:
             rof[tracer] = self.ring[tracer][0, :]
@@ -356,7 +356,7 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     def get_storage(self):
-        """Extract the current storage"""
+        '''Extract the current storage'''
         storage = {}
         for tracer in RVIC_TRACERS:
             storage[tracer] = self.ring[tracer].sum(axis=1)
@@ -365,7 +365,7 @@ class Rvar(object):
 
     # ---------------------------------------------------------------- #
     def write_initial(self):
-        """write initial flux"""
+        '''write initial flux'''
         pass
     # ---------------------------------------------------------------- #
 

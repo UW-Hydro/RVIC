@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 param_file.py
-"""
+'''
 import numpy as np
 import logging
 from .log import LOG_NAME
@@ -22,9 +22,9 @@ log = logging.getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # Wrap up functiions to finish the parameter file
 def finish_params(outlets, dom_data, config_dict, directories):
-    """
+    '''
     Adjust the unit hydrographs and pack for parameter file
-    """
+    '''
     options = config_dict['OPTIONS']
     routing = config_dict['ROUTING']
     domain = config_dict['DOMAIN']
@@ -240,11 +240,11 @@ def finish_params(outlets, dom_data, config_dict, directories):
 
 # -------------------------------------------------------------------- #
 def adjust_fractions(outlets, dom_fractions, adjust=True):
-    """
+    '''
     Constrain the fractions in the outles.
     The basic idea is that the sum of fraction from the outlets should not
     exceed the domain fractions.
-    """
+    '''
 
     log.info('Adjusting fractions now')
 
@@ -303,7 +303,7 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 # -------------------------------------------------------------------- #
 # Shorten the unit hydrograph
 def subset(outlets, subset_length=None):
-    """ Shorten the Unit Hydrograph"""
+    ''' Shorten the Unit Hydrograph'''
 
     log.info('subsetting unit-hydrographs now...')
     log.debug('Subset Length:  %s', subset_length)
@@ -380,9 +380,9 @@ def subset(outlets, subset_length=None):
 
 # -------------------------------------------------------------------- #
 def group(outlets, subset_length):
-    """
+    '''
     group the outlets into one set of arrays
-    """
+    '''
 
     n_outlets = len(outlets)
     n_sources = 0
@@ -417,7 +417,7 @@ def group(outlets, subset_length):
     gd['outlet_y_ind'] = np.empty(n_outlets, dtype=np.int16)
     gd['outlet_decomp_ind'] = np.empty(n_outlets, dtype=np.int16)
     gd['outlet_number'] = np.empty(n_outlets, dtype=np.int16)
-    gd['outlet_name'] = np.empty(n_outlets, dtype="S{0}".format(MAX_NC_CHARS))
+    gd['outlet_name'] = np.empty(n_outlets, dtype='S{0}'.format(MAX_NC_CHARS))
     gd['outlet_upstream_gridcells'] = np.empty(n_outlets, dtype=np.int16)
     gd['outlet_upstream_area'] = np.empty(n_outlets, dtype=np.float64)
     # ---------------------------------------------------------------- #

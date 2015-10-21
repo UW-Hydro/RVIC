@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""
+'''
 multi_proc.py
-"""
+'''
 
 from .log import LOG_NAME
 import multiprocessing
