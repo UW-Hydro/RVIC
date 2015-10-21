@@ -19,7 +19,7 @@ from .core.write import write_agg_netcdf
 from .core.variables import Point
 from .core.param_file import finish_params
 from .core.config import read_config
-from .core.pycompat import OrderedDict, iteritems, pyrange
+from .core.pycompat import OrderedDict, iteritems, pyrange, basestring
 
 try:
     from .core.remap import remap
@@ -130,7 +130,7 @@ def gen_uh_init(config_file):
         if 'names' in pour_points:
             pour_points.fillna(inplace=True, value='unknown')
             for i, name in enumerate(pour_points.names):
-                pour_points.names[i] = strip_invalid_char(name)
+                pour_points.ix[i, 'names'] = strip_invalid_char(name)
 
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna()
@@ -193,12 +193,14 @@ def gen_uh_init(config_file):
 
         # ---------------------------------------------------------------- #
         # Add velocity and/or diffusion grids if not present yet
-        if not type(fdr_vel) == str:
-            fdr_data['velocity'] = np.zeros(fdr_shape) + fdr_vel
+        if not isinstance(fdr_vel, basestring):
+            fdr_data['velocity'] = \
+                np.zeros(fdr_shape, dtype=np.float64) + fdr_vel
             config_dict['ROUTING']['VELOCITY'] = 'velocity'
             log.info('Added velocity grid to fdr_data')
-        if not type(fdr_dif) == str:
-            fdr_data['diffusion'] = np.zeros(fdr_shape) + fdr_dif
+        if not isinstance(fdr_dif, basestring):
+            fdr_data['diffusion'] = \
+                np.zeros(fdr_shape, dtype=np.float64) + fdr_dif
             config_dict['ROUTING']['DIFFUSION'] = 'diffusion'
             log.info('Added diffusion grid to fdr_data')
         if ('SOURCE_AREA_VAR' not in config_dict['ROUTING'] or
@@ -207,7 +209,7 @@ def gen_uh_init(config_file):
                         'source area will be zero.')
             config_dict['ROUTING']['SOURCE_AREA_VAR'] = 'src_area'
             fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']] = \
-                np.zeros(fdr_shape)
+                np.zeros(fdr_shape, dtype=np.float64)
         # ---------------------------------------------------------------- #
 
         # ---------------------------------------------------------------- #
@@ -273,7 +275,7 @@ def gen_uh_init(config_file):
             lats = fdr_data[fdr_lat][routys]
             lons = fdr_data[fdr_lon][routxs]
         else:
-            # use lons and lats to find xs and ys
+            # use and lats to find xs and ys
             lats = pour_points['lats'].values
             lons = pour_points['lons'].values
 
@@ -286,7 +288,7 @@ def gen_uh_init(config_file):
         if options['SEARCH_FOR_CHANNEL']:
             routys, routxs = search_for_channel(
                 fdr_data[config_dict['ROUTING']['SOURCE_AREA_VAR']],
-                routys, routxs, tol=10, search=2)
+                routys, routxs, tol=10, search=5)
 
             # update lats and lons
             lats = fdr_data[fdr_lat][routys]

@@ -57,36 +57,38 @@ def latlon2yx(plats, plons, glats, glons):
 def search_for_channel(source_area, routys, routxs, search=1, tol=10):
     """Search neighboring grid cells for channel"""
 
-    log.debug('serching for channel')
+    log.debug('serching for channel, tol: %f, search: %i', tol, search)
 
-    new_ys = np.empty_like(routys)
-    new_xs = np.empty_like(routxs)
+    new_ys = np.copy(routys)
+    new_xs = np.copy(routxs)
 
     ysize, xsize = source_area.shape
 
     for i, (y, x) in enumerate(pyzip(routys, routxs)):
         area0 = source_area[y, x]
 
-        ymin = np.clip(y - search, 0, ysize)
-        ymax = np.clip(y + search + 1, 0, ysize)
-        xmin = np.clip(x - search, 0, xsize)
-        xmax = np.clip(x + search, 0, xsize)
+        for j in range(search + 1):
+            ymin = np.clip(y - j, 0, ysize)
+            ymax = np.clip(y + j + 1, 0, ysize)
+            xmin = np.clip(x - j, 0, xsize)
+            xmax = np.clip(x + j + 1, 0, xsize)
 
-        search_area = source_area[ymin:ymax, xmin:xmax]
+            search_area = source_area[ymin:ymax, xmin:xmax]
 
-        if np.any(search_area / area0 > tol):
-            sy, sx = np.unravel_index(search_area.argmax(), search_area.shape)
+            if np.any(search_area / area0 > tol):
+                sy, sx = np.unravel_index(search_area.argmax(),
+                                          search_area.shape)
 
-            new_ys[i] = np.clip(y + sy - search, 0, ysize)
-            new_xs[i] = np.clip(x + sx - search, 0, xsize)
+                new_ys[i] = np.clip(y + sy - j, 0, ysize)
+                new_xs[i] = np.clip(x + sx - j, 0, xsize)
 
-            log.debug('Moving pour point to channel y: %s->%s, x: %s->%s',
-                      y, new_ys[i], x, new_xs[i])
-            log.debug('Source Area has increased from %s to %s',
-                      area0, source_area[new_ys[i], new_xs[i]])
-        else:
-            new_ys[i] = y
-            new_xs[i] = x
+                log.debug('Moving pour point to channel y: %s->%s, x: %s->%s',
+                          y, new_ys[i], x, new_xs[i])
+                log.debug('Source Area has increased from %s to %s',
+                          area0, source_area[new_ys[i], new_xs[i]])
+
+                break
+
     return new_ys, new_xs
 
 # -------------------------------------------------------------------- #
