@@ -9,9 +9,9 @@ from multiprocessing.pool import Pool
 import traceback
 
 
-def error(msg, *args):
-    """ Error function"""
-    return multiprocessing.get_logger(LOG_NAME).error(msg, *args)
+def error(*args):
+    """Error function"""
+    return multiprocessing.get_logger(LOG_NAME).error(*args)
 # -------------------------------------------------------------------- #
 
 
@@ -38,8 +38,18 @@ class LogExceptions(object):
 
 
 class LoggingPool(Pool):
-    """Subclass of multiprocessing.pool.Pool"""
-    def apply_async(self, func, args=(), kwds={}, callback=None):
-        return Pool.apply_async(self, LogExceptions(func), args, kwds,
-                                callback)
+    __doc__ = 'RVIC Logging Subclass of pool\n' + Pool.__doc__
+
+    @property
+    def has_logging(self):
+        # just for testing
+        return True
+
+    def apply_async(self, func, callback=None,  error_callback=None,
+                    *args, **kwds):
+        """Overloaded Pool.apply_async to support Logging"""
+        return Pool.apply_async(self, func, args=args, kwds=kwds,
+                                callback=callback,
+                                error_callback=error_callback)
+
 # -------------------------------------------------------------------- #

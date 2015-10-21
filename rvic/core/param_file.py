@@ -199,6 +199,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
         RvicFdrFile=os.path.split(routing['FILE_NAME'])[1],
         RvicDomainFile=os.path.split(dom_file_name)[1])
 
+    log.debug('UH Range: (%f %f)', unit_hydrograph.min(), unit_hydrograph.max())
+
     write_param_file(param_file,
                      nc_format=options['NETCDF_FORMAT'],
                      glob_atts=glob_atts,
@@ -425,7 +427,7 @@ def group(outlets, subset_length):
     a = 0
     for i, outlet in enumerate(outlets):
         b = a + len(outlet.y_source)
-        log.debug('outlet.unit_hydrograph.shape %s',
+        log.debug('%s unit_hydrograph.shape %s', outlet.name,
                   outlet.unit_hydrograph.shape)
         # -------------------------------------------------------- #
         # Point specific values
