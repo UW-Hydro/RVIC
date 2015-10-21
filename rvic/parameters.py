@@ -47,15 +47,23 @@ def parameters(config_file, numofproc=1):
     # Run
     if numofproc > 1:
         pool = LoggingPool(processes=numofproc)
+        results = []
 
         for i, outlet in enumerate(outlets.values()):
             log.info('On Outlet #%s of %s', i + 1, len(outlets))
-            pool.apply_async(gen_uh_run,
-                             args=(uh_box, fdr_data, fdr_vatts,
-                                   dom_data, outlet, config_dict,
-                                   directories),
-                             callback=store_result,
-                             error_callback=pool.terminate)
+            result = pool.apply_async(gen_uh_run,
+                                      args=(uh_box, fdr_data, fdr_vatts,
+                                            dom_data, outlet, config_dict,
+                                            directories),
+                                      callback=store_result,
+                                      error_callback=pool.terminate)
+            # Store the result
+            results.append(result)
+
+        # Check that everything worked
+        [result.get() for result in results]
+
+        # Close the pool
         pool.close()
         pool.join()
 
