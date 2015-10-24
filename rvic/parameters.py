@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 from logging import getLogger
 from .core.log import init_logger, close_logger, LOG_NAME
-from .core.multi_proc import LoggingPool
+from .core.multi_proc import error
 from .core.utilities import make_directories, copy_inputs, strip_invalid_char
 from .core.utilities import read_netcdf, tar_inputs, latlon2yx
 from .core.utilities import check_ncvars, clean_file, read_domain
@@ -28,7 +28,7 @@ except ImportError:
     remap_available = False
 
 # global multiprocessing results container
-results = []
+results = {}
 
 
 # -------------------------------------------------------------------- #
@@ -59,31 +59,32 @@ def parameters(config_file, numofproc=1):
     # ---------------------------------------------------------------- #
     # Run
     if numofproc > 1:
-        pool = LoggingPool(processes=numofproc)
-        results = []
+        from multiprocessing import Pool
+        pool = Pool(processes=numofproc)
+        status = []
 
-        for i, outlet in enumerate(outlets):
+        for i, (key, outlet) in enumerate(iteritems(outlets)):
             log.info('On Outlet #%s of %s', i + 1, len(outlets))
-            result = pool.apply_async(gen_uh_run,
-                                      args=(uh_box, fdr_data, fdr_vatts,
-                                            dom_data, outlet, config_dict,
-                                            directories),
-                                      callback=store_result,
-                                      error_callback=pool.terminate)
+            stat = pool.apply_async(gen_uh_run,
+                                    (uh_box, fdr_data, fdr_vatts,
+                                     dom_data, outlet, config_dict,
+                                     directories),
+                                    callback=store_result,
+                                    error_callback=error)
             # Store the result
-            results.append(result)
+            status.append(stat)
 
         # Close the pool
         pool.close()
 
         # Check that everything worked
-        [result.get() for result in results]
+        [stat.get() for stat in status]
 
         pool.join()
 
-        outlets = sorted(results, key=lambda x: x.cell_id, reverse=True)
+        outlets = OrderedDict(sorted(results.items(), reverse=True))
     else:
-        for outlet in outlets:
+        for i, (key, outlet) in enumerate(iteritems(outlets)):
             outlet = gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet,
                                 config_dict, directories)
 
@@ -314,7 +315,7 @@ def gen_uh_init(config_file):
                  'pour points and outlet grid cells')
 
     else:
-        outlets = []
+        outlets = OrderedDict()
         if all(x in list(pour_points.keys()) for x in ['x', 'y',
                                                        'lons', 'lats']):
             lats = pour_points['lats'].values
@@ -362,6 +363,18 @@ def gen_uh_init(config_file):
                 # fill name filed with p-outlet_num
                 name = 'p-{0}'.format(i)
 
+            print(dict(lat=lats[i]))
+            print(dict(lon=lons[i]))
+            print(dict(domx=domxs[i]))
+            print(dict(domy=domys[i]))
+            print(dict(routx=routxs[i]))
+            print(dict(routy=routys[i]))
+            print(dict(name=name))
+            print(dom_data['cell_ids'].shape)
+            print([domys[i], domxs[i]])
+
+            print(dict(cell_id=dom_data['cell_ids'][domys[i], domxs[i]]))
+
             outlets[i] = Point(lat=lats[i],
                                lon=lons[i],
                                domx=domxs[i],
@@ -369,8 +382,7 @@ def gen_uh_init(config_file):
                                routx=routxs[i],
                                routy=routys[i],
                                name=name,
-                               cell_id=dom_data['cell_ids'][domys[i],
-                                                            domxs[i]])
+                               cell_id=dom_data['cell_ids'][domys[i], domxs[i]])
 
             outlets[i].pour_points = [outlets[i]]
     # ---------------------------------------------------------------- #
@@ -636,7 +648,7 @@ def store_result(result):
 
     Globals
     ----------
-    results : list
+    results : dict
         Global results container for multiprocessing results to be appended to.
     '''
     results[result.cell_id] = result

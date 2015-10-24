@@ -48,7 +48,7 @@ def make_agg_pairs(pour_points, dom_data, fdr_data, config_dict):
 
     # ---------------------------------------------------------------- #
     # Do the aggregation
-    outlets = {}
+    outlets = OrderedDict()
 
     for i, (lat, lon) in enumerate(pyzip(lats, lons)):
         # Define pour point object
