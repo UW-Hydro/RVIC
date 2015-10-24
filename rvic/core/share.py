@@ -23,8 +23,8 @@ METERS2PERACRE = 4046.856
 # time
 # reference time
 REFERENCE_STRING = '0001-1-1 0:0:0'
-REFERENCE_DATE = 10101                        # i.e. REFERENCE_STRING
-REFERENCE_TIME = 0                            # i.e. REFERENCE_STRING
+REFERENCE_DATE = 10101  # i.e. REFERENCE_STRING
+REFERENCE_TIME = 0  # i.e. REFERENCE_STRING
 TIMEUNITS = 'days since ' + REFERENCE_STRING  # do not change (MUST BE DAYS)!
 TIMESTAMPFORM = '%Y-%m-%d-%H'
 CALENDAR = 'noleap'
@@ -155,195 +155,191 @@ class NcGlobals(object):
             'Created: {0}'.format(time_mod.ctime(time_mod.time()))
 
 
-class NcVar(object):
-    def __init__(self, **kwargs):
-        for key, val in iteritems(kwargs):
-            setattr(self, key, val)
-
 # Coordinate Variables
-time = NcVar(long_name='time',
-             units=TIMEUNITS)
+time = dict(long_name='time',
+            units=TIMEUNITS)
 
-time_bnds = NcVar()
+time_bnds = dict()
 
-timesteps = NcVar(long_name='Series of timesteps',
-                  units='unitless')
+timesteps = dict(long_name='Series of timesteps',
+                 nits='unitless')
 
-lon = NcVar(long_name='longitude',
-            units='degrees_east')
+lon = dict(long_name='longitude',
+           nits='degrees_east')
 
-lat = NcVar(long_name='latitude',
-            units='degrees_north')
-
-xc = NcVar(long_name='longitude',
-           units='degrees_east')
-
-yc = NcVar(long_name='latitude',
+lat = dict(long_name='latitude',
            units='degrees_north')
 
+xc = dict(long_name='longitude',
+          units='degrees_east')
+
+yc = dict(long_name='latitude',
+          units='degrees_north')
+
 # Data Variables
-fraction = NcVar(long_name='fraction of grid cell that is active',
-                 units='unitless')
+fraction = dict(long_name='fraction of grid cell that is active',
+                units='unitless')
 
-unit_hydrograph = NcVar(long_name='Unit Hydrograph',
-                        units='unitless')
+unit_hydrograph = dict(long_name='Unit Hydrograph',
+                       units='unitless')
 
-avg_velocity = NcVar(long_name='Flow Velocity Parameter',
-                     units='m s-1')
+avg_velocity = dict(long_name='Flow Velocity Parameter',
+                    units='m s-1')
 
-avg_diffusion = NcVar(long_name='Diffusion Parameter',
-                      units='m2 s-1')
+avg_diffusion = dict(long_name='Diffusion Parameter',
+                     units='m2 s-1')
 
-global_basin_id = NcVar(long_name='Global Basin ID from RvicFdrFile',
-                        units='unitless')
+global_basin_id = dict(long_name='Global Basin ID from RvicFdrFile',
+                       units='unitless')
 
-full_time_length = NcVar(long_name='Length of original unit hydrograph',
-                         units='timesteps')
+full_time_length = dict(long_name='Length of original unit hydrograph',
+                        units='timesteps')
 
-subset_length = NcVar(long_name='Shortened length of the unit hydrograph',
-                      units='timesteps')
+subset_length = dict(long_name='Shortened length of the unit hydrograph',
+                     units='timesteps')
 
-unit_hydrograph_dt = NcVar(long_name='Unit hydrograph timestep',
-                           units='seconds')
+unit_hydrograph_dt = dict(long_name='Unit hydrograph timestep',
+                          units='seconds')
 
-outlet_x_ind = NcVar(long_name='x grid coordinate of outlet grid cell',
-                     units='unitless')
-
-outlet_y_ind = NcVar(long_name='y grid coordinate of outlet grid cell',
-                     units='unitless')
-
-outlet_lon = NcVar(long_name='Longitude coordinate of outlet grid cell',
-                   units='degrees_east')
-
-outlet_lat = NcVar(long_name='Latitude coordinate of outlet grid cell',
-                   units='degrees_north')
-
-outlet_decomp_ind = NcVar(long_name='1d grid location of outlet grid cell',
-                          units='unitless')
-
-outlet_number = NcVar(long_name='outlet number',
-                      units='unitless')
-
-outlet_mask = NcVar(long_name='type of outlet point',
-                    units='0-ocean, 1-land, 2-guage, 3-none')
-
-outlet_name = NcVar(long_name='Outlet guage name',
+outlet_x_ind = dict(long_name='x grid coordinate of outlet grid cell',
                     units='unitless')
 
-outlet_upstream_area = NcVar(long_name='Upstream catchment area contributing '
-                                       'to outlet',
-                             units='m2')
+outlet_y_ind = dict(long_name='y grid coordinate of outlet grid cell',
+                    units='unitless')
 
-outlet_upstream_gridcells = NcVar(long_name='Number of upstream grid cells '
-                                            'contributing to outlet',
-                                  units='number of grid cells')
+outlet_lon = dict(long_name='Longitude coordinate of outlet grid cell',
+                  units='degrees_east')
 
-source_x_ind = NcVar(long_name='x grid coordinate of source grid cell',
+outlet_lat = dict(long_name='Latitude coordinate of outlet grid cell',
+                  units='degrees_north')
+
+outlet_decomp_ind = dict(long_name='1d grid location of outlet grid cell',
+                         units='unitless')
+
+outlet_number = dict(long_name='outlet number',
                      units='unitless')
 
-source_y_ind = NcVar(long_name='y grid coordinate of source grid cell',
-                     units='unitless')
+outlet_mask = dict(long_name='type of outlet point',
+                   units='0-ocean, 1-land, 2-guage, 3-none')
 
-source_lon = NcVar(long_name='Longitude coordinate of source grid cell',
-                   units='degrees_east')
+outlet_name = dict(long_name='Outlet guage name',
+                   units='unitless')
 
-source_lat = NcVar(long_name='Latitude coordinate of source grid cell',
-                   units='degrees_north')
+outlet_upstream_area = dict(long_name='Upstream catchment area contributing '
+                                      'to outlet',
+                            units='m2')
 
-source_decomp_ind = NcVar(long_name='1d grid location of source grid cell',
-                          units='unitless')
-source_time_offset = NcVar(long_name='Number of leading timesteps ommited',
-                           units='timesteps')
+outlet_upstream_gridcells = dict(long_name='Number of upstream grid cells '
+                                           'contributing to outlet',
+                                 units='number of grid cells')
 
-source2outlet_ind = NcVar(long_name='source to outlet index mapping',
-                          units='unitless')
+source_x_ind = dict(long_name='x grid coordinate of source grid cell',
+                    units='unitless')
 
-ring = NcVar(long_name='Convolution Ring',
-             units='kg m-2 s-1')
+source_y_ind = dict(long_name='y grid coordinate of source grid cell',
+                    units='unitless')
 
-streamflow = NcVar(long_name='Streamflow at outlet grid cell',
-                   units='kg m-2 s-1')
+source_lon = dict(long_name='Longitude coordinate of source grid cell',
+                  units='degrees_east')
 
-storage = NcVar(long_name='Mass storage in stream upstream of outlet '
-                          'grid cell',
-                units='kg m-2 s-1')
+source_lat = dict(long_name='Latitude coordinate of source grid cell',
+                  units='degrees_north')
 
-# valid values http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/cf-conventions.html#calendar
-timemgr_rst_type = NcVar(long_name='calendar type',
-                         units='unitless',
-                         flag_values='0, 1, 2, 3, 4, 5, 6',
-                         flag_meanings='NONE, NO_LEAP_C, GREGORIAN, '
-                                       'PROLEPTIC_GREGORIAN, ALL_LEAP, '
-                                       '360_DAY, JULIAN')
+source_decomp_ind = dict(long_name='1d grid location of source grid cell',
+                         units='unitless')
+source_time_offset = dict(long_name='Number of leading timesteps ommited',
+                          units='timesteps')
 
-timemgr_rst_step_sec = NcVar(long_name='seconds component of timestep size',
-                             units='sec',
-                             valid_range='0, 86400')
+source2outlet_ind = dict(long_name='source to outlet index mapping',
+                         units='unitless')
 
-timemgr_rst_start_ymd = NcVar(long_name='start date',
-                              units='YYYYMMDD')
+ring = dict(long_name='Convolution Ring',
+            units='kg m-2 s-1')
 
-timemgr_rst_start_tod = NcVar(long_name='start time of day',
-                              units='sec',
-                              valid_range='0, 86400')
+streamflow = dict(long_name='Streamflow at outlet grid cell',
+                  units='kg m-2 s-1')
 
-timemgr_rst_ref_ymd = NcVar(long_name='reference date',
-                            units='YYYYMMDD')
+storage = dict(long_name='Mass storage in stream upstream of outlet '
+                         'grid cell',
+               units='kg m-2 s-1')
 
-timemgr_rst_ref_tod = NcVar(long_name='reference time of day',
+# valid values http://cf-pcmdi.llnl.gov/documents/cf-conventions/1.6/\
+# cf-conventions.html#calendar
+timemgr_rst_type = dict(long_name='calendar type',
+                        units='unitless',
+                        flag_values='0, 1, 2, 3, 4, 5, 6',
+                        flag_meanings='NONE, NO_LEAP_C, GREGORIAN, '
+                                      'PROLEPTIC_GREGORIAN, ALL_LEAP, '
+                                      '360_DAY, JULIAN')
+
+timemgr_rst_step_sec = dict(long_name='seconds component of timestep size',
                             units='sec',
                             valid_range='0, 86400')
 
-timemgr_rst_curr_ymd = NcVar(long_name='current date',
+timemgr_rst_start_ymd = dict(long_name='start date',
                              units='YYYYMMDD')
 
-timemgr_rst_curr_tod = NcVar(long_name='current time of day',
+timemgr_rst_start_tod = dict(long_name='start time of day',
                              units='sec',
                              valid_range='0, 86400')
 
-nhtfrq = NcVar(long_name='Frequency of history writes',
-               units='absolute value of negative is in hours, 0=monthly, '
-                     'positive is time-steps',
-               comment='Namelist item')
+timemgr_rst_ref_ymd = dict(long_name='reference date',
+                           units='YYYYMMDD')
 
-mfilt = NcVar(long_name='Number of history time samples on a file',
-              units='initless',
+timemgr_rst_ref_tod = dict(long_name='reference time of day',
+                           units='sec',
+                           valid_range='0, 86400')
+
+timemgr_rst_curr_ymd = dict(long_name='current date',
+                            units='YYYYMMDD')
+
+timemgr_rst_curr_tod = dict(long_name='current time of day',
+                            units='sec',
+                            valid_range='0, 86400')
+
+nhtfrq = dict(long_name='Frequency of history writes',
+              units='absolute value of negative is in hours, 0=monthly, '
+                    'positive is time-steps',
               comment='Namelist item')
 
-ncprec = NcVar(long_name='Flag for data precision',
-               flag_values='1, 2',
-               flag_meanings='single-precision double-precision',
-               comment='Namelist item',
-               valid_range='1, 2')
+mfilt = dict(long_name='Number of history time samples on a file',
+             units='initless',
+             comment='Namelist item')
 
-fincl = NcVar(long_name='Fieldnames to include',
-              comment='Namelist item')
+ncprec = dict(long_name='Flag for data precision',
+              flag_values='1, 2',
+              flag_meanings='single-precision double-precision',
+              comment='Namelist item',
+              valid_range='1, 2')
 
-fexcl = NcVar(long_name='Fieldnames to exclude',
-              comment='Namelist item')
+fincl = dict(long_name='Fieldnames to include',
+             comment='Namelist item')
 
-nflds = NcVar(long_name='Number of fields on file',
-              units='unitless')
+fexcl = dict(long_name='Fieldnames to exclude',
+             comment='Namelist item')
 
-ntimes = NcVar(long_name='Number of time steps on file',
-               units='time-step')
-is_endhist = NcVar(long_name='End of history file',
-                   flag_values='0, 1',
-                   flag_meanings='FALSE TRUE',
-                   comment='Namelist item',
-                   valid_range='0, 1')
+nflds = dict(long_name='Number of fields on file',
+             units='unitless')
 
-begtime = NcVar(long_name='Beginning time',
-                units='time units')
+ntimes = dict(long_name='Number of time steps on file',
+              units='time-step')
+is_endhist = dict(long_name='End of history file',
+                  flag_values='0, 1',
+                  flag_meanings='FALSE TRUE',
+                  comment='Namelist item',
+                  valid_range='0, 1')
 
-hpindex = NcVar(long_name='History pointer index',
-                units='units')
+begtime = dict(long_name='Beginning time',
+               units='time units')
 
-avgflag = NcVar(long_name='Averaging flag',
-                units='A=Average, X=Maximum, M=Minimum, I=Instantaneous')
+hpindex = dict(long_name='History pointer index',
+               units='units')
 
-name = NcVar(long_name='Fieldnames')
+avgflag = dict(long_name='Averaging flag',
+               units='A=Average, X=Maximum, M=Minimum, I=Instantaneous')
 
-long_name = NcVar(long_name='Long descriptive names for fields')
+name = dict(long_name='Fieldnames')
 
-units = NcVar(long_name='Units for each history field output')
+long_name = dict(long_name='Long descriptive names for fields')
+
+units = dict(long_name='Units for each history field output')
