@@ -6,21 +6,20 @@ repo_url: https://github.com/UW-Hydro/RVIC
 theme: readthedocs
 
 pages:
-# Main pages
-- ['index.md', 'Home']
-# About Pages
-- ['about/model-overview.md', 'About', 'Model Overview']
-- ['about/references.md', 'About', 'References']
-# User Guide Pages
-- ['user-guide/index.md', 'User Guide', 'User Guide']
-- ['user-guide/install.md', 'User Guide', 'Installing']
-- ['user-guide/parameters.md', 'User Guide', 'Generating RVIC Parameters']
-- ['user-guide/convolution.md', 'User Guide', 'Running the RVIC Convolution']
-- ['user-guide/conversion.md', 'User Guide', 'Conversion from other VIC Routing Models']
-- ['user-guide/api.md', 'User Guide', 'RVIC API']
-# Model Development
-- ['development/model-development.md', 'Model Development', 'RVIC Development']
-- ['development/open-source.md', 'Model Development', 'Open Source Philosophy']
-# Support Pages
-- ['support/contact.md', 'Support',  'Contact']
-- ['support/faq.md', 'Support', 'Frequently Asked Questions']
+- Home: index.md
+- About:
+  - Model Overview: about/model-overview.md
+  - References: about/references.md
+- User Guide:
+  - User Guide: user-guide/index.md
+  - Installing: user-guide/install.md
+  - Generating RVIC Parameters: user-guide/parameters.md
+  - Running the RVIC Convolution: user-guide/convolution.md
+  - Conversion from other VIC Routing Models: user-guide/conversion.md
+  - RVIC API: user-guide/api.md
+- Model Development:
+  - RVIC Development: development/model-development.md
+  - Open Source Philosophy: development/open-source.md
+- Support:
+  - Contact: support/contact.md
+  - Frequently Asked Questions: support/faq.md
