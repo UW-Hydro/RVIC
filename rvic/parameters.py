@@ -363,18 +363,6 @@ def gen_uh_init(config_file):
                 # fill name filed with p-outlet_num
                 name = 'p-{0}'.format(i)
 
-            print(dict(lat=lats[i]))
-            print(dict(lon=lons[i]))
-            print(dict(domx=domxs[i]))
-            print(dict(domy=domys[i]))
-            print(dict(routx=routxs[i]))
-            print(dict(routy=routys[i]))
-            print(dict(name=name))
-            print(dom_data['cell_ids'].shape)
-            print([domys[i], domxs[i]])
-
-            print(dict(cell_id=dom_data['cell_ids'][domys[i], domxs[i]]))
-
             outlets[i] = Point(lat=lats[i],
                                lon=lons[i],
                                domx=domxs[i],
