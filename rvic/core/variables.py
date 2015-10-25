@@ -387,7 +387,7 @@ class Rvar(object):
         time = f.createVariable('time', NC_DOUBLE, ('time',), **self.ncvaropts)
         time[:] = date2num(self.timestamp, TIMEUNITS, calendar=self._calendar)
 
-        for key, val in iteritems(share.time.__dict__):
+        for key, val in iteritems(share.time):
             if val:
                 setattr(time, key, val)
         time.calendar = self._calendar
@@ -398,7 +398,7 @@ class Rvar(object):
                                      **self.ncvaropts)
         timesteps[:] = np.arange(self.full_time_length)
 
-        for key, val in iteritems(share.timesteps.__dict__):
+        for key, val in iteritems(share.timesteps):
             if val:
                 setattr(timesteps, key, val)
         timesteps.timestep_length = 'unit_hydrograph_dt'
@@ -407,14 +407,14 @@ class Rvar(object):
         unit_hydrograph_dt = f.createVariable('unit_hydrograph_dt',
                                               NC_DOUBLE, (), **self.ncvaropts)
         unit_hydrograph_dt[:] = self.unit_hydrograph_dt
-        for key, val in iteritems(share.unit_hydrograph_dt.__dict__):
+        for key, val in iteritems(share.unit_hydrograph_dt):
             if val:
                 setattr(unit_hydrograph_dt, key, val)
 
         timemgr_rst_type = f.createVariable('timemgr_rst_type', NC_DOUBLE, (),
                                             **self.ncvaropts)
         timemgr_rst_type[:] = self._calendar_key
-        for key, val in iteritems(share.timemgr_rst_type.__dict__):
+        for key, val in iteritems(share.timemgr_rst_type):
             if val:
                 setattr(timemgr_rst_type, key, val)
 
@@ -422,7 +422,7 @@ class Rvar(object):
                                                 NC_DOUBLE, (),
                                                 **self.ncvaropts)
         timemgr_rst_step_sec[:] = self.unit_hydrograph_dt
-        for key, val in iteritems(share.timemgr_rst_step_sec.__dict__):
+        for key, val in iteritems(share.timemgr_rst_step_sec):
             if val:
                 setattr(timemgr_rst_step_sec, key, val)
 
@@ -431,7 +431,7 @@ class Rvar(object):
                                                  **self.ncvaropts)
         timemgr_rst_start_ymd[:] = self._start_date.year * 10000 \
             + self._start_date.month * 100 + self._start_date.day
-        for key, val in iteritems(share.timemgr_rst_start_ymd.__dict__):
+        for key, val in iteritems(share.timemgr_rst_start_ymd):
             if val:
                 setattr(timemgr_rst_start_ymd, key, val)
 
@@ -439,7 +439,7 @@ class Rvar(object):
                                                  NC_DOUBLE, (),
                                                  **self.ncvaropts)
         timemgr_rst_start_tod[:] = (self._start_ord % 1) * SECSPERDAY
-        for key, val in iteritems(share.timemgr_rst_start_tod.__dict__):
+        for key, val in iteritems(share.timemgr_rst_start_tod):
             if val:
                 setattr(timemgr_rst_start_tod, key, val)
 
@@ -447,7 +447,7 @@ class Rvar(object):
                                                NC_DOUBLE, (),
                                                **self.ncvaropts)
         timemgr_rst_ref_ymd[:] = REFERENCE_DATE
-        for key, val in iteritems(share.timemgr_rst_ref_ymd.__dict__):
+        for key, val in iteritems(share.timemgr_rst_ref_ymd):
             if val:
                 setattr(timemgr_rst_ref_ymd, key, val)
 
@@ -455,7 +455,7 @@ class Rvar(object):
                                                NC_DOUBLE, (),
                                                **self.ncvaropts)
         timemgr_rst_ref_tod[:] = REFERENCE_TIME
-        for key, val in iteritems(share.timemgr_rst_ref_tod.__dict__):
+        for key, val in iteritems(share.timemgr_rst_ref_tod):
             if val:
                 setattr(timemgr_rst_ref_tod, key, val)
 
@@ -464,7 +464,7 @@ class Rvar(object):
                                                 **self.ncvaropts)
         timemgr_rst_curr_ymd[:] = self.timestamp.year * 10000 + \
             self.timestamp.month * 100 + self.timestamp.day
-        for key, val in iteritems(share.timemgr_rst_curr_ymd.__dict__):
+        for key, val in iteritems(share.timemgr_rst_curr_ymd):
             if val:
                 setattr(timemgr_rst_curr_ymd, key, val)
 
@@ -472,7 +472,7 @@ class Rvar(object):
                                                 NC_DOUBLE, (),
                                                 **self.ncvaropts)
         timemgr_rst_curr_tod[:] = (self.time_ord % 1) * SECSPERDAY
-        for key, val in iteritems(share.timemgr_rst_curr_tod.__dict__):
+        for key, val in iteritems(share.timemgr_rst_curr_tod):
             if val:
                 setattr(timemgr_rst_curr_tod, key, val)
 
@@ -518,21 +518,21 @@ class Rvar(object):
         oyi = f.createVariable('outlet_y_ind', NC_INT, coords[0],
                                **self.ncvaropts)
         oyi[:] = self.outlet_y_ind
-        for key, val in iteritems(share.outlet_y_ind.__dict__):
+        for key, val in iteritems(share.outlet_y_ind):
             if val:
                 setattr(oyi, key, val)
 
         oxi = f.createVariable('outlet_x_ind', NC_INT, coords[0],
                                **self.ncvaropts)
         oxi[:] = self.outlet_x_ind
-        for key, val in iteritems(share.outlet_x_ind.__dict__):
+        for key, val in iteritems(share.outlet_x_ind):
             if val:
                 setattr(oxi, key, val)
 
         odi = f.createVariable('outlet_decomp_ind', NC_INT, coords[0],
                                **self.ncvaropts)
         odi[:] = self.outlet_decomp_ind
-        for key, val in iteritems(share.outlet_decomp_ind.__dict__):
+        for key, val in iteritems(share.outlet_decomp_ind):
             if val:
                 setattr(odi, key, val)
 
@@ -543,7 +543,7 @@ class Rvar(object):
                                     NC_DOUBLE, tcoords, **self.ncvaropts)
             ring[:, :] = self.ring[tracer][:, :]
 
-            for key, val in iteritems(share.ring.__dict__):
+            for key, val in iteritems(share.ring):
                 if val:
                     setattr(ring, key, val)
         # ------------------------------------------------------------ #

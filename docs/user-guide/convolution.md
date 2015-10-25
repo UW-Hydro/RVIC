@@ -28,9 +28,6 @@ The flux file(s) must be in netCDF format and have a `time` dimension as well as
 3.  **CASE_DIR**
     - Description: case run directory
     - Type: char
-4.  **RVIC_TAG**
-    - Description: RVIC Tag
-    - Type: char
 5.  **CASEID**
     - Description: Case ID
     - Type: char
