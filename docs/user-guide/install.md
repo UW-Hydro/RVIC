@@ -12,6 +12,20 @@ If using `REMAP=True`:
 - [CDO](https://code.zmaw.de/projects/cdo)
 - [cdo.py](https://github.com/Try2Code/cdo-bindings)
 
+## Installing using a package manager
+
+RVIC is available via [PyPi](https://pypi.python.org/pypi/rvic):
+
+```
+pip install rvic
+```
+
+or Anaconda via the UW-Hydro channel:
+
+```
+conda install --channel https://conda.anaconda.org/UW-Hydro rvic
+```
+
 ## Building RVIC
 
 ### Option 1:  Using Anaconda

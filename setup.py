@@ -11,9 +11,9 @@ except:
     from distutils.extension import Extension
 
 MAJOR = 1
-MINOR = 0
-MICRO = 1
-ISRELEASED = False
+MINOR = 1
+MICRO = 0
+ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
@@ -102,12 +102,22 @@ setup(name='rvic',
                        '48(A), 708-721',
       author='Joe Hamman',
       author_email='jhamman1@uw.edu',
+      classifiers=['Development Status :: 4 - Beta',
+                   'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+                   'Operating System :: OS Independent',
+                   'Intended Audience :: Science/Research',
+                   'Programming Language :: Python',
+                   'Programming Language :: Python :: 2',
+                   'Programming Language :: Python :: 2.7',
+                   'Programming Language :: Python :: 3',
+                   'Programming Language :: Python :: 3.4',
+                   'Programming Language :: Python :: 3.5',
+                   'Topic :: Scientific/Engineering'],
       install_requires=['scipy >= 0.13', 'numpy >= 1.8',
                         'netCDF4 >= 1.0.6', 'matplotlib >= 1.3.1',
                         'pandas >= 0.15.1'],
       tests_require=['pytest >= 2.5.2'],
       url='https://github.com/UW-Hydro/RVIC',
-      test_suite='pytest.collector',
       packages=['rvic', 'rvic.core'],
       py_modules=['rvic.parameters', 'rvic.convolution', 'rvic.convert'],
       scripts=['scripts/rvic', 'tools/find_pour_points.py',
