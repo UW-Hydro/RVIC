@@ -1,15 +1,30 @@
 # Installing RVIC
 
 ## Dependencies
-- [Python 2.7](http://www.python.org/)
-- [Numpy](http://www.numpy.org)
-- [Scipy](http://www.scipy.org/)
-- [netcdf4-python](https://code.google.com/p/netcdf4-python/)
+- [Python 2.7 or later including Python3](http://www.python.org)
+- [NumPy](http://www.numpy.org)
+- [SciPy](http://www.scipy.org)
+- [netcdf4-python](https://code.google.com/p/netcdf4-python)
+- [pandas](http://pandas.pydata.org)
 
 If using `REMAP=True`:
 
-- [cdo](https://code.zmaw.de/projects/cdo)
+- [CDO](https://code.zmaw.de/projects/cdo)
 - [cdo.py](https://github.com/Try2Code/cdo-bindings)
+
+## Installing using a package manager
+
+RVIC is available via [PyPi](https://pypi.python.org/pypi/rvic):
+
+```
+pip install rvic
+```
+
+or Anaconda via the UW-Hydro channel:
+
+```
+conda install --channel https://conda.anaconda.org/UW-Hydro rvic
+```
 
 ## Building RVIC
 

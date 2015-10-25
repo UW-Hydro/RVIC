@@ -1,31 +1,35 @@
 language: python
+sudo: false # use container based build
+notifications:
+  email: false
 
-python:
-  - "2.7"
+matrix:
+  fast_finish: true
+  include:
+    - python: 2.7
+    - python: 3.4
+    - python: 3.5
+
 # Setup anaconda
 before_install:
-  - wget http://repo.continuum.io/miniconda/Miniconda-2.2.2-Linux-x86_64.sh -O miniconda.sh
-  - chmod +x miniconda.sh
-  - ./miniconda.sh -b
-  - export PATH=/home/travis/anaconda/bin:$PATH
-  # Update conda itself
-  - conda update --yes conda
-  # The next couple lines fix a crash with multiprocessing on Travis and are not specific to using Miniconda
-  - sudo rm -rf /dev/shm
-  - sudo ln -s /run/shm /dev/shm
+  - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
+      wget http://repo.continuum.io/miniconda/Miniconda-3.16.0-Linux-x86_64.sh -O miniconda.sh;
+    else
+      wget http://repo.continuum.io/miniconda/Miniconda3-3.16.0-Linux-x86_64.sh -O miniconda.sh;
+    fi
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
 # Install packages
 install:
-  - conda create --yes --name=rvic_test_env python=$TRAVIS_PYTHON_VERSION --file=ci/requirements-2.7.txt
-  - source activate rvic_test_env
+  - conda create --yes --name=test python=$TRAVIS_PYTHON_VERSION numpy scipy pandas netcdf4 matplotlib pytest
+  - source activate test
+  # - conda install -c https://conda.anaconda.org/ioos cdo
+  # - pip install cdo
   - python setup.py install
 # Run test
 script:
-  - which python
-  - python --version
-  - conda list
-  - pip freeze
-  - echo $PATH
-  - python -c 'import rvic; print rvic.__file__'
-  - cd tests
-  - pwd
-  - python run_tests.py unit
+  - py.test

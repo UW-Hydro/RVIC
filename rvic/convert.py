@@ -1,19 +1,20 @@
-"""
+# -*- coding: utf-8 -*-
+'''
 Read a set of uhs files and write an RVIC parameter file
-"""
+'''
 
 from logging import getLogger
-from core.log import init_logger, close_logger, LOG_NAME
-from core.utilities import make_directories, copy_inputs, read_domain
-from core.utilities import tar_inputs
-from core.convert import read_station_file, read_uhs_files, move_domain
-from core.param_file import finish_params
-from core.config import read_config
+from .core.log import init_logger, close_logger, LOG_NAME
+from .core.utilities import make_directories, copy_inputs, read_domain
+from .core.utilities import tar_inputs
+from .core.convert import read_station_file, read_uhs_files, move_domain
+from .core.param_file import finish_params
+from .core.config import read_config
 
 
 # -------------------------------------------------------------------- #
 # Top level driver
-def convert(config_file, numofproc):
+def convert(config_file):
 
     # ---------------------------------------------------------------- #
     # Initilize
@@ -29,7 +30,7 @@ def convert(config_file, numofproc):
     # ---------------------------------------------------------------- #
     # Run
     log.info('getting outlets now')
-    outlets = uhs2param_run(dom_data, outlets, config_dict, directories)
+    outlets = uhs2param_run(dom_data, outlets, config_dict)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -59,7 +60,8 @@ def uhs2param_init(config_file):
     # copy inputs to $case_dir/inputs and update configuration
     config_dict = copy_inputs(config_file, directories['inputs'])
     options = config_dict['OPTIONS']
-    config_dict['POUR_POINTS'] = {'FILE_NAME': config_dict['UHS_FILES']['STATION_FILE']}
+    config_dict['POUR_POINTS'] = {
+        'FILE_NAME': config_dict['UHS_FILES']['STATION_FILE']}
     config_dict['ROUTING']['FILE_NAME'] = 'unknown'
     config_dict['UH_BOX'] = {'FILE_NAME': 'unknown'}
     # ---------------------------------------------------------------- #
@@ -70,17 +72,16 @@ def uhs2param_init(config_file):
                       options['VERBOSE'])
 
     for direc in directories:
-        log.info('%s directory is %s' % (direc, directories[direc]))
+        log.info('%s directory is %s', direc, directories[direc])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read domain file (if applicable)
-    dom_data, DomVats, DomGats = read_domain(config_dict['DOMAIN'])
-    log.info('Opened Domain File: %s' % config_dict['DOMAIN']['FILE_NAME'])
+    dom_data = read_domain(config_dict['DOMAIN'])[0]
+    log.info('Opened Domain File: %s', config_dict['DOMAIN']['FILE_NAME'])
 
     if 'NEW_DOMAIN' in config_dict:
-        new_dom_data, new_DomVats, \
-            new_DomGats = read_domain(config_dict['NEW_DOMAIN'])
+        new_dom_data = read_domain(config_dict['NEW_DOMAIN'])[0]
         log.info('Opened New Domain File: %s',
                  config_dict['NEW_DOMAIN']['FILE_NAME'])
     else:
@@ -99,7 +100,7 @@ def uhs2param_init(config_file):
 
 # -------------------------------------------------------------------- #
 # run
-def uhs2param_run(dom_data, outlets, config_dict, directories):
+def uhs2param_run(dom_data, outlets, config_dict):
 
     # ---------------------------------------------------------------- #
     # Read uhs files
@@ -113,9 +114,9 @@ def uhs2param_run(dom_data, outlets, config_dict, directories):
 # -------------------------------------------------------------------- #
 #
 def uhs2param_final(outlets, dom_data, new_dom_data, config_dict, directories):
-    """
+    '''
     Make the RVIC Parameter File
-    """
+    '''
 
     log = getLogger(LOG_NAME)
 
