@@ -519,10 +519,10 @@ class Tape(object):
 
         time = f.createVariable('time', self._ncprec, ('time',))
         time[:] = self._out_times[:self._out_data_i + 1]
-        for key, val in iteritems(share.time.__dict__):
+        for key, val in iteritems(share.time):
             if val:
-                setattr(time, key, val)
-        time.calendar = self._calendar
+                setattr(time, key, val.encode())
+        time.calendar = self._calendar.encode()
 
         if self._avgflag != 'I':
             f.createDimension('nv', 2)
@@ -548,13 +548,13 @@ class Tape(object):
             xc[:, :] = self._grid_lons
             yc[:, :] = self._grid_lats
 
-            for key, val in iteritems(share.xc.__dict__):
+            for key, val in iteritems(share.xc):
                 if val:
-                    setattr(xc, key, val)
+                    setattr(xc, key, val.encode())
 
-            for key, val in iteritems(share.yc.__dict__):
+            for key, val in iteritems(share.yc):
                 if val:
-                    setattr(yc, key, val)
+                    setattr(yc, key, val.encode())
 
         else:
             coords = ('lat', 'lon',)
@@ -569,13 +569,13 @@ class Tape(object):
             lon[:] = self._grid_lons
             lat[:] = self._grid_lats
 
-            for key, val in iteritems(share.lon.__dict__):
+            for key, val in iteritems(share.lon):
                 if val:
-                    setattr(lon, key, val)
+                    setattr(lon, key, val.encode())
 
-            for key, val in iteritems(share.lat.__dict__):
+            for key, val in iteritems(share.lat):
                 if val:
-                    setattr(lat, key, val)
+                    setattr(lat, key, val.encode())
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -587,12 +587,12 @@ class Tape(object):
                                    **self.ncvaropts)
             var[:, :] = self._out_data[field][:self._out_data_i + 1]
 
-            for key, val in iteritems(getattr(share, field).__dict__):
+            for key, val in iteritems(getattr(share, field)):
                 if val:
-                    setattr(var, key, val)
-            var.units = self._units
+                    setattr(var, key, val.encode())
+            var.units = self._units.encode()
             if self._grid_lons.ndim > 1:
-                var.coordinates = ' '.join(coords)
+                var.coordinates = ' '.join(coords).encode()
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -600,7 +600,7 @@ class Tape(object):
         self._glob_ats.update()
         for key, val in iteritems(self._glob_ats.atts):
             if val:
-                setattr(f, key, val)
+                setattr(f, key, val.encode())
         # ------------------------------------------------------------ #
         f.close()
         log.info('Finished writing %s', self.filename)
@@ -622,11 +622,11 @@ class Tape(object):
 
         time = f.createVariable('time', self._ncprec, ('time',),
                                 **self.ncvaropts)
-        time[:] = self._out_times[:self._out_data_i + 1]
-        for key, val in iteritems(share.time.__dict__):
+        time[:] = self._out_times[:self._out_data_i]
+        for key, val in iteritems(share.time):
             if val:
-                setattr(time, key, val)
-        time.calendar = self._calendar
+                setattr(time, key, val.encode())
+        time.calendar = self._calendar.encode()
 
         if self._avgflag != 'I':
             f.createDimension('nv', 2)
@@ -635,7 +635,7 @@ class Tape(object):
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
                                          ('time', 'nv',), **self.ncvaropts)
-            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i + 1]
+            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -671,29 +671,29 @@ class Tape(object):
         outlet_decomp_ind[:] = self._outlet_decomp_ind
         onm[:, :] = char_names
 
-        for key, val in iteritems(share.outlet_lon.__dict__):
+        for key, val in iteritems(share.outlet_lon):
             if val:
-                setattr(outlet_lon, key, val)
+                setattr(outlet_lon, key, val.encode())
 
-        for key, val in iteritems(share.outlet_lat.__dict__):
+        for key, val in iteritems(share.outlet_lat):
             if val:
-                setattr(outlet_lat, key, val)
+                setattr(outlet_lat, key, val.encode())
 
-        for key, val in iteritems(share.outlet_y_ind.__dict__):
+        for key, val in iteritems(share.outlet_y_ind):
             if val:
-                setattr(outlet_y_ind, key, val)
+                setattr(outlet_y_ind, key, val.encode())
 
-        for key, val in iteritems(share.outlet_x_ind.__dict__):
+        for key, val in iteritems(share.outlet_x_ind):
             if val:
-                setattr(outlet_x_ind, key, val)
+                setattr(outlet_x_ind, key, val.encode())
 
-        for key, val in iteritems(share.outlet_decomp_ind.__dict__):
+        for key, val in iteritems(share.outlet_decomp_ind):
             if val:
-                setattr(outlet_decomp_ind, key, val)
+                setattr(outlet_decomp_ind, key, val.encode())
 
-        for key, val in iteritems(share.outlet_name.__dict__):
+        for key, val in iteritems(share.outlet_name):
             if val:
-                setattr(onm, key, val)
+                setattr(onm, key, val.encode())
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -703,12 +703,12 @@ class Tape(object):
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords,
                                    **self.ncvaropts)
-            var[:, :] = self._out_data[field][:self._out_data_i + 1]
+            var[:, :] = self._out_data[field][:self._out_data_i]
 
-            for key, val in iteritems(getattr(share, field).__dict__):
+            for key, val in iteritems(getattr(share, field)):
                 if val:
-                    setattr(var, key, val)
-            var.units = self._units
+                    setattr(var, key, val.encode())
+            var.units = self._units.encode()
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -716,8 +716,8 @@ class Tape(object):
         self._glob_ats.update()
         for key, val in iteritems(self._glob_ats.atts):
             if val:
-                setattr(f, key, val)
-        f.featureType = 'timeSeries'
+                setattr(f, key, val.encode())
+        f.featureType = 'timeSeries'.encode()
         # ------------------------------------------------------------ #
         f.close()
         log.info('Finished writing %s', self.filename)
