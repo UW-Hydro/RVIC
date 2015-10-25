@@ -21,6 +21,7 @@ rvic.egg-info
 # Configuration Files #
 #######################
 *cfg
+samples/cases/*
 
 # Packages #
 ############
