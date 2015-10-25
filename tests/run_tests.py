@@ -2,6 +2,7 @@
 '''RVIC command line testing interface'''
 
 import os
+import sys
 import textwrap
 import argparse
 import pytest
@@ -46,9 +47,10 @@ def main():
 
     if any(i in ['all', 'unit'] for i in args.test_set):
         # run unit tests
-        pytest.main('-x unit')
+        exit_code = pytest.main('-x unit')
     if any(i in ['all', 'examples'] for i in args.test_set):
-        run_examples(args.examples)
+        exit_code = run_examples(args.examples)
+    sys.exit(exit_code)
     return
 # -------------------------------------------------------------------- #
 
@@ -130,7 +132,7 @@ def run_examples(config_file):
     for test, outcome in iteritems(test_outcomes):
         print('\t{0}: {1}'.format(test, outcome))
 
-    return
+    return 0
 
 
 # -------------------------------------------------------------------- #

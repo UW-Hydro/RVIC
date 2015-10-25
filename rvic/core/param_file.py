@@ -31,7 +31,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     dom_area = domain['AREA_VAR']
     dom_frac = domain['FRACTION_VAR']
 
-    if not len(outlets.keys()) > 0:
+    if not len(outlets) > 0:
         raise ValueError('outlets in finish_params are empty')
 
     # ------------------------------------------------------------ #
@@ -71,7 +71,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     else:
         log.info('Not subsetting because either SUBSET_DAYS is null or '
                  'SUBSET_DAYS<BASIN_FLOWDAYS')
-        for outlet in outlets.values():
+        for key, outlet in iteritems(outlets):
             outlet.offset = np.zeros(outlet.unit_hydrograph.shape[1],
                                      dtype=np.int16)
         full_time_length = outlet.unit_hydrograph.shape[0]
@@ -94,7 +94,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # ---------------------------------------------------------------- #
     # Calculate the upstream area and upstream grid cells
     # The upstream_area must be calculated after adjust_fractions
-    for i, outlet in iteritems(outlets):
+    for key, outlet in iteritems(outlets):
         outlet.upstream_gridcells = len(outlet.y_source)
         outlet.upstream_area = np.sum(dom_data[dom_area][outlet.y_source,
                                                          outlet.x_source] *
@@ -199,6 +199,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
         RvicFdrFile=os.path.split(routing['FILE_NAME'])[1],
         RvicDomainFile=os.path.split(dom_file_name)[1])
 
+    log.debug('UH Range: (%f %f)', unit_hydrograph.min(), unit_hydrograph.max())
+
     write_param_file(param_file,
                      nc_format=options['NETCDF_FORMAT'],
                      glob_atts=glob_atts,
@@ -253,7 +255,7 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     # ---------------------------------------------------------------- #
     # Aggregate the fractions
-    for cell_id, outlet in iteritems(outlets):
+    for key, outlet in iteritems(outlets):
         y = outlet.y_source
         x = outlet.x_source
 
@@ -276,14 +278,14 @@ def adjust_fractions(outlets, dom_fractions, adjust=True):
 
     # ---------------------------------------------------------------- #
     # Adjust fracs based on ratio_fraction
-    for cell_id, outlet in iteritems(outlets):
+    for key, outlet in iteritems(outlets):
         y = outlet.y_source
         x = outlet.x_source
         if adjust:
-            outlets[cell_id].fractions *= ratio_fraction[y, x]
+            outlet.fractions *= ratio_fraction[y, x]
         # For Diagnostics only
-        adjusted_fractions[y, x] += outlets[cell_id].fractions
-        sum_uh_fractions[y, x] += outlets[cell_id].unit_hydrograph.sum(axis=0)
+        adjusted_fractions[y, x] += outlet.fractions
+        sum_uh_fractions[y, x] += outlet.unit_hydrograph.sum(axis=0)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -306,7 +308,7 @@ def subset(outlets, subset_length=None):
     log.info('subsetting unit-hydrographs now...')
     log.debug('Subset Length:  %s', subset_length)
     log.debug(outlets)
-    for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
+    for i, (key, outlet) in enumerate(iteritems(outlets)):
         if i == 0:
             full_time_length = outlet.unit_hydrograph.shape[0]
             log.debug('Subset Length:  %s', subset_length)
@@ -314,13 +316,13 @@ def subset(outlets, subset_length=None):
             if not subset_length:
                 subset_length = full_time_length
                 log.debug('No subset_length provided, using full_time_length')
-            before = outlets[cell_id].unit_hydrograph
+            before = outlet.unit_hydrograph
         else:
-            before = np.append(before, outlets[cell_id].unit_hydrograph,
+            before = np.append(before, outlet.unit_hydrograph,
                                axis=1)
 
-        outlets[cell_id].offset = np.empty(outlet.unit_hydrograph.shape[1],
-                                           dtype=np.int16)
+        outlet.offset = np.empty(outlet.unit_hydrograph.shape[1],
+                                 dtype=np.int16)
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
                           dtype=np.float64)
 
@@ -357,18 +359,18 @@ def subset(outlets, subset_length=None):
                 raise ValueError('Subsetting failed left:{0} or right {1} does'
                                  ' not fit inside bounds'.format(left, right))
 
-            outlets[cell_id].offset[j] = left
+            outlet.offset[j] = left
 
             # clip and normalize
             tot = outlet.unit_hydrograph[left:right, j].sum()
             out_uh[:, j] = outlet.unit_hydrograph[left:right, j] / tot
 
-        outlets[cell_id].unit_hydrograph = out_uh
+        outlet.unit_hydrograph = out_uh
 
         if i == 0:
-            after = outlets[cell_id].unit_hydrograph
+            after = outlet.unit_hydrograph
         else:
-            after = np.append(after, outlets[cell_id].unit_hydrograph, axis=1)
+            after = np.append(after, outlet.unit_hydrograph, axis=1)
 
     log.info('Done subsetting')
 
@@ -384,7 +386,7 @@ def group(outlets, subset_length):
 
     n_outlets = len(outlets)
     n_sources = 0
-    for outlet in outlets.values():
+    for key, outlet in iteritems(outlets):
         n_sources += len(outlet.y_source)
 
     gd = {}
@@ -423,9 +425,9 @@ def group(outlets, subset_length):
     # ---------------------------------------------------------------- #
     # place outlet and source vars into gd dictionary
     a = 0
-    for i, (cell_id, outlet) in enumerate(iteritems(outlets)):
+    for i, (key, outlet) in enumerate(iteritems(outlets)):
         b = a + len(outlet.y_source)
-        log.debug('outlet.unit_hydrograph.shape %s',
+        log.debug('%s unit_hydrograph.shape %s', outlet.name,
                   outlet.unit_hydrograph.shape)
         # -------------------------------------------------------- #
         # Point specific values
@@ -446,7 +448,7 @@ def group(outlets, subset_length):
         gd['outlet_lat'][i] = outlet.lat
         gd['outlet_x_ind'][i] = outlet.domx
         gd['outlet_y_ind'][i] = outlet.domy
-        gd['outlet_decomp_ind'][i] = cell_id
+        gd['outlet_decomp_ind'][i] = outlet.cell_id
         gd['outlet_number'][i] = i
         gd['outlet_name'][i] = outlet.name
         gd['outlet_upstream_gridcells'][i] = outlet.upstream_gridcells
