@@ -11,9 +11,9 @@ except:
     from distutils.extension import Extension
 
 MAJOR = 1
-MINOR = 0
-MICRO = 1
-ISRELEASED = False
+MINOR = 1
+MICRO = 0
+ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
 
