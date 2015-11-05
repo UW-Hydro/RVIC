@@ -73,7 +73,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
                  'SUBSET_DAYS<BASIN_FLOWDAYS')
         for key, outlet in iteritems(outlets):
             outlet.offset = np.zeros(outlet.unit_hydrograph.shape[1],
-                                     dtype=np.int16)
+                                     dtype=np.int32)
         full_time_length = outlet.unit_hydrograph.shape[0]
         subset_length = full_time_length
     # ---------------------------------------------------------------- #
@@ -125,6 +125,10 @@ def finish_params(outlets, dom_data, config_dict, directories):
     outlet_name = grouped_data['outlet_name']
     outlet_upstream_area = grouped_data['outlet_upstream_area']
     outlet_upstream_gridcells = grouped_data['outlet_upstream_gridcells']
+
+    # Make sure the inds are all greater than zero, ref: Github #79
+    assert source_decomp_ind.min() >= 0, source_decomp_ind
+    assert outlet_decomp_ind.min() >= 0, outlet_decomp_ind
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -322,7 +326,7 @@ def subset(outlets, subset_length=None):
                                axis=1)
 
         outlet.offset = np.empty(outlet.unit_hydrograph.shape[1],
-                                 dtype=np.int16)
+                                 dtype=np.int32)
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
                           dtype=np.float64)
 
@@ -402,23 +406,23 @@ def group(outlets, subset_length):
     gd['frac_sources'] = np.empty(n_sources, dtype=np.float64)
     gd['source_lon'] = np.empty(n_sources, dtype=np.float64)
     gd['source_lat'] = np.empty(n_sources, dtype=np.float64)
-    gd['source_x_ind'] = np.empty(n_sources, dtype=np.int16)
-    gd['source_y_ind'] = np.empty(n_sources, dtype=np.int16)
-    gd['source_decomp_ind'] = np.empty(n_sources, dtype=np.int16)
-    gd['source_time_offset'] = np.empty(n_sources, dtype=np.int16)
-    gd['source2outlet_ind'] = np.empty(n_sources, dtype=np.int16)
+    gd['source_x_ind'] = np.empty(n_sources, dtype=np.int32)
+    gd['source_y_ind'] = np.empty(n_sources, dtype=np.int32)
+    gd['source_decomp_ind'] = np.empty(n_sources, dtype=np.int32)
+    gd['source_time_offset'] = np.empty(n_sources, dtype=np.int32)
+    gd['source2outlet_ind'] = np.empty(n_sources, dtype=np.int32)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # outlet specific inputs
     gd['outlet_lon'] = np.empty(n_outlets, dtype=np.float64)
     gd['outlet_lat'] = np.empty(n_outlets, dtype=np.float64)
-    gd['outlet_x_ind'] = np.empty(n_outlets, dtype=np.int16)
-    gd['outlet_y_ind'] = np.empty(n_outlets, dtype=np.int16)
-    gd['outlet_decomp_ind'] = np.empty(n_outlets, dtype=np.int16)
-    gd['outlet_number'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_x_ind'] = np.empty(n_outlets, dtype=np.int32)
+    gd['outlet_y_ind'] = np.empty(n_outlets, dtype=np.int32)
+    gd['outlet_decomp_ind'] = np.empty(n_outlets, dtype=np.int32)
+    gd['outlet_number'] = np.empty(n_outlets, dtype=np.int32)
     gd['outlet_name'] = np.empty(n_outlets, dtype='S{0}'.format(MAX_NC_CHARS))
-    gd['outlet_upstream_gridcells'] = np.empty(n_outlets, dtype=np.int16)
+    gd['outlet_upstream_gridcells'] = np.empty(n_outlets, dtype=np.int32)
     gd['outlet_upstream_area'] = np.empty(n_outlets, dtype=np.float64)
     # ---------------------------------------------------------------- #
 
