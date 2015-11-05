@@ -192,8 +192,8 @@ def read_direction(fdr, dy, dx):
     '''
     log.debug('Reading direction input and finding target row/columns')
 
-    to_y = np.zeros_like(fdr, dtype=np.int16)
-    to_x = np.zeros_like(fdr, dtype=np.int16)
+    to_y = np.zeros_like(fdr, dtype=np.int32)
+    to_x = np.zeros_like(fdr, dtype=np.int32)
 
     valid_dirs = list(dy.keys())
 
@@ -238,7 +238,7 @@ def search_catchment(to_y, to_x, pour_point, basin_ids, basin_id):
     # -1 - not in catchment
     # 0 - unknown
     # 1 - in catchment
-    in_catch = np.zeros_like(to_x, dtype=np.int16) - 1
+    in_catch = np.zeros_like(to_x, dtype=np.int32) - 1
     in_catch[byinds, bxinds] = 0  # set basin inds as 0
 
     # temporary variables for tracking flow path
