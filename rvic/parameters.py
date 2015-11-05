@@ -577,7 +577,7 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     outlet.x_source = x
     outlet.y_source = y
 
-    # Make sure the inds are all greater than zero GH79
+    # Make sure the inds are all greater than zero, ref: Github #79
     assert all(outlet.cell_id_source >= 0)
     assert all(outlet.x_source >= 0)
     assert all(outlet.y_source >= 0)

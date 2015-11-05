@@ -126,7 +126,7 @@ def finish_params(outlets, dom_data, config_dict, directories):
     outlet_upstream_area = grouped_data['outlet_upstream_area']
     outlet_upstream_gridcells = grouped_data['outlet_upstream_gridcells']
 
-    # Make sure the inds are all greater than zero GH79
+    # Make sure the inds are all greater than zero, ref: Github #79
     assert source_decomp_ind.min() >= 0, source_decomp_ind
     assert outlet_decomp_ind.min() >= 0, outlet_decomp_ind
     # ---------------------------------------------------------------- #
