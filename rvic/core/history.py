@@ -493,7 +493,7 @@ class Tape(object):
         time = f.createDimension('time', None)
 
         time = f.createVariable('time', self._ncprec, ('time',))
-        time[:] = self._out_times[:self._out_data_i+1]
+        time[:] = self._out_times[:self._out_data_i]
         for key, val in share.time.__dict__.iteritems():
             if val:
                 setattr(time, key, val)
@@ -506,7 +506,7 @@ class Tape(object):
 
             time_bnds = f.createVariable('time_bnds', self._ncprec,
                                          ('time', 'nv',), **self.ncvaropts)
-            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i+1]
+            time_bnds[:, :] = self._out_time_bnds[:self._out_data_i]
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
@@ -560,7 +560,7 @@ class Tape(object):
         for field in self._fincl:
             var = f.createVariable(field, self._ncprec, tcoords,
                                    **self.ncvaropts)
-            var[:, :] = self._out_data[field][:self._out_data_i+1]
+            var[:, :] = self._out_data[field][:self._out_data_i]
 
             for key, val in getattr(share, field).__dict__.iteritems():
                 if val:
