@@ -52,13 +52,14 @@ echo 'done making area variable'
 # -------------------------------------------------------------------- #
 # Make land mask file (1 = land, 0 = not land)
 echo 'making mask variable'
-ncap2 -O -v -s 'mask=frac' temp_frac.nc $temp_mask1
-ncap2 -O -v -s 'where(mask>0.0000001) mask=1; elsewhere mask=0;' $temp_mask1 $temp_mask
-ncatted -O -a long_name,mask,a,c,"domain mask" $temp_mask
-ncatted -O -a note,mask,a,c,"unitless" $temp_mask
-ncatted -O -a comment,mask,a,c,"0 value indicates cell is not active" $temp_mask
+ncap2 -O -v -s 'm=frac' $temp_frac $temp_mask1
+ncap2 -O -v -s 'where(m>0.0000001) m=1; elsewhere m=0;' $temp_mask1 $temp_mask
+ncatted -O -a long_name,m,a,c,"domain mask" $temp_mask
+ncatted -O -a note,m,a,c,"unitless" $temp_mask
+ncatted -O -a comment,m,a,c,"0 value indicates cell is not active" $temp_mask
 
-ncks -A -v mask $temp_mask $outfile
+ncks -A -v m $temp_mask $outfile
+ncrename -O -v m,mask $outfile $outfile
 echo 'done making mask variable'
 # -------------------------------------------------------------------- #
 

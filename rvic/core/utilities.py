@@ -1,18 +1,20 @@
-"""
+# -*- coding: utf-8 -*-
+'''
 utilities.py
-"""
+'''
 import os
 import tarfile
 from scipy.spatial import cKDTree
 import numpy as np
 from shutil import rmtree, copyfile
-from ConfigParser import SafeConfigParser
+from .pycompat import iteritems, SafeConfigParser
 from netCDF4 import Dataset
 from logging import getLogger
-from log import LOG_NAME
-from share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
-from share import METERS2PERACRE, METERSPERKM, VALID_CHARS
-from config import read_config
+from .log import LOG_NAME
+from .share import TIMESTAMPFORM, RPOINTER, EARTHRADIUS, METERSPERMILE
+from .share import METERS2PERACRE, METERSPERKM, VALID_CHARS
+from .config import read_config
+from .pycompat import pyzip
 
 # -------------------------------------------------------------------- #
 # create logger
@@ -23,7 +25,7 @@ log = getLogger(LOG_NAME)
 # -------------------------------------------------------------------- #
 # find x y coordinates
 def latlon2yx(plats, plons, glats, glons):
-    """find y x coordinates """
+    '''find y x coordinates '''
 
     # use astronomical conventions for longitude
     # (i.e. negative longitudes to the east of 0)
@@ -43,7 +45,7 @@ def latlon2yx(plats, plons, glats, glons):
     points = list(np.vstack((np.array(plats), np.array(plons))).transpose())
 
     mytree = cKDTree(combined)
-    dist, indexes = mytree.query(points, k=1)
+    indexes = mytree.query(points, k=1)[1]
     y, x = np.unravel_index(indexes, glons.shape)
     return y, x
 
@@ -52,33 +54,41 @@ def latlon2yx(plats, plons, glats, glons):
 
 # -------------------------------------------------------------------- #
 # Search neighboring grid cells for channel
-def search_for_channel(source_area, routys, routxs, search=2, tol=10):
-    """Search neighboring grid cells for channel"""
+def search_for_channel(source_area, routys, routxs, search=1, tol=10):
+    '''Search neighboring grid cells for channel'''
 
-    log.debug('serching for channel')
+    log.debug('serching for channel, tol: %f, search: %i', tol, search)
 
-    new_ys = np.empty_like(routys)
-    new_xs = np.empty_like(routxs)
+    new_ys = np.copy(routys)
+    new_xs = np.copy(routxs)
 
-    for i, (y, x) in enumerate(zip(routys, routxs)):
+    ysize, xsize = source_area.shape
+
+    for i, (y, x) in enumerate(pyzip(routys, routxs)):
         area0 = source_area[y, x]
 
-        search_area = source_area[y-search:y+search+1, x-search:x+search+1]
+        for j in range(search + 1):
+            ymin = np.clip(y - j, 0, ysize)
+            ymax = np.clip(y + j + 1, 0, ysize)
+            xmin = np.clip(x - j, 0, xsize)
+            xmax = np.clip(x + j + 1, 0, xsize)
 
-        if np.any(search_area > area0*tol):
-            sy, sx = np.unravel_index(search_area.argmax(), search_area.shape)
+            search_area = source_area[ymin:ymax, xmin:xmax]
 
-            new_ys[i] = y + sy - search
-            new_xs[i] = x + sx - search
+            if np.any(search_area / area0 > tol):
+                sy, sx = np.unravel_index(search_area.argmax(),
+                                          search_area.shape)
 
-            log.debug('Moving pour point to channel y: '
-                      '{0}->{1}, x: {2}->{3}'.format(y, new_ys[i],
-                                                     x, new_xs[i]))
-            log.debug('Source Area has increased from {0}'
-                      ' to {1}'.format(area0, source_area[new_ys[i], new_xs[i]]))
-        else:
-            new_ys[i] = y
-            new_xs[i] = x
+                new_ys[i] = np.clip(y + sy - j, 0, ysize)
+                new_xs[i] = np.clip(x + sx - j, 0, xsize)
+
+                log.debug('Moving pour point to channel y: %s->%s, x: %s->%s',
+                          y, new_ys[i], x, new_xs[i])
+                log.debug('Source Area has increased from %s to %s',
+                          area0, source_area[new_ys[i], new_xs[i]])
+
+                break
+
     return new_ys, new_xs
 
 # -------------------------------------------------------------------- #
@@ -87,7 +97,7 @@ def search_for_channel(source_area, routys, routxs, search=2, tol=10):
 # -------------------------------------------------------------------- #
 # Write rpointer file
 def write_rpointer(restart_dir, restart_file, timestamp):
-    """ Write a configuration file with restart file and time """
+    ''' Write a configuration file with restart file and time '''
     rpointer_file = os.path.join(restart_dir, RPOINTER)
 
     config = SafeConfigParser()
@@ -108,17 +118,17 @@ def write_rpointer(restart_dir, restart_file, timestamp):
 # -------------------------------------------------------------------- #
 # A helper function to read a netcdf file
 def read_netcdf(nc_file, variables=None, coords=None):
-    """
+    '''
     Read data from input netCDF. Will read all variables if none provided.
     Will also return all variable attributes.
     Both variables (data and attributes) are returned as dictionaries named
     by variable
-    """
+    '''
 
     f = Dataset(nc_file, 'r')
 
     if not variables:
-        variables = f.variables.keys()
+        variables = list(f.variables.keys())
     if not coords:
         coords = slice(None)
 
@@ -145,10 +155,10 @@ def read_netcdf(nc_file, variables=None, coords=None):
 # -------------------------------------------------------------------- #
 # Check to make sure all the expected variables are present in the dictionary
 def check_ncvars(config_section, nckeys):
-    """
+    '''
     Make sure the variables listed in the config file are present in the netcdf
-    """
-    for key, value in config_section.iteritems():
+    '''
+    for key, value in iteritems(config_section):
         if key.endswith('var'):
             if value not in nckeys:
                 log.error('%s (%s) not in %s', value, key,
@@ -162,22 +172,22 @@ def check_ncvars(config_section, nckeys):
 # -------------------------------------------------------------------- #
 # Find the index of the the nearest value
 def find_nearest(array, value):
-    """ Find the index location in (array) with value nearest to (value)"""
-    return np.abs(array-value).argmin()
+    ''' Find the index location in (array) with value nearest to (value)'''
+    return np.abs(array - value).argmin()
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Delete all the files in a directory
 def clean_dir(directory):
-    """ Clean all files in a directory"""
+    ''' Clean all files in a directory'''
     for file_name in os.listdir(directory):
         file_path = os.path.join(directory, file_name)
         try:
             if os.path.isfile(file_path):
                 os.unlink(file_path)
-        except:
-            log.exception('Error cleaning file: %s' % file_path)
+        except Exception:
+            log.exception('Error cleaning file: %s', file_path)
     return
 # -------------------------------------------------------------------- #
 
@@ -185,12 +195,12 @@ def clean_dir(directory):
 # -------------------------------------------------------------------- #
 # Delete a particular file
 def clean_file(file_name):
-    """ Delete the file"""
+    ''' Delete the file'''
     try:
         if os.path.isfile(file_name):
             os.unlink(file_name)
-    except:
-        log.exception('Error cleaning file: %s' % file_name)
+    except Exception:
+        log.exception('Error cleaning file: %s', file_name)
     return
 # -------------------------------------------------------------------- #
 
@@ -198,7 +208,7 @@ def clean_file(file_name):
 # -------------------------------------------------------------------- #
 # Make a set of directories
 def make_directories(rundir, subdir_names):
-    """Make rvic directory structure"""
+    '''Make rvic directory structure'''
     if not os.path.exists(rundir):
         os.makedirs(rundir)
 
@@ -213,7 +223,7 @@ def make_directories(rundir, subdir_names):
 
 # -------------------------------------------------------------------- #
 # Move all the input files to a central location
-def copy_inputs(config_file, InputsDir):
+def copy_inputs(config_file, inputs_dir):
 
     config_dict = read_config(config_file)
 
@@ -221,20 +231,20 @@ def copy_inputs(config_file, InputsDir):
     config.optionxform = str
     config.read(config_file)
 
-    new_config = os.path.join(InputsDir, os.path.split(config_file)[1])
+    new_config = os.path.join(inputs_dir, os.path.split(config_file)[1])
 
     # ---------------------------------------------------------------- #
     # copy the inputs
-    for key, section in config_dict.iteritems():
-        if 'FILE_NAME' in section.keys():
-            new_file_name = os.path.join(InputsDir,
-                                         os.path.split(section['FILE_NAME'])[1])
+    for key, section in iteritems(config_dict):
+        if 'FILE_NAME' in list(section.keys()):
+            new_file_name = os.path.join(
+                inputs_dir, os.path.split(section['FILE_NAME'])[1])
 
             copyfile(section['FILE_NAME'], new_file_name)
 
             # update the config file for an easy restart
             config.set(key, 'FILE_NAME',
-                       os.path.join(InputsDir,
+                       os.path.join(inputs_dir,
                                     os.path.split(section['FILE_NAME'])[1]))
 
             # update the config_dict with the new value
@@ -253,7 +263,7 @@ def copy_inputs(config_file, InputsDir):
 
 # -------------------------------------------------------------------- #
 def tar_inputs(inputs, suffix='', tar_type='tar'):
-    """ Tar the inputss directory or file at the end of a run"""
+    ''' Tar the inputss directory or file at the end of a run'''
     # ---------------------------------------------------------------- #
     # Make the TarFile
     if tar_type == 'tar':
@@ -299,19 +309,21 @@ def tar_inputs(inputs, suffix='', tar_type='tar'):
 # -------------------------------------------------------------------- #
 # Read the domain
 def read_domain(domain_dict, lat0_is_min=False):
-    """
+    '''
     Read the domain file and return all the variables and attributes.
     Area is returned in m2
-    """
+    '''
     dom_data, dom_vatts, dom_gatts = read_netcdf(domain_dict['FILE_NAME'])
 
-    check_ncvars(domain_dict, dom_data.keys())
+    check_ncvars(domain_dict, list(dom_data.keys()))
 
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
     dom_mask = domain_dict['LAND_MASK_VAR']
-    temp = np.arange(dom_data[dom_mask].size)
-    dom_data['cell_ids'] = temp.reshape(dom_data[dom_mask].shape)
+    dom_data['cell_ids'] = np.arange(
+        dom_data[dom_mask].size).reshape(dom_data[dom_mask].shape)
+    # Make sure the inds are all greater than zero, ref: Github #79
+    assert dom_data['cell_ids'].min() >= 0
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -328,7 +340,7 @@ def read_domain(domain_dict, lat0_is_min=False):
         if (dom_data[dom_lat][-1] > dom_data[dom_lat][0]) != lat0_is_min:
             log.debug('Domain Inputs came in upside down, flipping everything '
                       'now.')
-            var_list = dom_data.keys()
+            var_list = list(dom_data.keys())
             var_list.remove(dom_lon)
             for var in var_list:
                 dom_data[var] = np.flipud(dom_data[var])
@@ -346,24 +358,24 @@ def read_domain(domain_dict, lat0_is_min=False):
     dom_area = domain_dict['AREA_VAR']
     area_units = dom_vatts[dom_area]['units']
 
-    if area_units in ["rad2", "radians2", "radian2", "radian^2", "rad^2",
-                      "radians^2", "rads^2", "radians squared",
-                      "square-radians"]:
-        dom_data[dom_area] = dom_data[dom_area]*EARTHRADIUS*EARTHRADIUS
-    elif area_units in ["m2", "m^2", "meters^2", "meters2", "square-meters",
-                        "meters squared"]:
+    if area_units in ['rad2', 'radians2', 'radian2', 'radian^2', 'rad^2',
+                      'radians^2', 'rads^2', 'radians squared',
+                      'square-radians']:
+        dom_data[dom_area] = dom_data[dom_area] * EARTHRADIUS * EARTHRADIUS
+    elif area_units in ['m2', 'm^2', 'meters^2', 'meters2', 'square-meters',
+                        'meters squared']:
         dom_data[dom_area] = dom_data[dom_area]
-    elif area_units in ["km2", "km^2", "kilometers^2", "kilometers2",
-                        "square-kilometers", "kilometers squared"]:
-        dom_data[dom_area] = dom_data[dom_area]*METERSPERKM*METERSPERKM
-    elif area_units in ["mi2", "mi^2", "miles^2", "miles", "square-miles",
-                        "miles squared"]:
-        dom_data[dom_area] = dom_data[dom_area]*METERSPERMILE*METERSPERMILE
-    elif area_units in ["acres", "ac", "ac."]:
-        dom_data[dom_area] = dom_data[dom_area]*METERS2PERACRE
+    elif area_units in ['km2', 'km^2', 'kilometers^2', 'kilometers2',
+                        'square-kilometers', 'kilometers squared']:
+        dom_data[dom_area] = dom_data[dom_area] * METERSPERKM * METERSPERKM
+    elif area_units in ['mi2', 'mi^2', 'miles^2', 'miles', 'square-miles',
+                        'miles squared']:
+        dom_data[dom_area] = dom_data[dom_area] * METERSPERMILE * METERSPERMILE
+    elif area_units in ['acres', 'ac', 'ac.']:
+        dom_data[dom_area] = dom_data[dom_area] * METERS2PERACRE
     else:
-        log.warning("WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN "
-                    "SQUARE METERS",
+        log.warning('WARNING: UNKNOWN AREA units (%s), ASSUMING THEY ARE IN '
+                    'SQUARE METERS',
                     dom_data[domain_dict['AREA_VAR']]['units'])
     # ---------------------------------------------------------------- #
     return dom_data, dom_vatts, dom_gatts
