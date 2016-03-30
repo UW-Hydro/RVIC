@@ -22,7 +22,7 @@ from datetime import datetime
 from .time_utility import ord_to_datetime
 from logging import getLogger
 from .log import LOG_NAME
-from .share import SECSPERDAY, HOURSPERDAY, TIMEUNITS, MMPERMETER
+from .share import SECSPERDAY, HOURSPERDAY, TIMEUNITS
 from .share import NC_INT, NC_FLOAT, NC_CHAR
 from .share import NC_DOUBLE, WATERDENSITY, MONTHSPERYEAR
 from .pycompat import iteritems
@@ -120,8 +120,8 @@ class Tape(object):
             self._units_mult = grid_area[self._outlet_y_ind,
                                          self._outlet_x_ind]
             self._units_mult *= SECSPERDAY
-            self._units_mult *= MMPERMETER
-            self._units_mult /= WATERDENSITY
+            # divide by water density (1000 kg/m3) and multiply by
+            # 1000 mm/m gives 1 mm * m2 / kg
             self._units_mult /= self._outlet_upstream_area
         elif units in ['gal/day', 'gpd', 'gal d-1']:
             self._units_mult = grid_area[self._outlet_y_ind,
