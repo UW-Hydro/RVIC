@@ -13,9 +13,9 @@ except:
 MAJOR = 1
 MINOR = 1
 MICRO = 0
-ISRELEASED = True
+ISRELEASED = False
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
-QUALIFIER = ''
+QUALIFIER = 'dev'
 
 FULLVERSION = VERSION
 write_version = True
