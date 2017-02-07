@@ -9,6 +9,7 @@ matrix:
     - python: 2.7
     - python: 3.4
     - python: 3.5
+    - python: 3.6
 
 # Setup anaconda
 before_install:
@@ -23,13 +24,13 @@ before_install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda info -a
+
 # Install packages
 install:
-  - conda create --yes --name=test python=$TRAVIS_PYTHON_VERSION numpy scipy pandas netcdf4 matplotlib pytest
+  - conda create --yes --name=test python=$TRAVIS_PYTHON_VERSION numpy scipy pandas netcdf4 matplotlib pytest -c conda-forge
   - source activate test
-  # - conda install -c https://conda.anaconda.org/ioos cdo
-  # - pip install cdo
   - python setup.py install
+
 # Run test
 script:
   - py.test
