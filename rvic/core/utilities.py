@@ -320,8 +320,10 @@ def read_domain(domain_dict, lat0_is_min=False):
     # ---------------------------------------------------------------- #
     # Create the cell_ids variable
     dom_mask = domain_dict['LAND_MASK_VAR']
-    temp = np.arange(dom_data[dom_mask].size)
-    dom_data['cell_ids'] = temp.reshape(dom_data[dom_mask].shape)
+    dom_data['cell_ids'] = np.arange(
+        dom_data[dom_mask].size).reshape(dom_data[dom_mask].shape)
+    # Make sure the inds are all greater than zero, ref: Github #79
+    assert dom_data['cell_ids'].min() >= 0
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

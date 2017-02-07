@@ -1,7 +1,7 @@
 site_name: RVIC
 site_description: RVIC Streamflow Routing Model
 site_author: UW Hydro | Computational Hydrology
-copyright: 'Copyright &copy; 2015, <a href="www.hydro.washington.edu/">University of Washington Computational Hydrology Group</a>.'
+copyright: 'Copyright &copy; 2017, <a href="http://uw-hydro.github.io/">University of Washington Computational Hydrology Group</a>.'
 repo_url: https://github.com/UW-Hydro/RVIC
 theme: readthedocs
 

@@ -40,7 +40,7 @@ def uhs(data, title, case_id, plot_dir):
     plt.xlabel('timesteps')
     plt.ylabel('unit-hydrograph')
     fig.savefig(pfname)
-
+    plt.close()
     return pfname
 # -------------------------------------------------------------------- #
 
@@ -71,6 +71,7 @@ def _fractions_grid(data, dom_x, dom_y, title, case_id, plot_dir):
     plt.ylim([0, dom_y.shape[0]])
     plt.xlim([0, dom_x.shape[1]])
     fig.savefig(pfname)
+    plt.close()
     # ---------------------------------------------------------------- #
     return pfname
 # -------------------------------------------------------------------- #
@@ -129,6 +130,7 @@ def _fractions_map(data, dom_x, dom_y, title, case_id, plot_dir):
     m.colorbar(cs, location='right', pad='5%')
     plt.title(title)
     fig.savefig(pfname)
+    plt.close()
     # ---------------------------------------------------------------- #
     return pfname
 # -------------------------------------------------------------------- #

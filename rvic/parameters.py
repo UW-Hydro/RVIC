@@ -33,14 +33,15 @@ results = {}
 
 # -------------------------------------------------------------------- #
 # Top level driver
-def parameters(config_file, numofproc=1):
+def parameters(config, numofproc=1):
     '''
     Top level function for RVIC parameter generation function.
 
     Parameters
     ----------
-    config_file : str
-        Path to RVIC parameters configuration file.
+    config : str or dict
+        Path to RVIC parameters configuration file or dictionary of
+        configuration options.
     numofproc : int
         Number of processors to use when developing RVIC parameters.
     '''
@@ -48,7 +49,7 @@ def parameters(config_file, numofproc=1):
     # ---------------------------------------------------------------- #
     # Initilize
     uh_box, fdr_data, fdr_vatts, dom_data, \
-        outlets, config_dict, directories = gen_uh_init(config_file)
+        outlets, config_dict, directories = gen_uh_init(config)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -100,7 +101,7 @@ def parameters(config_file, numofproc=1):
 # -------------------------------------------------------------------- #
 
 
-def gen_uh_init(config_file):
+def gen_uh_init(config):
     '''Initialize RVIC parameters script.
 
     This function:
@@ -113,8 +114,9 @@ def gen_uh_init(config_file):
 
     Parameters
     ----------
-    config_file : str
-        Path to RVIC parameters configuration file.
+    config : str or dict
+        Path to RVIC parameters configuration file or dictionary of
+        configuration options.
 
     Returns
     ----------
@@ -138,7 +140,10 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
-    config_dict = read_config(config_file)
+    if isinstance(config, dict):
+        config_dict = config
+    else:
+        config_dict = read_config(config)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -158,7 +163,8 @@ def gen_uh_init(config_file):
 
     # ---------------------------------------------------------------- #
     # copy inputs to $case_dir/inputs and update configuration
-    config_dict = copy_inputs(config_file, directories['inputs'])
+    if not isinstance(config, dict):
+        config_dict = copy_inputs(config, directories['inputs'])
     options = config_dict['OPTIONS']
     # ---------------------------------------------------------------- #
 
@@ -570,6 +576,11 @@ def gen_uh_run(uh_box, fdr_data, fdr_vatts, dom_data, outlet, config_dict,
     outlet.cell_id_source = dom_data['cell_ids'][y, x]
     outlet.x_source = x
     outlet.y_source = y
+
+    # Make sure the inds are all greater than zero, ref: Github #79
+    assert all(outlet.cell_id_source >= 0)
+    assert all(outlet.x_source >= 0)
+    assert all(outlet.y_source >= 0)
     # ---------------------------------------------------------------- #
     return outlet
 # -------------------------------------------------------------------- #

@@ -31,26 +31,21 @@ from .core.pycompat import iteritems
 
 # -------------------------------------------------------------------- #
 # Top Level Driver
-def convolution(config_file):
+def convolution(config):
     '''
     Top level driver for RVIC convolution model.
 
     Parameters
     ----------
-    config_file : str
-        Path to RVIC convolution configuration file.
+    config : str or dict.
+        Path to RVIC convolution configuration file or dictionary of
+        configuration options.
     '''
 
     # ---------------------------------------------------------------- #
     # Initilize
     hist_tapes, data_model, rout_var, \
-        time_handle, directories = convolution_init(config_file)
-    # ---------------------------------------------------------------- #
-
-    # ---------------------------------------------------------------- #
-    # Setup the pool of processors
-    # if numofproc > 1:
-    #     pool = LoggingPool(processes=numofproc)
+        time_handle, directories = convolution_init(config)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -69,7 +64,7 @@ def convolution(config_file):
 
 # -------------------------------------------------------------------- #
 # Initialize RVIC
-def convolution_init(config_file):
+def convolution_init(config):
     '''
     Initialize the RVIC convolution routine
 
@@ -85,8 +80,9 @@ def convolution_init(config_file):
 
     Parameters
     ----------
-    config_file : str
-        Path to RVIC convolution configuration file.
+    config : str or dict
+        Path to RVIC convolution configuration file or dictionary of
+        configuration options.
 
     Returns
     ----------
@@ -109,7 +105,10 @@ def convolution_init(config_file):
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
-    config_dict = read_config(config_file)
+    if isinstance(config, dict):
+        config_dict = config
+    else:
+        config_dict = read_config(config)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #

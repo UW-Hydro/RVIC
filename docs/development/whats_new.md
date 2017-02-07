@@ -1,5 +1,18 @@
 # What's New
 
+v1.1.1 (7 February 2017
+
+This release contains a number of bug and compatibility fixes.
+
+### Enhancements
+
+- Ability to pass a dictionary to top level RVIC functions (instead of only a file path). This allows for the generation of large ensembles of RVIC simulations in an interactive environment ([GH78](https://github.com/UW-Hydro/RVIC/pull/78)).
+
+### Bug Fixes
+
+- Fixed bug that in `tools/fraction2domain.bash` by using a temporary variable name ([GH88](https://github.com/UW-Hydro/RVIC/pull/88)).
+- Fixed off-by-one error in `history.py` ([GH86](https://github.com/UW-Hydro/RVIC/pull/86)).
+
 v1.1.0 (25 October 2015)
 
 This release contains a number of bug and compatibility fixes.
