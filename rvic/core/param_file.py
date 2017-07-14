@@ -327,7 +327,6 @@ def subset(outlets, subset_length=None):
 
         outlet.offset = np.empty(outlet.unit_hydrograph.shape[1],
                                  dtype=np.int32)
-
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
                           dtype=np.float64)
 
