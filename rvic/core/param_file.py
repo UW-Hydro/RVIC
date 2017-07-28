@@ -74,8 +74,8 @@ def finish_params(outlets, dom_data, config_dict, directories):
         for key, outlet in iteritems(outlets):
             outlet.offset = np.zeros(outlet.unit_hydrograph.shape[1],
                                      dtype=np.int32)
-        full_time_length = int(outlet.unit_hydrograph.shape[0])
-        subset_length = int(full_time_length)
+        full_time_length = outlet.unit_hydrograph.shape[0]
+        subset_length = full_time_length
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -314,11 +314,11 @@ def subset(outlets, subset_length=None):
     log.debug(outlets)
     for i, (key, outlet) in enumerate(iteritems(outlets)):
         if i == 0:
-            full_time_length = int(outlet.unit_hydrograph.shape[0])
+            full_time_length = outlet.unit_hydrograph.shape[0]
             log.debug('Subset Length:  %s', subset_length)
             log.debug('full_time_length:  %s', full_time_length)
             if not subset_length:
-                subset_length = int(full_time_length)
+                subset_length = full_time_length
                 log.debug('No subset_length provided, using full_time_length')
             before = outlet.unit_hydrograph
         else:
@@ -345,10 +345,10 @@ def subset(outlets, subset_length=None):
             # if not adjust
             if left < 0:
                 left = 0
-                right = int(subset_length)
+                right = subset_length
             if right > full_time_length:
-                right = int(full_time_length)
-                left = int(full_time_length - subset_length)
+                right = full_time_length
+                left = full_time_length - subset_length
 
                 log.warning('Subset centered on UH max extends beyond length '
                             'of unit hydrograph.')
