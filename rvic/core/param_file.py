@@ -49,8 +49,12 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # subset (shorten time base)
     if options['SUBSET_DAYS'] and \
             options['SUBSET_DAYS'] < routing['BASIN_FLOWDAYS']:
-        subset_length = (options['SUBSET_DAYS'] *
+        subset_length = int(options['SUBSET_DAYS'] *
                          SECSPERDAY / routing['OUTPUT_INTERVAL'])
+        if subset_length % 2 != 0:
+            raise ValueError('either (1) SUBSET_DAYS / OUTPUT_INTERVAL or ',
+                             '(2) outlet unit hydrograph length must be a ',
+                             'multiple of 2')
         outlets, full_time_length, \
             before, after = subset(outlets, subset_length=subset_length)
 
