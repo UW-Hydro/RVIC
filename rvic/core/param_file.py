@@ -54,7 +54,10 @@ def finish_params(outlets, dom_data, config_dict, directories):
         if subset_length % 2 != 0:
             raise ValueError('either (1) SUBSET_DAYS / OUTPUT_INTERVAL or ',
                              '(2) outlet unit hydrograph length must be a ',
-                             'multiple of 2')
+                             'multiple of 2','\n',
+                             'subset_length:',subset_length,'\n',
+                             'SUBSET_DAYS:',options['SUBSET_DAYS'],'\n',
+                             'OUTPUT_INTERVAL:',routing['OUTPUT_INTERVAL'])
         outlets, full_time_length, \
             before, after = subset(outlets, subset_length=subset_length)
 
