@@ -11,8 +11,8 @@ except:
     from distutils.extension import Extension
 
 MAJOR = 1
-MINOR = 1
-MICRO = 1
+MINOR = 2
+MICRO = 0
 ISRELEASED = True
 VERSION = '%d.%d.%d' % (MAJOR, MINOR, MICRO)
 QUALIFIER = ''
@@ -21,7 +21,6 @@ FULLVERSION = VERSION
 write_version = True
 
 
-# -------------------------------------------------------------------- #
 def write_version_py(filename=None):
     cnt = '''\
 version = '%s'
@@ -38,9 +37,8 @@ short_version = '%s'
         a.close()
 
     return
-# -------------------------------------------------------------------- #
 
-# -------------------------------------------------------------------- #
+
 # Get version string
 if ISRELEASED:
     FULLVERSION += QUALIFIER
@@ -85,14 +83,10 @@ else:
 
         # Strip leading v from tags format "vx.y.z" to get th version string
         FULLVERSION = rev.lstrip('v')
-# -------------------------------------------------------------------- #
 
-# -------------------------------------------------------------------- #
 if write_version:
     write_version_py()
-# -------------------------------------------------------------------- #
 
-# -------------------------------------------------------------------- #
 # Run Setup
 setup(name='rvic',
       version=FULLVERSION,
@@ -113,6 +107,7 @@ setup(name='rvic',
                    'Programming Language :: Python :: 3.4',
                    'Programming Language :: Python :: 3.5',
                    'Topic :: Scientific/Engineering'],
+      python_requires='>=3.6',
       install_requires=['scipy >= 0.13', 'numpy >= 1.8',
                         'netCDF4 >= 1.0.6', 'matplotlib >= 1.3.1',
                         'pandas >= 0.15.1'],
@@ -124,4 +119,3 @@ setup(name='rvic',
                'tools/fraction2domain.bash'],
       ext_modules=[Extension('rvic_convolution',
                              sources=['rvic/clib/rvic_convolution.c'])])
-# -------------------------------------------------------------------- #

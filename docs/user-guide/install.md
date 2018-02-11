@@ -1,7 +1,7 @@
 # Installing RVIC
 
 ## Dependencies
-- [Python 2.7 or later including Python3](http://www.python.org)
+- [Python 3.6](http://www.python.org)
 - [NumPy](http://www.numpy.org)
 - [SciPy](http://www.scipy.org)
 - [netcdf4-python](https://code.google.com/p/netcdf4-python)
@@ -14,19 +14,19 @@ If using `REMAP=True`:
 
 ## Installing using a package manager
 
-RVIC is available via [PyPi](https://pypi.python.org/pypi/rvic):
+Prebuilt Anaconda binaries are available via the [Conda-Forge](https://conda-forge.org/) channel:
+
+```
+conda install --channel conda-forge rvic
+```
+
+or via Python Wheels via [PyPi](https://pypi.python.org/pypi/rvic):
 
 ```
 pip install rvic
 ```
 
-or Anaconda via the UW-Hydro channel:
-
-```
-conda install --channel https://conda.anaconda.org/UW-Hydro rvic
-```
-
-## Building RVIC
+## Building RVIC (for development)
 
 ### Option 1:  Using Anaconda
 
@@ -34,12 +34,12 @@ The easiest way to install RVIC and its dependencies is to use the [Anaconda Pyt
 
 To install Anaconda, follow these two simple steps (check to make sure the installer version is the most current)
 
-1.  download and run the Anaconda installer:  [http://continuum.io/downloads](http://continuum.io/downloads)
+1.  download and run the Miniconda installer:  [http://continuum.io/downloads](https://conda.io/miniconda.html)
 
 2.  setup a virtual environment for RVIC
 
 ```shell
-conda create -n rvic anaconda
+conda create -n rvic python=3.6 numpy scipy netcdf4 pandas python-cdo cdo -c conda-forge
 source activate rvic
 ```
 
@@ -54,14 +54,14 @@ git clone git@github.com:UW-Hydro/RVIC.git
 From the RVIC source code repository, RVIC can be installed using Python's `distutils`:
 
 ```shell
-python setup.py install
+pip install .
 ```
 
 This installs a top level script, `rvic`, into your bin/ directory and the `rvic` package into your Python path.
 
 If you don't want to use the Anaconda installation I've shown above, you can build the package in your local python installation using:
 ```python
-python setup.py develop
+pip install -e .
 ```
 
 ### Option 2a:  Using a local Python Install (With Write Permissions)
@@ -69,7 +69,7 @@ python setup.py develop
 If you have write permissions to the location of your Python distribution, you can just run
 
 ```shell
-python setup.py install
+pip install .
 ```
 
 from the top level RVIC directory.  This will install RVIC into your `$PYTHONPATH`.
@@ -93,7 +93,7 @@ export PYTHONPATH=$HOME/lib/python:$PYTHONPATH
 Run `setup.py`:
 
 ```shell
-python setup.py install --home=$HOME
+pip install . --user
 ```
 
 ## Testing your install
