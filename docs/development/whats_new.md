@@ -1,6 +1,18 @@
 # What's New
 
-v1.1.1 (7 February 2017
+v1.2.0 (unreleased)
+
+This release contains a number of bug and compatibility fixes.
+
+### Bug fixes
+
+- Fix rounding issues with subset length and coupling timestep
+
+### Backward Incompatible Changes
+
+- Starting with v1.2, Python 3.6 will be the minimum supported Python version.
+
+v1.1.1 (7 February 2017)
 
 This release contains a number of bug and compatibility fixes.
 
