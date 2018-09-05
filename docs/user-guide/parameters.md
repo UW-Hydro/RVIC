@@ -146,7 +146,7 @@ A csv file that describes the routing of flow to the edge of the origin grid cel
     - Type: bool
     - Valid values: True, False
 
-    Note: *True when routing to coastal grid cells, else False.*
+    *Default: True*
 
 ###POUR_POINTS
 1.  **FILE_NAME**
