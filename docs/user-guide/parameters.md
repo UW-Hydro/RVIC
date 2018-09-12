@@ -146,7 +146,7 @@ A csv file that describes the routing of flow to the edge of the origin grid cel
     - Type: bool
     - Valid values: True, False
 
-    *Default: True*
+    *Note: In most cases, this should be set to True unless routing is being done to nested basins, in which case, this should be set to False.*
 
 ###POUR_POINTS
 1.  **FILE_NAME**
