@@ -49,8 +49,15 @@ def finish_params(outlets, dom_data, config_dict, directories):
     # subset (shorten time base)
     if options['SUBSET_DAYS'] and \
             options['SUBSET_DAYS'] < routing['BASIN_FLOWDAYS']:
-        subset_length = (options['SUBSET_DAYS'] *
+        subset_length = int(options['SUBSET_DAYS'] *
                          SECSPERDAY / routing['OUTPUT_INTERVAL'])
+        if subset_length % 2 != 0:
+            raise ValueError('either (1) SUBSET_DAYS / OUTPUT_INTERVAL or ',
+                             '(2) outlet unit hydrograph length must be a ',
+                             'multiple of 2','\n',
+                             'subset_length:',subset_length,'\n',
+                             'SUBSET_DAYS:',options['SUBSET_DAYS'],'\n',
+                             'OUTPUT_INTERVAL:',routing['OUTPUT_INTERVAL'])
         outlets, full_time_length, \
             before, after = subset(outlets, subset_length=subset_length)
 
@@ -330,8 +337,8 @@ def subset(outlets, subset_length=None):
         out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
                           dtype=np.float64)
 
-        d_left = -1 * subset_length / 2
-        d_right = subset_length / 2
+        d_left = int(-1 * subset_length / 2)
+        d_right = int(subset_length / 2)
 
         for j in pyrange(outlet.unit_hydrograph.shape[1]):
             # find index position of maximum

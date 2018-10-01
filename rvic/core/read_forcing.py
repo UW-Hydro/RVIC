@@ -165,7 +165,7 @@ class DataModel(object):
             t1 = date2num(num2date(time_series[1], self.time_units,
                                    calendar=self.calendar),
                           TIMEUNITS, calendar=self.calendar)
-            self.secs_per_step = (t1 - t0) * SECSPERDAY
+            self.secs_per_step = round((t1 - t0) * SECSPERDAY)
         else:
             raise ValueError('Need more than 1 forcing timestep in order to '
                              'calculate timestep')
