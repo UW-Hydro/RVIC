@@ -85,7 +85,7 @@ A csv file that describes the routing of flow to the edge of the origin grid cel
 | ...           |  ...        |
 | 169200        |  0.00068766 |
 
-![UH BOX](./images/uh-box.png)
+![UH BOX](../images/uh-box.png)
 ***Figure:*** *Example UH Box.  Values should sum to 1 (blue).*
 
 ## RVIC Parameter Configuration File

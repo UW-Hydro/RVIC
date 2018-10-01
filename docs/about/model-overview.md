@@ -9,8 +9,8 @@ The RVIC model is a modified version of the streamflow routing model typically u
 1. High-resolution impulse response functions are upscaled to the land grid using a conservative area remapping technique.  This approach maintains the fine-scale response features present in the high-resolution flow networks.
 1. Development of IRFs is done as a pre-process so that the only step to be completed in the coupled model is the flow convolution, significantly reducing computation time.
 
-![RVIC Schematic](./images/rvic_schematic_for_web.png)
-*Figure: RIVC Model Schematic.*
+![RVIC Schematic](../images/rvic_schematic_for_web.png)
+*Figure: RVIC Model Schematic.*
 
 ## Development of Impulse Response Functions
 The routing model represents the source-to-sink response of flow from any model grid cell to a downstream point as a linear and time invariant response to an impulse of runoff.  Therefore, the development of the impulse response function between any source and sink points is only a function of the horizontal travel time of water within the source grid cell and to the downstream point with the addition of a flow diffusion parameter.  The Saint-Venant equation
