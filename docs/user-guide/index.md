@@ -30,6 +30,6 @@ For more information on the `RVIC` api, see [this](user-guide/api) page.
 
 There are three main utilities in the RVIC Model:
 
-1.  [Parameter Development](user-guide/parameters): Development of impulse response functions using input datasets such as a flow direction grid, outlet locations, etc.
-2.  [Flux Convolution](user-guide/convolution): This utility generates streamflows by convolving the impulse response function developed in the previous setp with runoff fluxes from a land model (e.g. VIC).
-4.  [Conversion from Older VIC Routing Model Versions](user-guide/conversion): A simple conversion utility to provide users with the ability to convert old routing model setups into RVIC parameters.
+1.  [Parameter Development](./parameters): Development of impulse response functions using input datasets such as a flow direction grid, outlet locations, etc.
+2.  [Flux Convolution](./convolution): This utility generates streamflows by convolving the impulse response function developed in the previous setp with runoff fluxes from a land model (e.g. VIC).
+4.  [Conversion from Older VIC Routing Model Versions](./conversion): A simple conversion utility to provide users with the ability to convert old routing model setups into RVIC parameters.
