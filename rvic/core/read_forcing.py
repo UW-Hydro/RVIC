@@ -28,7 +28,7 @@ class DataModel(object):
     # ---------------------------------------------------------------- #
     # Initialize
     def __init__(self, path, file_str, time_fld, lat_fld, liq_flds,
-                 start, end):
+                 start, end, options):
 
         self.path = path
         self.time_fld = time_fld
@@ -125,7 +125,15 @@ class DataModel(object):
 
             if i == 0:
                 # get the calendar and units information
-                self.calendar = f.variables[self.time_fld].calendar
+                if "calendar" in f.variables[self.time_fld].ncattrs():
+                    self.calendar = f.variables[self.time_fld].calendar
+                    use_default_calendar = False
+                else:
+                    self.calendar = options["CALENDAR"]
+                    use_default_calendar = True  # this is a fix for missing calendar attributes in netCDF files.
+                                                #  We'll ignore the future checks for same calendar
+					log.warning('Initial file has no calendar information - using default')
+
                 self.time_units = f.variables[self.time_fld].units
                 time_series = f.variables[self.time_fld][:]
 
@@ -144,11 +152,11 @@ class DataModel(object):
                 # check that the units match the first file
                 if f.variables[self.time_fld].units != self.time_units:
                     raise ValueError('Units do not match in input files')
-                if f.variables[self.time_fld].calendar != self.calendar:
+                if not use_default_calendar and f.variables[self.time_fld].calendar != self.calendar:
+                    # only check if it's a mismatch if we're not using the default calendar
                     raise ValueError('Calendars do not match in input files')
 
-                time_series = np.append(time_series,
-                                        f.variables[self.time_fld][:])
+                time_series = np.append(time_series, f.variables[self.time_fld][:])
 
             f.close()
 
@@ -212,7 +220,7 @@ class DataModel(object):
             if units in ['kg/m2*s', 'kg m-2 s-1', 'kg m^-2 s^-1',
                          'kg*m-2*s-1', 'kg s-1 m-2']:
                 self.fld_mult[fld] = 1.0
-            elif units in ['mm', 'MM', 'milimeters', 'Milimeters']:
+            elif units in ['mm', 'MM', 'milimeters', 'Milimeters', 'mm/day']:
                 self.fld_mult[fld] = WATERDENSITY / MMPERMETER / self.secs_per_step
             elif units in ['m', 'M', 'meters', 'Meters']:
                 self.fld_mult[fld] = WATERDENSITY / self.secs_per_step
