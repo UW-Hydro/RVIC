@@ -274,28 +274,28 @@ timemgr_rst_type = dict(long_name='calendar type',
 
 timemgr_rst_step_sec = dict(long_name='seconds component of timestep size',
                             units='sec',
-                            valid_range='0, 86400')
+                            range=[0, 86400])
 
 timemgr_rst_start_ymd = dict(long_name='start date',
                              units='YYYYMMDD')
 
 timemgr_rst_start_tod = dict(long_name='start time of day',
                              units='sec',
-                             valid_range='0, 86400')
+                             range=[0, 86400])
 
 timemgr_rst_ref_ymd = dict(long_name='reference date',
                            units='YYYYMMDD')
 
 timemgr_rst_ref_tod = dict(long_name='reference time of day',
                            units='sec',
-                           valid_range='0, 86400')
+                           range=[0, 86400])
 
 timemgr_rst_curr_ymd = dict(long_name='current date',
                             units='YYYYMMDD')
 
 timemgr_rst_curr_tod = dict(long_name='current time of day',
                             units='sec',
-                            valid_range='0, 86400')
+                            range=[0, 86400])
 
 nhtfrq = dict(long_name='Frequency of history writes',
               units='absolute value of negative is in hours, 0=monthly, '
@@ -310,7 +310,7 @@ ncprec = dict(long_name='Flag for data precision',
               flag_values='1, 2',
               flag_meanings='single-precision double-precision',
               comment='Namelist item',
-              valid_range='1, 2')
+              valid_range=[1, 2])
 
 fincl = dict(long_name='Fieldnames to include',
              comment='Namelist item')
@@ -327,7 +327,7 @@ is_endhist = dict(long_name='End of history file',
                   flag_values='0, 1',
                   flag_meanings='FALSE TRUE',
                   comment='Namelist item',
-                  valid_range='0, 1')
+                  valid_range=[0, 1])
 
 begtime = dict(long_name='Beginning time',
                units='time units')
