@@ -137,7 +137,8 @@ def convolution_init(config):
                            forcings['LATITUDE_VAR'],
                            forcings['DATL_LIQ_FLDS'],
                            forcings['START'],
-                           forcings['END'])
+                           forcings['END'],
+                           options,)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
