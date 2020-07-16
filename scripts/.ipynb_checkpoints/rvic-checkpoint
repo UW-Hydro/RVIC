@@ -1,0 +1,62 @@
+#!/usr/bin/env python
+"""RVIC command line interface"""
+import argparse
+import os.path
+
+
+# -------------------------------------------------------------------- #
+def main():
+    """
+    Get the script and path to the config_file
+    """
+    # Parse arguments
+    parser = argparse.ArgumentParser(description='The RVIC streamflow routing '
+                                     'model is based on the original model of '
+                                     'Lohmann, et al., 1996, Tellus, 48(A), '
+                                     '708-721')
+    parser.add_argument("script", type=str,
+                        help="RVIC subprogram to run",
+                        choices=['parameters', 'convolution', 'convert'],
+                        default=None, nargs='?')
+    parser.add_argument("config_file", type=str,
+                        help="Input configuration file",
+                        default=None, nargs='?')
+    parser.add_argument("-np", "--numofproc", type=int,
+                        help="Number of processors used to run job", default=1)
+    parser.add_argument("--version", action='store_true',
+                        help="Return RVIC version string")
+
+    args = parser.parse_args()
+
+    if args.version:
+        from rvic import version
+        print(version.short_version)
+        return
+
+    if (args.script and args.config_file):
+        if not os.path.isfile(args.config_file):
+            raise IOError('config_file: {0} does not '
+                          'exist'.format(args.config_file))
+
+        if args.script == 'parameters':
+            from rvic.parameters import parameters
+            parameters(args.config_file, numofproc=args.numofproc)
+        else:
+            if args.numofproc > 1:
+                print('{0} processors were specified but script {1} only '
+                      'excepts 1'.format(args.numofproc, args.script))
+        if args.script == 'convolution':
+            from rvic.convolution import convolution
+            convolution(args.config_file)
+        if args.script == 'convert':
+            from rvic.convert import convert
+            convert(args.config_file)
+    else:
+        parser.print_help()
+    return
+# -------------------------------------------------------------------- #
+
+# -------------------------------------------------------------------- #
+if __name__ == "__main__":
+    main()
+# -------------------------------------------------------------------- #

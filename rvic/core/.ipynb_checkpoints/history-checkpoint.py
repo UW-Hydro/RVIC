@@ -645,7 +645,7 @@ class Tape(object):
         f.createDimension('outlets', self._num_outlets)
 
         nocoords = coords + ('nc_chars',)
-        char_names = self._outlet_name.astype(str)
+        char_names = stringtochar(self._outlet_name)
         f.createDimension(nocoords[1], char_names.shape[1])
         # ------------------------------------------------------------ #
 
