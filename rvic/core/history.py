@@ -120,7 +120,8 @@ class Tape(object):
             self._units_mult = grid_area[self._outlet_y_ind,
                                          self._outlet_x_ind]
             self._units_mult *= SECSPERDAY
-            self._units_mult /= WATERDENSITY
+            # divide by water density (1000 kg/m3) and multiply by
+            # 1000 mm/m gives 1 mm * m2 / kg
             self._units_mult /= self._outlet_upstream_area
         elif units in ['gal/day', 'gpd', 'gal d-1']:
             self._units_mult = grid_area[self._outlet_y_ind,
