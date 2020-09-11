@@ -15,8 +15,9 @@ def test_ord_to_datetime():
 
 
 def test_dtime():
-    dt = Dtime('2014-12-01-00', 'ndays', 5, None, 'ndays', 5, None, 'noleap',
-               3600.00001)
+    dt = Dtime(
+        "2014-12-01-00", "ndays", 5, None, "ndays", 5, None, "noleap", 3600.00001
+    )
     assert dt.timestamp.year == 2014
     assert dt.timestamp.month == 12
     assert dt.timestamp.day == 1

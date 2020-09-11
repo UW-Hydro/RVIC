@@ -1,29 +1,30 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 log.py
-'''
+"""
 import os
 import sys
 from time import gmtime, strftime
 import logging
 
 # -------------------------------------------------------------------- #
-LOG_NAME = 'rvic'
-FORMATTER = logging.Formatter('%(levelname)s:%(funcName)s>> %(message)s')
+LOG_NAME = "rvic"
+FORMATTER = logging.Formatter("%(levelname)s:%(funcName)s>> %(message)s")
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Fake stream file to handle stdin/stdout
 class StreamToFile(object):
-    '''
+    """
     Fake file-like stream object that redirects writes to a logger instance.
     http://www.electricmonk.nl/log/2011/08/14/redirect-stdout-and-stderr-to-a-logger-in-python/
-    '''
+    """
+
     def __init__(self, logger_name=LOG_NAME, log_level=logging.INFO):
         self.logger = logging.getLogger(logger_name)
         self.log_level = log_level
-        self.linebuf = ''
+        self.linebuf = ""
 
     def write(self, buf):
         for line in buf.rstrip().splitlines():
@@ -31,11 +32,13 @@ class StreamToFile(object):
 
     def flush(self):
         pass
+
+
 # -------------------------------------------------------------------- #
 
 
-def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
-    ''' Setup the logger '''
+def init_logger(log_dir="./", log_level="DEBUG", verbose=False):
+    """ Setup the logger """
 
     logger = logging.getLogger(LOG_NAME)
     logger.setLevel(log_level)
@@ -44,8 +47,9 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     # ---------------------------------------------------------------- #
     # create log file handler
     if log_dir:
-        log_file = os.path.join(log_dir, 'RVIC-' + strftime('%Y%m%d-%H%M%S',
-                                gmtime()) + '.log')
+        log_file = os.path.join(
+            log_dir, "RVIC-" + strftime("%Y%m%d-%H%M%S", gmtime()) + ".log"
+        )
         fh = logging.FileHandler(log_file)
         fh.setLevel(log_level)
         fh.setFormatter(FORMATTER)
@@ -71,18 +75,20 @@ def init_logger(log_dir='./', log_level='DEBUG', verbose=False):
     sys.stderr = StreamToFile(log_level=logging.ERROR)
     # ---------------------------------------------------------------- #
 
-    logger.info('-------------------- INITIALIZED RVIC LOG ------------------')
-    logger.info('LOG LEVEL: %s', log_level)
-    logger.info('Logging To Console: %s', verbose)
-    logger.info('LOG FILE: %s', log_file)
-    logger.info('----------------------------------------------------------\n')
+    logger.info("-------------------- INITIALIZED RVIC LOG ------------------")
+    logger.info("LOG LEVEL: %s", log_level)
+    logger.info("Logging To Console: %s", verbose)
+    logger.info("LOG FILE: %s", log_file)
+    logger.info("----------------------------------------------------------\n")
 
     return logger
+
+
 # -------------------------------------------------------------------- #
 
 
 def close_logger():
-    '''Close the handlers of the logger'''
+    """Close the handlers of the logger"""
     log = logging.getLogger(LOG_NAME)
     x = list(log.handlers)
     for i in x:
@@ -91,4 +97,6 @@ def close_logger():
         i.close()
         sys.stdout = sys.__stdout__
         sys.stderr = sys.__stderr__
+
+
 # -------------------------------------------------------------------- #
