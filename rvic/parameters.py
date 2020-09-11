@@ -191,7 +191,7 @@ def gen_uh_init(config):
         if 'names' in pour_points:
             pour_points.fillna(inplace=True, value='unknown')
             for i, name in enumerate(pour_points.names):
-                pour_points.ix[i, 'names'] = strip_invalid_char(name)
+                pour_points.loc[i, 'names'] = strip_invalid_char(name)
 
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna()
