@@ -129,7 +129,7 @@ setup(
         "matplotlib >= 1.3.1",
         "pandas >= 0.15.1",
     ],
-    tests_require=["pytest >= 2.5.2"],
+    extras_require={"test": ["pytest >= 2.5.2"]},
     url="https://github.com/UW-Hydro/RVIC",
     packages=["rvic", "rvic.core"],
     py_modules=["rvic.parameters", "rvic.convolution", "rvic.convert"],
