@@ -13,5 +13,12 @@ The RVIC streamflow routing model is an adapted version of the model the model t
 ### Usage
 See the [RVIC Documentation Site](http://rvic.readthedocs.org/en/latest/).
 
+### Development
+To install, run:
+```
+make
+source /tmp/rvic-daccs-venv/bin/activate
+```
+
 ### License
 RVIC is available under the GNU GPL v3.0 License.  See [LICENSE.txt](https://raw.githubusercontent.com/UW-Hydro/RVIC/master/LICENSE.txt) for more information.
