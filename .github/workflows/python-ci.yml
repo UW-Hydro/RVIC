@@ -1,0 +1,29 @@
+name: Python CI
+
+on: push
+
+jobs:
+  test:
+
+    runs-on: ubuntu-18.04
+    strategy:
+      matrix:
+        python-version: [3.4, 3.5, 3.6]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies
+      run: |
+        make install-ci
+    - name: Test with pytest (full)
+      if: github.ref == 'refs/heads/master'
+      run: |
+        py.test -m "not local" -v
+    - name: Test with pytest (fast)
+      if: github.ref != 'refs/heads/master'
+      run: |
+        py.test -m "not local and not slow" -v

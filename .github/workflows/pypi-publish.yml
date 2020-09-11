@@ -1,0 +1,29 @@
+name: Pypi Publishing
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  publish:
+
+    runs-on: ubuntu-18.04
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.6'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install setuptools wheel twine sphinx
+    - name: Build and publish
+      env:
+        TWINE_USERNAME: ${{ secrets.pcic_at_pypi_username }}
+        TWINE_PASSWORD: ${{ secrets.pcic_at_pypi_password }}
+      run: |
+        python setup.py sdist bdist_wheel
+        twine upload --repository-url https://pypi.pacificclimate.org/ --skip-existing -u $TWINE_USERNAME -p $TWINE_PASSWORD dist/*
