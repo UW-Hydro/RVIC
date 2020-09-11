@@ -5,7 +5,8 @@ Notes
 build
 dist
 notebooks
-rvic.egg-info
+rvic_daccs.egg-info
+venv
 
 
 # Compiled source #
