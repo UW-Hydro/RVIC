@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-'''
+"""
 This is the convolution routine developed in preparation in coupling RVIC to
 CESM.  Eventually, this will be the offline RVIC model.
 
@@ -13,7 +13,7 @@ Changed input file type to standard RVIC parameter file
 Made necessary changes to run routines to accept the new parameter file
 structure.
 Major updates to the...
-'''
+"""
 import os
 from collections import OrderedDict
 from logging import getLogger
@@ -32,7 +32,7 @@ from .core.pycompat import iteritems
 # -------------------------------------------------------------------- #
 # Top Level Driver
 def convolution(config):
-    '''
+    """
     Top level driver for RVIC convolution model.
 
     Parameters
@@ -40,18 +40,20 @@ def convolution(config):
     config : str or dict.
         Path to RVIC convolution configuration file or dictionary of
         configuration options.
-    '''
+    """
 
     # ---------------------------------------------------------------- #
     # Initilize
-    hist_tapes, data_model, rout_var, \
-        time_handle, directories = convolution_init(config)
+    hist_tapes, data_model, rout_var, time_handle, directories = convolution_init(
+        config
+    )
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Run
-    time_handle, hist_tapes = convolution_run(hist_tapes, data_model, rout_var,
-                                              time_handle, directories)
+    time_handle, hist_tapes = convolution_run(
+        hist_tapes, data_model, rout_var, time_handle, directories
+    )
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -59,13 +61,15 @@ def convolution(config):
     convolution_final(time_handle, hist_tapes)
     # ---------------------------------------------------------------- #
     return
+
+
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Initialize RVIC
 def convolution_init(config):
-    '''
+    """
     Initialize the RVIC convolution routine
 
     This function performs these main tasks:
@@ -101,7 +105,7 @@ def convolution_init(config):
         Dictionary of directories created by this function.
     config_dict : dict
         Dictionary of values from the configuration file.
-    '''
+    """
 
     # ---------------------------------------------------------------- #
     # Read Configuration files
@@ -113,47 +117,52 @@ def convolution_init(config):
 
     # ---------------------------------------------------------------- #
     # Setup Directory Structure
-    directories = make_directories(config_dict['OPTIONS']['CASE_DIR'],
-                                   ['hist', 'logs', 'restarts'])
+    directories = make_directories(
+        config_dict["OPTIONS"]["CASE_DIR"], ["hist", "logs", "restarts"]
+    )
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # unpack options
-    options = config_dict['OPTIONS']
+    options = config_dict["OPTIONS"]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Settup Logging
-    log = init_logger(directories['logs'], options['LOG_LEVEL'],
-                      options['VERBOSE'])
+    log = init_logger(directories["logs"], options["LOG_LEVEL"], options["VERBOSE"])
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Initialize the data model
-    forcings = config_dict['INPUT_FORCINGS']
-    data_model = DataModel(forcings['DATL_PATH'],
-                           forcings['DATL_FILE'],
-                           forcings['TIME_VAR'],
-                           forcings['LATITUDE_VAR'],
-                           forcings['DATL_LIQ_FLDS'],
-                           forcings['START'],
-                           forcings['END'])
+    forcings = config_dict["INPUT_FORCINGS"]
+    data_model = DataModel(
+        forcings["DATL_PATH"],
+        forcings["DATL_FILE"],
+        forcings["TIME_VAR"],
+        forcings["LATITUDE_VAR"],
+        forcings["DATL_LIQ_FLDS"],
+        forcings["START"],
+        forcings["END"],
+    )
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read Domain File
-    domain = config_dict['DOMAIN']
+    domain = config_dict["DOMAIN"]
     dom_data = read_domain(domain, lat0_is_min=data_model.lat0_is_min)[0]
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Read the Parameter File
-    log.info('reading parameter file %s',
-             config_dict['PARAM_FILE']['FILE_NAME'])
+    log.info("reading parameter file %s", config_dict["PARAM_FILE"]["FILE_NAME"])
 
-    rout_var = Rvar(config_dict['PARAM_FILE']['FILE_NAME'], options['CASEID'],
-                    options['CALENDAR'], directories['restarts'],
-                    options['REST_NCFORM'])
+    rout_var = Rvar(
+        config_dict["PARAM_FILE"]["FILE_NAME"],
+        options["CASEID"],
+        options["CALENDAR"],
+        directories["restarts"],
+        options["REST_NCFORM"],
+    )
 
     rout_var.set_domain(dom_data, domain, data_model.lat0_is_min)
     # ---------------------------------------------------------------- #
@@ -162,27 +171,35 @@ def convolution_init(config):
     # Determine the restart options
     restart_file = None
 
-    if options['RUN_TYPE'] == 'restart':
-        restart = read_config(os.path.join(directories['restarts'],
-                                           'rpointer'))
-        timestr = restart['RESTART']['TIMESTAMP']
-        restart_file = restart['RESTART']['FILE_NAME']
-    elif options['RUN_TYPE'] == 'startup':
-        timestr = options['RUN_STARTDATE']
-        restart_file = config_dict['INITIAL_STATE']['FILE_NAME']
-    elif options['RUN_TYPE'] == 'drystart':
-        timestr = options['RUN_STARTDATE']
+    if options["RUN_TYPE"] == "restart":
+        restart = read_config(os.path.join(directories["restarts"], "rpointer"))
+        timestr = restart["RESTART"]["TIMESTAMP"]
+        restart_file = restart["RESTART"]["FILE_NAME"]
+    elif options["RUN_TYPE"] == "startup":
+        timestr = options["RUN_STARTDATE"]
+        restart_file = config_dict["INITIAL_STATE"]["FILE_NAME"]
+    elif options["RUN_TYPE"] == "drystart":
+        timestr = options["RUN_STARTDATE"]
     else:
-        raise ValueError('RUN_TYPE option {0} is none of these: (restart, '
-                         'startup, drystart)'.format(options['RUN_TYPE']))
+        raise ValueError(
+            "RUN_TYPE option {0} is none of these: (restart, "
+            "startup, drystart)".format(options["RUN_TYPE"])
+        )
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Setup time_handle
-    time_handle = Dtime(timestr, options['STOP_OPTION'], options['STOP_N'],
-                        options['STOP_DATE'], options['REST_OPTION'],
-                        options['REST_N'], options['REST_DATE'],
-                        options['CALENDAR'], data_model.secs_per_step)
+    time_handle = Dtime(
+        timestr,
+        options["STOP_OPTION"],
+        options["STOP_N"],
+        options["STOP_DATE"],
+        options["REST_OPTION"],
+        options["REST_N"],
+        options["REST_DATE"],
+        options["CALENDAR"],
+        data_model.secs_per_step,
+    )
     time_handle.end = data_model.end
 
     data_model.start(time_handle.timestamp, rout_var)
@@ -190,8 +207,7 @@ def convolution_init(config):
 
     # ---------------------------------------------------------------- #
     # Read initial state
-    rout_var.init_state(restart_file, options['RUN_TYPE'],
-                        time_handle.timestamp)
+    rout_var.init_state(restart_file, options["RUN_TYPE"], time_handle.timestamp)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
@@ -201,8 +217,8 @@ def convolution_init(config):
 
     # ---------------------------------------------------------------- #
     # Setup history Tape(s) and Write Initial Outputs
-    history = config_dict['HISTORY']
-    numtapes = int(history['RVICHIST_NTAPES'])
+    history = config_dict["HISTORY"]
+    numtapes = int(history["RVICHIST_NTAPES"])
     hist_tapes = OrderedDict()
 
     # make sure history file fields are all in list form
@@ -212,51 +228,55 @@ def convolution_init(config):
                 history[var] = list([value])
 
     global_atts = NcGlobals(
-        title='RVIC history file',
-        casename=options['CASEID'],
-        casestr=options['CASESTR'],
+        title="RVIC history file",
+        casename=options["CASEID"],
+        casestr=options["CASESTR"],
         RvicPourPointsFile=os.path.split(rout_var.RvicPourPointsFile)[1],
         RvicUHFile=os.path.split(rout_var.RvicUHFile)[1],
         RvicFdrFile=os.path.split(rout_var.RvicFdrFile)[1],
-        RvicDomainFile=os.path.split(domain['FILE_NAME'])[1])
+        RvicDomainFile=os.path.split(domain["FILE_NAME"])[1],
+    )
 
     for j in range(numtapes):
-        tapename = 'Tape.{0}'.format(j)
-        log.info('setting up History %s', tapename)
-        hist_tapes[tapename] = Tape(time_handle.time_ord,
-                                    options['CASEID'],
-                                    rout_var,
-                                    tape_num=j,
-                                    fincl=['streamflow'],
-                                    mfilt=history['RVICHIST_MFILT'][j],
-                                    ndens=int(history['RVICHIST_NDENS'][j]),
-                                    nhtfrq=int(history['RVICHIST_NHTFRQ'][j]),
-                                    avgflag=history['RVICHIST_AVGFLAG'][j],
-                                    units=history['RVICHIST_UNITS'][j],
-                                    file_format=history['RVICHIST_NCFORM'][j],
-                                    outtype=history['RVICHIST_OUTTYPE'][j],
-                                    grid_area=dom_data[domain['AREA_VAR']],
-                                    grid_lons=dom_data['cord_lons'],
-                                    grid_lats=dom_data['cord_lats'],
-                                    out_dir=directories['hist'],
-                                    calendar=time_handle.calendar,
-                                    glob_ats=global_atts)
+        tapename = "Tape.{0}".format(j)
+        log.info("setting up History %s", tapename)
+        hist_tapes[tapename] = Tape(
+            time_handle.time_ord,
+            options["CASEID"],
+            rout_var,
+            tape_num=j,
+            fincl=["streamflow"],
+            mfilt=history["RVICHIST_MFILT"][j],
+            ndens=int(history["RVICHIST_NDENS"][j]),
+            nhtfrq=int(history["RVICHIST_NHTFRQ"][j]),
+            avgflag=history["RVICHIST_AVGFLAG"][j],
+            units=history["RVICHIST_UNITS"][j],
+            file_format=history["RVICHIST_NCFORM"][j],
+            outtype=history["RVICHIST_OUTTYPE"][j],
+            grid_area=dom_data[domain["AREA_VAR"]],
+            grid_lons=dom_data["cord_lons"],
+            grid_lats=dom_data["cord_lats"],
+            out_dir=directories["hist"],
+            calendar=time_handle.calendar,
+            glob_ats=global_atts,
+        )
 
     # loop over again and print summary
     for tapename, tape in iteritems(hist_tapes):
-        log.info('==========%s==========', tapename)
+        log.info("==========%s==========", tapename)
         log.info(tape)
         tape.write_initial()
     # ---------------------------------------------------------------- #
 
     return hist_tapes, data_model, rout_var, time_handle, directories
+
+
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
-def convolution_run(hist_tapes, data_model, rout_var, time_handle,
-                    directories):
-    '''
+def convolution_run(hist_tapes, data_model, rout_var, time_handle, directories):
+    """
     Main run loop for RVIC model.
 
     Parameters
@@ -278,7 +298,7 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
         Dtime instance containing information about run length, time
     hist_tapes : OrderedDict
         Ordered dictionary of History objects
-    '''
+    """
 
     data2tape = {}
     aggrunin = {}
@@ -289,7 +309,7 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
     # ---------------------------------------------------------------- #
     # Start log
     log = getLogger(LOG_NAME)
-    log.info('Starting convolution_run')
+    log.info("Starting convolution_run")
     # ---------------------------------------------------------------- #
 
     # ------------------------------------------------------------ #
@@ -325,12 +345,12 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
 
         # ------------------------------------------------------------ #
         # Extract the Current Variables from rout_var
-        data2tape['streamflow'] = rout_var.get_rof()
-        data2tape['storage'] = rout_var.get_storage()
+        data2tape["streamflow"] = rout_var.get_rof()
+        data2tape["storage"] = rout_var.get_storage()
 
         # Update the history Tape(s)
         for tapename, tape in iteritems(hist_tapes):
-            log.debug('Updating Tape: %s', tapename)
+            log.debug("Updating Tape: %s", tapename)
             tape.update(data2tape, time_ord)
         # ------------------------------------------------------------ #
 
@@ -341,26 +361,23 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
             history_files = []
             history_restart_files = []
             for tapename, tape in iteritems(hist_tapes):
-                log.debug('Writing Restart File for Tape: %s', tapename)
+                log.debug("Writing Restart File for Tape: %s", tapename)
                 # hist_fname, rest_fname = tape.write_restart()
                 history_files.append(tape.filename)
                 history_restart_files.append(tape.rest_filename)
 
-            restart_file = rout_var.write_restart(history_files,
-                                                  history_restart_files)
-            write_rpointer(directories['restarts'], restart_file,
-                           end_timestamp)
+            restart_file = rout_var.write_restart(history_files, history_restart_files)
+            write_rpointer(directories["restarts"], restart_file, end_timestamp)
 
         # ------------------------------------------------------------ #
 
         # ------------------------------------------------------------ #
         # advance a single timestep
         if not stop_flag:
-            timestamp, time_ord, stop_flag, \
-                rest_flag = time_handle.advance_timestep()
+            timestamp, time_ord, stop_flag, rest_flag = time_handle.advance_timestep()
             # check that we're still inline with convolution
             if end_timestamp != timestamp:
-                raise ValueError('timestamps do not match after convolution')
+                raise ValueError("timestamps do not match after convolution")
         else:
             break
         # ------------------------------------------------------------ #
@@ -368,17 +385,19 @@ def convolution_run(hist_tapes, data_model, rout_var, time_handle,
     # ---------------------------------------------------------------- #
     # Make sure we write out the last history file
     for tapename, tape in iteritems(hist_tapes):
-        log.debug('Closing Tape: %s', tapename)
+        log.debug("Closing Tape: %s", tapename)
         tape.finish()
     # ---------------------------------------------------------------- #
     return time_handle, hist_tapes
+
+
 # -------------------------------------------------------------------- #
 
 
 # -------------------------------------------------------------------- #
 # Final
 def convolution_final(time_handle, hist_tapes):
-    '''Finalize RVIC Convolution
+    """Finalize RVIC Convolution
 
     Parameters
     ----------
@@ -386,31 +405,33 @@ def convolution_final(time_handle, hist_tapes):
         Dtime instance containing information about run length, time
     hist_tapes : OrderedDict
         Ordered dictionary of History objects
-    '''
+    """
     # ---------------------------------------------------------------- #
     # Start log
     log = getLogger(LOG_NAME)
-    log.info('Finalizing RVIC')
+    log.info("Finalizing RVIC")
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # Write final log info
-    log.info('-----------------------------------------------------------')
-    log.info('Done with streamflow convolution')
-    log.info('Processed %i timesteps', time_handle.timesteps)
+    log.info("-----------------------------------------------------------")
+    log.info("Done with streamflow convolution")
+    log.info("Processed %i timesteps", time_handle.timesteps)
     for name, tape in iteritems(hist_tapes):
-        log.info('Wrote %i history files from %s', tape.files_count, name)
-    log.info('-----------------------------------------------------------')
+        log.info("Wrote %i history files from %s", tape.files_count, name)
+    log.info("-----------------------------------------------------------")
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
     # tar the inputs directory / log file
     log_tar = tar_inputs(log.filename)
 
-    log.info('Done with rvic convolution.')
-    log.info('Location of Log: %s', log_tar)
+    log.info("Done with rvic convolution.")
+    log.info("Location of Log: %s", log_tar)
 
     close_logger()
     # ---------------------------------------------------------------- #
     return
+
+
 # -------------------------------------------------------------------- #

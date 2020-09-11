@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-'''module to support compatability between Python 2 and Python 3 and to handle
-default and optional packages'''
+"""module to support compatability between Python 2 and Python 3 and to handle
+default and optional packages"""
 
 import sys
 
@@ -16,6 +16,7 @@ if py3:
 
     def itervalues(d):
         return iter(d.values())
+
     pyrange = range
     pyzip = zip
     from configparser import SafeConfigParser
@@ -30,6 +31,7 @@ else:
 
     def itervalues(d):
         return d.itervalues()
+
     pyrange = xrange
     from itertools import izip as pyzip
     from ConfigParser import SafeConfigParser
