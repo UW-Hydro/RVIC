@@ -1,0 +1,2 @@
+1 station 0 0 0
+./tests/data/samples/sample.uh_s2

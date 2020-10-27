@@ -21,7 +21,6 @@ venv
 
 # Configuration Files #
 #######################
-*cfg
 samples/cases/*
 
 # Packages #
