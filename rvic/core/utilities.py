@@ -29,11 +29,11 @@ def latlon2yx(plats, plons, glats, glons):
 
     # use astronomical conventions for longitude
     # (i.e. negative longitudes to the east of 0)
-    if (glons.max() > 180):
+    if (np.max(glons) > 180):
         posinds = np.nonzero(glons > 180)
         glons[posinds] -= 360
         log.info('adjusted grid lon to astronomical conventions')
-    if (plons.max() > 180):
+    if (np.max(plons) > 180):
         posinds = np.nonzero(plons > 180)
         plons[posinds] -= 360
         log.info('adjusted point lon to astronomical conventions')
