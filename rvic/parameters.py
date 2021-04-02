@@ -193,8 +193,6 @@ def gen_uh_init(config):
             for i, name in enumerate(pour_points.names):
                 pour_points.loc[pour_points['names']==name, 'names'] = strip_invalid_char(name)
 
-            log.info(pour_points)
-
         pour_points.drop_duplicates(inplace=True)
         pour_points.dropna()
     except Exception as e:
