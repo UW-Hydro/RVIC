@@ -670,7 +670,7 @@ class Tape(object):
         outlet_x_ind[:] = self._outlet_x_ind
         outlet_y_ind[:] = self._outlet_y_ind
         outlet_decomp_ind[:] = self._outlet_decomp_ind
-        onm[:, :] = char_names
+        onm[:, :] = np.squeeze(char_names)
 
         for key, val in iteritems(share.outlet_lon):
             if val:
