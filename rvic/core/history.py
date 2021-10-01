@@ -90,8 +90,9 @@ class Tape(object):
         # ------------------------------------------------------------ #
         # Get Grid Lons/Lats if outtype is grid
         if outtype.lower() == 'grid':
+            check_types = (np.ndarray,np.ma.MaskedArray)
             self._out_data_shape = self._grid_shape
-            if type(grid_lons) == np.ndarray and type(grid_lats) == np.ndarray:
+            if isinstance(grid_lons,check_types) and isinstance(grid_lats,check_types):
                 self._grid_lons = grid_lons
                 self._grid_lats = grid_lats
             else:
@@ -669,7 +670,7 @@ class Tape(object):
         outlet_x_ind[:] = self._outlet_x_ind
         outlet_y_ind[:] = self._outlet_y_ind
         outlet_decomp_ind[:] = self._outlet_decomp_ind
-        onm[:, :] = char_names
+        onm[:, :] = np.squeeze(char_names)
 
         for key, val in iteritems(share.outlet_lon):
             if val:
