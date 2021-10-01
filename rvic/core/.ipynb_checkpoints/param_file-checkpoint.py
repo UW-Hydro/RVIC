@@ -327,7 +327,8 @@ def subset(outlets, subset_length=None):
 
         outlet.offset = np.empty(outlet.unit_hydrograph.shape[1],
                                  dtype=np.int32)
-        out_uh = np.zeros((int(subset_length), int(outlet.unit_hydrograph.shape[1])))
+        out_uh = np.zeros((subset_length, outlet.unit_hydrograph.shape[1]),
+                          dtype=np.float64)
 
         d_left = -1 * subset_length / 2
         d_right = subset_length / 2
@@ -365,8 +366,8 @@ def subset(outlets, subset_length=None):
             outlet.offset[j] = left
 
             # clip and normalize
-            tot = outlet.unit_hydrograph[int(left):int(right),int(j)].sum()
-            out_uh[:, j] = outlet.unit_hydrograph[int(left):int(right), int(j)] / tot
+            tot = outlet.unit_hydrograph[left:right, j].sum()
+            out_uh[:, j] = outlet.unit_hydrograph[left:right, j] / tot
 
         outlet.unit_hydrograph = out_uh
 
@@ -400,16 +401,16 @@ def group(outlets, subset_length):
 
     # ---------------------------------------------------------------- #
     # Source specific values
-    gd['unit_hydrograph'] = np.empty((int(subset_length), int(n_sources)),
+    gd['unit_hydrograph'] = np.empty((subset_length, n_sources),
                                      dtype=np.float64)
-    gd['frac_sources'] = np.empty(int(n_sources), dtype=np.float64)
-    gd['source_lon'] = np.empty(int(n_sources), dtype=np.float64)
-    gd['source_lat'] = np.empty(int(n_sources), dtype=np.float64)
-    gd['source_x_ind'] = np.empty(int(n_sources), dtype=np.int32)
-    gd['source_y_ind'] = np.empty(int(n_sources), dtype=np.int32)
-    gd['source_decomp_ind'] = np.empty(int(n_sources), dtype=np.int32)
-    gd['source_time_offset'] = np.empty(int(n_sources), dtype=np.int32)
-    gd['source2outlet_ind'] = np.empty(int(n_sources), dtype=np.int32)
+    gd['frac_sources'] = np.empty(n_sources, dtype=np.float64)
+    gd['source_lon'] = np.empty(n_sources, dtype=np.float64)
+    gd['source_lat'] = np.empty(n_sources, dtype=np.float64)
+    gd['source_x_ind'] = np.empty(n_sources, dtype=np.int32)
+    gd['source_y_ind'] = np.empty(n_sources, dtype=np.int32)
+    gd['source_decomp_ind'] = np.empty(n_sources, dtype=np.int32)
+    gd['source_time_offset'] = np.empty(n_sources, dtype=np.int32)
+    gd['source2outlet_ind'] = np.empty(n_sources, dtype=np.int32)
     # ---------------------------------------------------------------- #
 
     # ---------------------------------------------------------------- #
